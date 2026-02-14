@@ -1,0 +1,74 @@
+#!/bin/bash
+# Type checking with Pyright and TSC
+
+# Get list of staged Python files (exclude whisper-writer - external GPL code with own venv)
+staged_python_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' | grep -v 'whisper-writer/')
+
+# Get list of staged TypeScript files
+staged_ts_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$')
+
+# Check Python files with pyright
+if [ ! -z "$staged_python_files" ]; then
+    echo "Checking Python files:"
+    echo "$staged_python_files" | sed 's/^/  - /'
+    echo "$staged_python_files" | xargs npx pyright
+    python_result=$?
+else
+    echo "No Python files staged"
+    python_result=0
+fi
+
+# Check TypeScript files with tsc
+if [ ! -z "$staged_ts_files" ]; then
+    echo "Checking TypeScript files:"
+    echo "$staged_ts_files" | sed 's/^/  - /'
+    ts_result=0
+
+    # Check VS Code extension
+    if echo "$staged_ts_files" | grep -q "vscode-vdiff-extension"; then
+        echo "  Checking vscode-vdiff-extension..."
+        cd backup_system/vscode-vdiff-extension && npx -p typescript tsc --noEmit
+        ts_result=$?
+        cd ../..
+    fi
+
+    # Check aipass-help
+    if echo "$staged_ts_files" | grep -q "aipass-help"; then
+        echo "  Checking aipass-help..."
+        cd aipass-help && npx -p typescript tsc --noEmit
+        help_result=$?
+        cd ..
+        if [ $help_result -ne 0 ]; then
+            ts_result=$help_result
+        fi
+    fi
+
+    # Check mcp-servers
+    if echo "$staged_ts_files" | grep -q "mcp-servers"; then
+        echo "  Checking mcp-servers..."
+        for dir in mcp-servers/*/; do
+            if echo "$staged_ts_files" | grep -q "$dir"; then
+                echo "    Checking $dir..."
+                cd "$dir" && npx -p typescript tsc --noEmit
+                mcp_result=$?
+                cd ../..
+                if [ $mcp_result -ne 0 ]; then
+                    ts_result=$mcp_result
+                fi
+            fi
+        done
+    fi
+else
+    echo "No TypeScript files staged"
+    ts_result=0
+fi
+
+# Check if either failed
+if [ $python_result -ne 0 ] || [ $ts_result -ne 0 ]; then
+    echo ""
+    echo "❌ Type check failed!"
+    exit 1
+fi
+
+echo "✅ Type check passed"
+exit 0

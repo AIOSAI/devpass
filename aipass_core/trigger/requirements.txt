@@ -1,0 +1,29 @@
+# =============================================
+# META DATA HEADER
+# Name: requirements.txt - TRIGGER Dependencies
+# Date: 2025-11-30
+# Version: 0.1.0
+# Category: TRIGGER
+#
+# CHANGELOG:
+#   - v0.1.0 (2025-11-30): Initial template
+#     * Python 3.12+ required
+#     * Dependencies listed as-needed
+# =============================================
+
+# AIPass TRIGGER - Python Dependencies
+# Python >=3.12 required
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For development dependencies:
+#   pip install -e ".[dev]"
+
+# Core Dependencies
+# Add your dependencies here with exact versions
+# Example: requests==2.31.0
+
+# Development Dependencies (optional, can also use pyproject.toml [project.optional-dependencies])
+# pytest>=7.4.3
+# pytest-cov>=4.1.0

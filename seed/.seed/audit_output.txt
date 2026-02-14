@@ -1,0 +1,1265 @@
+
+╭───────────────────────────────╮
+│ AIPASS BRANCH STANDARDS AUDIT │
+╰───────────────────────────────╯
+
+
+Discovered 18 branches to audit...
+Auditing .VSCODE...Auditing AIPASS...Auditing AIPASS_CORE...Auditing AI_MAIL...Auditing API...Auditing BACKUP_SYSTEM...Auditing CLI...Auditing CORTEX...Auditing DEVPULSE...Auditing DRONE...Auditing FLOW...Auditing GIT_REPO...Auditing MCP_SERVERS...Auditing MEMORY_BANK...Auditing PERMISSIONS...Auditing PRAX...Auditing PROJECTS...Auditing SEED...                                                  
+.VSCODE (4 files checked)
+  Imports         100% ✅    Architecture     97% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   87% ⚠️
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          97% ✅
+    └─ Architecture violations (1 missing):
+       Missing files (1):
+         ✗ apps/.vscode.py
+  ✓ All 4 files pass CLI standard
+
+  MODULES VIOLATIONS (1 files):
+    ✗ /home/aipass/.vscode/apps/modules/perf_monitor.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+display_stats (line 122)
+
+  ERROR_HANDLING VIOLATIONS (1 files):
+    ✗ /home/aipass/.vscode/apps/modules/perf_monitor.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+  ✓ No type errors
+
+AIPASS (15 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              93% ✅
+  Handlers        100% ✅    Modules          93% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling  100% ✅
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          98% ✅
+
+  CLI VIOLATIONS (1 files):
+    ✗ /home/aipass/apps/handlers/json/json_handler.py (score: 0%)
+      • Handler contains console.print() on lines [134] (violates separation)
+
+  MODULES VIOLATIONS (1 files):
+    ✗ /home/aipass/apps/modules/dashboard.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+update_section (line 104)
+  ✓ No type errors
+
+AIPASS_CORE (2 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   50% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          95% ✅
+  ✓ All 2 files pass CLI standard
+
+  ERROR_HANDLING VIOLATIONS (1 files):
+    ✗ /home/aipass/aipass_core/apps/handlers/json/json_handler.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [70, 73, 140] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+AI_MAIL (29 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              49% ❌
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing           0% ❌    Error_Handling   31% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          80% ⚠️
+    └─ Testing issues:
+       • Silent failure detected (except: pass) at line 37 - errors should 
+log/return
+
+  CLI VIOLATIONS (14 files):
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/memory.py 
+(score: 0%)
+      • Handler imports CLI services on lines [37] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/errors.py 
+(score: 0%)
+      • Handler imports CLI services on lines [40] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/status.py 
+(score: 0%)
+      • Handler imports CLI services on lines [39] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/format.py (score: 0%)
+      • Handler imports CLI services on lines [36] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/create.py (score: 0%)
+      • Handler imports CLI services on lines [38] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/inbox_ops.py (score: 
+0%)
+      • Handler imports CLI services on lines [37] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/delivery.py (score: 
+0%)
+      • Handler imports CLI services on lines [44] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/inbox_cleanup.py 
+(score: 0%)
+      • Handler imports CLI services on lines [42] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/read.py (score: 
+0%)
+      • Handler imports CLI services on lines [44] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/update.py (score: 
+0%)
+      • Handler imports CLI services on lines [45] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/validate.py 
+(score: 0%)
+      • Handler imports CLI services on lines [43] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/format.py 
+(score: 0%)
+      • Handler imports CLI services on lines [48] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/send.py 
+(score: 0%)
+      • Handler imports CLI services on lines [48] (handlers should not display)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/update.py 
+(score: 0%)
+      • Handler imports CLI services on lines [48] (handlers should not display)
+
+  MODULES VIOLATIONS (4 files):
+    ✗ /home/aipass/aipass_core/ai_mail/apps/modules/branch_ping.py (score: 80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+handle_ping (line 54), handle_status (line 87), handle_registry (line 110), 
+handle_thresholds (line 135)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/modules/error_monitor.py (score: 
+80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+process_error (line 63), handle_watch (line 134), handle_status (line 167), 
+handle_clear (line 183)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/modules/email.py (score: 80%)
+      • Module has 7 implementation function(s) that belong in handlers: 
+handle_send (line 167), send_email_interactive (line 184), send_email_direct 
+(line 260), handle_inbox (line 340), handle_read (line 382) +2 more
+    ✗ /home/aipass/aipass_core/ai_mail/apps/modules/local_memory_monitor.py 
+(score: 80%)
+      • Module has 2 implementation function(s) that belong in handlers: 
+check_registry_and_send_emails (line 54), show_status (line 93)
+
+  ERROR_HANDLING VIOLATIONS (21 files):
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/json/json_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [21] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [49, 52, 119] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/log_watcher.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [86] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87] - handlers must NOT log (module 
+logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/memory.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [36] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [72, 79, 185] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/errors.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [160] - handlers must NOT log (module 
+logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/monitoring/status.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/format.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [35] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/create.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [37] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [86, 101, 108] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/inbox_ops.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [36] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [54, 63, 67] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/delivery.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [62, 112, 117] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/email/inbox_cleanup.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [115, 119, 180] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/persistence/json_ops.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [67, 70, 137] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/read.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [67, 91, 95] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/update.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [104, 108, 196] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/registry/validate.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [77, 87, 91] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/users/load.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [40] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [83, 88, 93] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/users/user.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [33] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [62, 68, 93] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/users/config_generator.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [132, 143, 151] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/users/branch_detection.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [71, 76, 79] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/format.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [217, 220, 240] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/send.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87, 118, 135] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/ai_mail/apps/handlers/notifications/update.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87, 96, 142] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+API (15 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              31% ❌
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   26% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          86% ⚠️
+
+  CLI VIOLATIONS (10 files):
+    ✗ /home/aipass/aipass_core/api/apps/handlers/config/provider.py (score: 0%)
+      • Handler contains console.print() on lines [231, 236, 353] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/auth/keys.py (score: 0%)
+      • Handler imports CLI services on lines [50] (handlers should not display)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/auth/env.py (score: 0%)
+      • Handler contains console.print() on lines [183, 219, 224] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/tracking.py (score: 0%)
+      • Handler imports CLI services on lines [44] (handlers should not display)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/cleanup.py (score: 0%)
+      • Handler contains console.print() on lines [115, 178] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/aggregation.py (score: 
+0%)
+      • Handler imports CLI services on lines [42] (handlers should not display)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/caller.py (score: 
+0%)
+      • Handler imports CLI services on lines [43] (handlers should not display)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/client.py (score: 
+0%)
+      • Handler contains console.print() on lines [109, 114, 131] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/models.py (score: 
+0%)
+      • Handler contains console.print() on lines [87, 102, 139] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/provision.py (score:
+0%)
+      • Handler contains console.print() on lines [175, 180, 214] (violates 
+separation)
+
+  MODULES VIOLATIONS (3 files):
+    ✗ /home/aipass/aipass_core/api/apps/modules/api_key.py (score: 80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+get_key_workflow (line 94), validate_workflow (line 111), 
+list_providers_workflow (line 134), init_workflow (line 144)
+    ✗ /home/aipass/aipass_core/api/apps/modules/usage_tracker.py (score: 80%)
+      • Module has 5 implementation function(s) that belong in handlers: 
+track_workflow (line 165), stats_workflow (line 174), session_workflow (line 
+190), caller_usage_workflow (line 206), cleanup_workflow (line 228)
+    ✗ /home/aipass/aipass_core/api/apps/modules/openrouter_client.py (score: 
+80%)
+      • Module has 5 implementation function(s) that belong in handlers: 
+test_workflow (line 154), call_workflow (line 172), models_workflow (line 182), 
+status_workflow (line 209), get_response (line 222)
+
+  ERROR_HANDLING VIOLATIONS (11 files):
+    ✗ /home/aipass/aipass_core/api/apps/handlers/config/provider.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [40] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [124, 135, 138] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/json/json_handler.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [22] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [50, 53, 120] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/auth/keys.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [112, 118, 125] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/auth/env.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [105, 108, 111] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/tracking.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87, 96, 100] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/cleanup.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [40] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [66, 108, 114] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/usage/aggregation.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [76, 83, 91] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/caller.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [40] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [82, 86, 159] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/client.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [51] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [59, 108, 113] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/models.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [86, 94, 97] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/api/apps/handlers/openrouter/provision.py (score:
+0%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [69, 92, 174] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+BACKUP_SYSTEM (21 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              59% ❌
+  Handlers        100% ✅    Modules          90% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   35% ❌
+  Encapsulation   100% ✅    Type_Check        0% ❌
+  Overall:          82% ⚠️
+
+  CLI VIOLATIONS (8 files):
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/changelog_handler.py 
+(score: 0%)
+      • Handler contains console.print() on lines [71, 104, 121] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/backup_system/apps/handlers/json/json_handler.py 
+(score: 0%)
+      • Handler contains console.print() on lines [120, 135, 220] (violates 
+separation)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/caller_detection_resea
+rch.py (score: 0%)
+      • Handler contains print() on lines [54, 90, 143] (use logger instead)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/backup_info_handler.py
+(score: 0%)
+      • Handler contains console.print() on lines [71, 96] (violates separation)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/test_auto_detection.py
+(score: 0%)
+      • Handler contains print() on lines [49, 67, 70] (use logger instead)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_scanner.py 
+(score: 0%)
+      • Handler contains console.print() on lines [65] (violates separation)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/reporting/report_formatter.
+py (score: 0%)
+      • Handler contains console.print() on lines [85, 87, 90] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/backup_system/apps/handlers/utils/system_utils.py
+(score: 0%)
+      • Handler imports CLI services on lines [62] (handlers should not display)
+
+  MODULES VIOLATIONS (1 files):
+    ✗ /home/aipass/aipass_core/backup_system/apps/modules/integrations.py 
+(score: 80%)
+      • Module has 3 implementation function(s) that belong in handlers: 
+sync_to_drive (line 138), set_backup_readonly (line 247), show_help (line 325)
+
+  ERROR_HANDLING VIOLATIONS (15 files):
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/backup_metadata_builde
+r.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [107] - handlers must NOT log (module 
+logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/changelog_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [72, 101, 105] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/backup_system/apps/handlers/json/json_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [84, 87, 363] - handlers must NOT log 
+(module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/caller_detection_resea
+rch.py (score: 50%)
+      • Handler has logger calls on lines [314] - handlers must NOT log (module 
+logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/backup_info_handler.py
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [46] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [72, 97, 105] - handlers must NOT log 
+(module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/json/statistics_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [116, 123] - handlers must NOT log 
+(module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_scanner.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [40] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [100, 109] - handlers must NOT log 
+(module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_operations.
+py (score: 0%)
+      • Handler MUST NOT import Prax on lines [64] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [137, 143, 149] - handlers must NOT 
+log (module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_cleanup.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/operations/path_builder.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [91] - handlers must NOT log (module 
+logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/reporting/report_formatter.
+py (score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [183] - handlers must NOT log (module 
+logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/models/backup_models.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/backup_system/apps/handlers/utils/system_utils.py
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [61] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [136] - handlers must NOT log (module 
+logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/diff/vscode_integration.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [172, 228, 236] - handlers must NOT 
+log (module logs for them)
+    ✗ 
+/home/aipass/aipass_core/backup_system/apps/handlers/diff/version_manager.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [154] - handlers must NOT log (module 
+logs for them)
+
+  TYPE ERRORS (1 errors):
+    ✗ /home/aipass/aipass_core/backup_system/apps/modules/integrations.py (1 
+errors)
+      L75: Import "google_drive_sync" could not be resolved
+
+CLI (4 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   50% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          94% ✅
+  ✓ All 4 files pass CLI standard
+
+  MODULES VIOLATIONS (2 files):
+    ✗ /home/aipass/aipass_core/cli/apps/modules/templates.py (score: 80%)
+      • Module has 3 implementation function(s) that belong in handlers: 
+run_demo (line 151), operation_start (line 185), operation_complete (line 204)
+    ✗ /home/aipass/aipass_core/cli/apps/modules/display.py (score: 80%)
+      • Module has 6 implementation function(s) that belong in handlers: 
+run_demo (line 242), header (line 278), success (line 297), error (line 313), 
+warning (line 329) +1 more
+
+  ERROR_HANDLING VIOLATIONS (2 files):
+    ✗ /home/aipass/aipass_core/cli/apps/modules/templates.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/cli/apps/modules/display.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module has try/except but no logger.error - should log errors
+  ✓ No type errors
+
+CORTEX (19 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              64% ❌
+  Handlers        100% ✅    Modules          68% ❌
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   68% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          91% ✅
+
+  CLI VIOLATIONS (7 files):
+    ✗ /home/aipass/aipass_core/cortex/apps/run_tests.py (score: 33%)
+      • Has output but missing CLI service imports (import from 
+cli.apps.modules)
+      • Found 1 print() statements in run_tests.py (use console.print() instead)
+on lines [50]
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/json/ops.py (score: 0%)
+      • Handler contains console.print() on lines [643, 650, 655] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/reconcile.py (score: 
+0%)
+      • Handler imports CLI services on lines [57] (handlers should not display)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/file_ops.py (score: 
+0%)
+      • Handler contains console.print() on lines [728, 739, 746] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/change_detection.py 
+(score: 0%)
+      • Handler contains console.print() on lines [148, 149, 150] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/ignore.py (score: 
+0%)
+      • Handler contains console.print() on lines [71] (violates separation)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/decorators.py 
+(score: 0%)
+      • Handler contains console.print() on lines [132, 141, 143] (violates 
+separation)
+
+  MODULES VIOLATIONS (5 files):
+    ✗ 
+/home/aipass/aipass_core/cortex/apps/modules/regenerate_template_registry.py 
+(score: 60%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+calculate_file_hash (line 45), load_existing_registry (line 75), 
+scan_template_directory (line 91), regenerate_registry (line 231)
+    ✗ /home/aipass/aipass_core/cortex/apps/modules/update_branch.py (score: 60%)
+      • Module has 2 implementation function(s) that belong in handlers: 
+update_branch (line 191), update_all_branches (line 707)
+    ✗ /home/aipass/aipass_core/cortex/apps/modules/sync_registry.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+sync_registry (line 45)
+    ✗ /home/aipass/aipass_core/cortex/apps/modules/create_branch.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+create_branch (line 164)
+    ✗ /home/aipass/aipass_core/cortex/apps/modules/delete_branch.py (score: 60%)
+      • Module has 2 implementation function(s) that belong in handlers: 
+backup_branch (line 84), delete_branch (line 114)
+
+  ERROR_HANDLING VIOLATIONS (11 files):
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/json/ops.py (score: 50%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/reconcile.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [60] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/registry.py (score: 
+50%)
+      • Handler has logger calls on lines [86, 125, 162] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/placeholders.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/file_ops.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/change_detection.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/branch/metadata.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/ignore.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [39] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [114, 134] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/decorators.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [41] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/sync_ops.py (score:
+50%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/cortex/apps/handlers/registry/meta_ops.py (score:
+50%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+  ✓ No type errors
+
+DEVPULSE (6 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              95% ✅
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   50% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          93% ✅
+  ✓ All 6 files pass CLI standard
+
+  MODULES VIOLATIONS (1 files):
+    ✗ /home/aipass/aipass_core/devpulse/apps/modules/dev_tracking.py (score: 
+80%)
+      • Module has 4 implementation function(s) that belong in handlers: cmd_add
+(line 94), cmd_status (line 151), cmd_sections (line 190), show_help (line 238)
+
+  ERROR_HANDLING VIOLATIONS (3 files):
+    ✗ /home/aipass/aipass_core/devpulse/apps/handlers/json/json_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [21] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [49, 52, 119] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/devpulse/apps/handlers/dev_local/ops.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [35] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [53, 86, 105] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/devpulse/apps/handlers/template/ops.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [32] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [55, 74, 78] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+DRONE (36 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules          95% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   44% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          94% ✅
+  ✓ All 36 files pass CLI standard
+
+  MODULES VIOLATIONS (2 files):
+    ✗ /home/aipass/aipass_core/drone/apps/modules/loader.py (score: 80%)
+      • Module has 7 implementation function(s) that belong in handlers: 
+load_config (line 102), update_data_file (line 110), log_operation_local (line 
+123), build_command_tree (line 140), get_command_tree (line 224) +2 more
+    ✗ /home/aipass/aipass_core/drone/apps/modules/run.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+resolve_module_path (line 56)
+
+  ERROR_HANDLING VIOLATIONS (21 files):
+    ✗ /home/aipass/aipass_core/drone/apps/modules/routing.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/drone/apps/modules/branch_registry.py (score: 
+50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/drone/apps/modules/paths.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/json/drone_json.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [48] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [71, 110, 113] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/json/json_handler.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [42] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [70, 73, 140] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/discovery/help_display.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [61] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [121, 159, 162] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/discovery/command_parsing.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [106, 135, 157] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/discovery/module_scanning.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [46] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [103, 153, 166] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/discovery/activation.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [121, 266, 282] - handlers must NOT 
+log (module logs for them)
+    ✗ 
+/home/aipass/aipass_core/drone/apps/handlers/discovery/system_operations.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [45] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [162, 258, 347] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/loader/file_discovery.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [45] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [85, 99, 102] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/loader/command_validation.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [99, 102, 106] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/loader/json_loading.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [45] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [80, 87, 93] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/loader/command_builder.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [91, 100, 123] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/loader/path_validation.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [45] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87, 92, 97] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/registration.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [62] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [101, 104, 141] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/stats.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [80, 102, 119] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/ops.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [47] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [112, 163, 191] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/healing.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [46] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [86, 101, 106] - handlers must NOT log
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/cache.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [49] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [87, 90, 105] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/drone/apps/handlers/registry/lookup.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [48] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [85, 112, 129] - handlers must NOT log
+(module logs for them)
+  ✓ No type errors
+
+FLOW (33 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules          83% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   93% ✅
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          98% ✅
+  ✓ All 33 files pass CLI standard
+
+  MODULES VIOLATIONS (5 files):
+    ✗ /home/aipass/aipass_core/flow/apps/modules/create_plan.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+create_plan (line 154)
+    ✗ /home/aipass/aipass_core/flow/apps/modules/restore_plan.py (score: 80%)
+      • Module has 2 implementation function(s) that belong in handlers: 
+recover_plan_from_backup (line 112), restore_plan (line 220)
+    ✗ /home/aipass/aipass_core/flow/apps/modules/close_plan.py (score: 80%)
+      • Module has 2 implementation function(s) that belong in handlers: 
+close_plan (line 125), close_all_plans (line 311)
+    ✗ /home/aipass/aipass_core/flow/apps/modules/list_plans.py (score: 80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+format_plan_info (line 129), format_plans_list (line 156), 
+format_statistics_summary (line 212), list_plans (line 242)
+    ✗ /home/aipass/aipass_core/flow/apps/modules/aggregate_central.py (score: 
+80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+log_info (line 74), log_error (line 79), log_success (line 84), 
+aggregate_central (line 349)
+
+  ERROR_HANDLING VIOLATIONS (2 files):
+    ✗ /home/aipass/aipass_core/flow/apps/modules/aggregate_central.py (score: 
+0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module has try/except but no logger.error - should log errors
+    ✗ /home/aipass/aipass_core/flow/apps/handlers/json/json_handler.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [33] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [61, 64, 131] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+GIT_REPO (3 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              83% ⚠️
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   66% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          95% ✅
+
+  CLI VIOLATIONS (1 files):
+    ✗ /home/aipass/aipass_os/dev_central/git_repo/apps/git_commands.py (score: 
+50%)
+      • Has output but missing CLI service imports (import from 
+cli.apps.modules)
+      • --help flag not implemented (modules should respond to --help)
+
+  ERROR_HANDLING VIOLATIONS (1 files):
+    ✗ 
+/home/aipass/aipass_os/dev_central/git_repo/apps/handlers/json/json_handler.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [22] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [53, 56, 123] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+MCP_SERVERS (2 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling  100% ✅
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:         100% ✅
+  ✓ All 2 files pass CLI standard
+  ✓ No type errors
+
+MEMORY_BANK (17 files checked)
+  Imports         100% ✅    Architecture     97% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules          80% ⚠️
+  Documentation    75% ⚠️    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling  100% ✅
+  Encapsulation    94% ✅    Type_Check      100% ✅
+  Overall:          95% ✅
+    └─ Architecture violations (1 missing):
+       Missing files (1):
+         ✗ apps/MEMORY_BANK.py
+    └─ Encapsulation issues:
+       • Line 242: Handler imported directly (use module entry point)
+  ✓ All 17 files pass CLI standard
+
+  MODULES VIOLATIONS (2 files):
+    ✗ /home/aipass/MEMORY_BANK/apps/modules/search.py (score: 80%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+execute_search (line 201)
+    ✗ /home/aipass/MEMORY_BANK/apps/modules/rollover.py (score: 80%)
+      • Module has 3 implementation function(s) that belong in handlers: 
+execute_rollover (line 173), show_status (line 466), check_triggers (line 519)
+
+  ENCAPSULATION VIOLATIONS (2 files):
+    ✗ /home/aipass/MEMORY_BANK/apps/memory_bank.py (score: 50%)
+      • Line 242: Handler imported directly (use module entry point)
+    ✗ /home/aipass/MEMORY_BANK/apps/handlers/tracking/line_counter.py (score: 
+50%)
+      • Line 47: handlers.json imported from handlers.tracking
+  ✓ No type errors
+
+PERMISSIONS (2 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling  100% ✅
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:         100% ✅
+  ✓ All 2 files pass CLI standard
+  ✓ No type errors
+
+PRAX (46 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli              75% ⚠️
+  Handlers        100% ✅    Modules          86% ⚠️
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   48% ❌
+  Encapsulation    97% ✅    Type_Check      100% ✅
+  Overall:          92% ✅
+
+  CLI VIOLATIONS (10 files):
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/discovery/scanner.py (score: 
+0%)
+      • Handler contains console.print() on lines [79, 81, 91] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/monitoring/unified_stream.py 
+(score: 0%)
+      • Handler contains console.print() on lines [104, 220, 221] (violates 
+separation)
+    ✗ 
+/home/aipass/aipass_core/prax/apps/handlers/monitoring/INTEGRATION_EXAMPLE.py 
+(score: 0%)
+      • Handler contains print() on lines [36, 37, 38] (use logger instead)
+    ✗ 
+/home/aipass/aipass_core/prax/apps/handlers/monitoring/MONITOR_MODULE_INTEGRATIO
+N.py (score: 0%)
+      • Handler contains console.print() on lines [54, 56, 60] (violates 
+separation)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/watcher/reporter.py (score: 
+0%)
+      • Handler contains console.print() on lines [101] (violates separation)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/registry/ignore.py (score: 0%)
+      • Handler contains print() on lines [59] (use logger instead)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/registry/meta_ops.py (score: 
+0%)
+      • Handler contains print() on lines [75, 93, 100] (use logger instead)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/cli_commands.py 
+(score: 0%)
+      • Handler contains print() on lines [38, 60, 76] (use logger instead)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/setup.py (score: 0%)
+      • Handler contains console.print() on lines [238] (violates separation)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/override.py (score: 
+0%)
+      • Handler contains print() on lines [64, 72, 77] (use logger instead)
+
+  MODULES VIOLATIONS (3 files):
+    ✗ /home/aipass/aipass_core/prax/apps/modules/branch_watcher.py (score: 80%)
+      • Module has 4 implementation function(s) that belong in handlers: 
+normalize_branch_arg (line 76), start_watching (line 229), stop_watching (line 
+289), get_status (line 307)
+    ✗ /home/aipass/aipass_core/prax/apps/modules/monitor_module.py (score: 40%)
+      • Module has 1 implementation function(s) that belong in handlers: 
+normalize_branch_arg (line 108)
+    ✗ /home/aipass/aipass_core/prax/apps/modules/logger.py (score: 60%)
+      • Module has 7 implementation function(s) that belong in handlers: 
+get_system_logger (line 82), initialize_logging_system (line 145), 
+shutdown_logging_system (line 189), start_continuous_logging (line 208), 
+get_system_status (line 245) +2 more
+
+  ENCAPSULATION VIOLATIONS (1 files):
+    ✗ /home/aipass/aipass_core/prax/apps/modules/logger.py (score: 0%)
+      • Line 103: MEMORY_BANK.apps.handlers imported (use modules entry point)
+
+  ERROR_HANDLING VIOLATIONS (31 files):
+    ✗ /home/aipass/aipass_core/prax/apps/modules/branch_watcher.py (score: 50%)
+      • Module has try/except but no logger.error - should log errors
+    ✗ /home/aipass/aipass_core/prax/apps/modules/run_module.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/prax/apps/modules/status_module.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/prax/apps/modules/discover_module.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/prax/apps/modules/monitor_module.py (score: 50%)
+      • Module has try/except but no logger.error - should log errors
+    ✗ /home/aipass/aipass_core/prax/apps/modules/shutdown_module.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/prax/apps/modules/logger.py (score: 50%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+    ✗ /home/aipass/aipass_core/prax/apps/modules/terminal_module.py (score: 50%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+    ✗ /home/aipass/aipass_core/prax/apps/modules/init_module.py (score: 0%)
+      • Module MUST import Prax: from prax.apps.modules.logger import 
+system_logger as logger
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/json/initialize.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [43, 46, 47] - handlers are pure 
+workers (logging belongs in modules)
+      • Handler has logger calls on lines [104, 108] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/json/load.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [104, 145] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/json/log.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [43] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [129] - handlers must NOT log (module 
+logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/json/json_handler.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [66, 69, 136] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/json/save.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [44] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [98, 142] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/discovery/filtering.py (score:
+50%)
+      • Handler MUST NOT import Prax on lines [27] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/discovery/scanner.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [30, 36] - handlers are pure 
+workers (logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/discovery/watcher.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [38, 44, 45] - handlers are pure 
+workers (logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/monitoring/branch_detector.py 
+(score: 50%)
+      • Handler has logger calls on lines [103, 162, 166] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/monitoring/log_watcher.py 
+(score: 0%)
+      • Handler MUST NOT import Prax on lines [52, 55, 56] - handlers are pure 
+workers (logging belongs in modules)
+      • Handler has logger calls on lines [152, 293, 300] - handlers must NOT 
+log (module logs for them)
+    ✗ 
+/home/aipass/aipass_core/prax/apps/handlers/monitoring/file_watcher_integration.
+py (score: 0%)
+      • Handler MUST NOT import Prax on lines [53, 61, 67] - handlers are pure 
+workers (logging belongs in modules)
+      • Handler has logger calls on lines [72, 96, 104] - handlers must NOT log 
+(module logs for them)
+    ✗ 
+/home/aipass/aipass_core/prax/apps/handlers/monitoring/INTEGRATION_EXAMPLE.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [16] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ 
+/home/aipass/aipass_core/prax/apps/handlers/monitoring/MONITOR_MODULE_INTEGRATIO
+N.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [19, 23] - handlers are pure 
+workers (logging belongs in modules)
+      • Handler has logger calls on lines [51, 69] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/watcher/reporter.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [102] - handlers must NOT log (module 
+logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/watcher/monitor.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [37] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [170, 177, 182] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/registry/reader.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [37] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [58, 65, 69] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/operations.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [31] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/setup.py (score: 50%)
+      • Handler MUST NOT import Prax on lines [32, 40, 56] - handlers are pure 
+workers (logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/override.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [31, 37, 40] - handlers are pure 
+workers (logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/monitoring.py (score: 
+0%)
+      • Handler MUST NOT import Prax on lines [37] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [60, 61, 62] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/terminal/formatting.py
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [30, 33] - handlers are pure 
+workers (logging belongs in modules)
+    ✗ /home/aipass/aipass_core/prax/apps/handlers/logging/terminal/filtering.py 
+(score: 50%)
+      • Handler MUST NOT import Prax on lines [30] - handlers are pure workers 
+(logging belongs in modules)
+  ✓ No type errors
+
+PROJECTS (2 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   50% ❌
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          95% ✅
+  ✓ All 2 files pass CLI standard
+
+  ERROR_HANDLING VIOLATIONS (1 files):
+    ✗ /home/aipass/projects/apps/handlers/json/json_handler.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [22] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [53, 56, 123] - handlers must NOT log 
+(module logs for them)
+  ✓ No type errors
+
+SEED (50 files checked)
+  Imports         100% ✅    Architecture    100% ✅
+  Naming          100% ✅    Cli             100% ✅
+  Handlers        100% ✅    Modules         100% ✅
+  Documentation   100% ✅    Json_Structure  100% ✅
+  Testing         100% ✅    Error_Handling   83% ⚠️
+  Encapsulation   100% ✅    Type_Check      100% ✅
+  Overall:          98% ✅
+  ✓ All 50 files pass CLI standard
+
+  ERROR_HANDLING VIOLATIONS (15 files):
+    ✗ /home/aipass/seed/apps/modules/handlers_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/standards_verify.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/naming_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/modules_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/standards_audit.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/documentation_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/architecture_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/imports_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/json_structure_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/modules/error_handling_standard.py (score: 50%)
+      • Module should have try/except with logger.error for error handling
+    ✗ /home/aipass/seed/apps/handlers/file/file_handler.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [34] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [51, 60] - handlers must NOT log 
+(module logs for them)
+    ✗ /home/aipass/seed/apps/handlers/verify/orchestrator.py (score: 50%)
+      • Handler MUST NOT import Prax on lines [38] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/seed/apps/handlers/standards/template_scanner.py (score: 0%)
+      • Handler MUST NOT import Prax on lines [19] - handlers are pure workers 
+(logging belongs in modules)
+      • Handler has logger calls on lines [142, 145, 146] - handlers must NOT 
+log (module logs for them)
+    ✗ /home/aipass/seed/apps/handlers/standards/handlers_content.py (score: 50%)
+      • Handler MUST NOT import Prax on lines [26] - handlers are pure workers 
+(logging belongs in modules)
+    ✗ /home/aipass/seed/apps/handlers/standards/diagnostics_check.py (score: 
+50%)
+      • Handler MUST NOT import Prax on lines [45] - handlers are pure workers 
+(logging belongs in modules)
+  ✓ No type errors
+
+──────────────────────────────────────────────────────────────────────
+SYSTEM SUMMARY:
+  Total branches:        18
+  Average compliance:    93%
+  Branches ≥90%:         15 ✅
+  Branches 75-89%:       3 ⚠️
+  Branches <75%:         0 ❌
+  Type errors:           1 (1 branches)
+
+STANDARD AVERAGES:
+  Architecture     99% ✅    Cli              86% ⚠️
+  Documentation    98% ✅    Encapsulation    99% ✅
+  Error_Handling   65% ❌    Handlers        100% ✅
+  Imports         100% ✅    Json_Structure  100% ✅
+  Modules          88% ⚠️    Naming          100% ✅
+  Testing          94% ✅    Type_Check       94% ✅
+
+TOP IMPROVEMENT AREAS:
+  1. Error_Handling  (avg: 65%, 11 branches <75%)
+  2. Cli             (avg: 86%, 4 branches <75%)
+  3. Modules         (avg: 88%, 1 branches <75%)
+──────────────────────────────────────────────────────────────────────
+

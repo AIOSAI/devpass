@@ -1,0 +1,69 @@
+# Seed Standards Integration - File Manifest
+# Created: 2025-11-28
+# Purpose: Quick reference for all files involved in integration
+
+## New Files Created
+
+/home/aipass/.claude/hooks/seed_standards_injector.py
+  - PreToolUse hook for new file standards injection
+  - 138 lines, executable
+  - Triggers on Write for new .py files in apps/handlers|modules/
+
+/home/aipass/.claude/hooks/TESTING_SEED_INTEGRATION.md
+  - Test procedures and commands
+  - Integration test examples
+
+/home/aipass/.claude/hooks/SEED_INTEGRATION_SUMMARY.md
+  - Complete implementation documentation
+  - Workflow diagrams, testing results
+
+/home/aipass/.claude/hooks/.integration_manifest
+  - This file
+
+## Modified Files
+
+/home/aipass/.claude/hooks/auto_fix_diagnostics.py
+  - Added run_seed_checklist() function
+  - Integrated Seed validation into PostToolUse flow
+  - ~59 lines added
+
+/home/aipass/.claude/settings.json
+  - Registered PreToolUse hook for Write tool
+  - Lines 69-77
+
+/home/aipass/.claude/hooks/README.md
+  - Updated Active Hooks table
+  - Added "Seed Standards Integration" section
+
+## Backup Files
+
+/home/aipass/.claude/hooks/auto_fix_diagnostics.py.backup
+  - Original version before Seed integration
+
+/home/aipass/.claude/hooks/pre_code_standards_reminder.py.backup
+  - Backup created for safety (file not modified)
+
+## Rollback Instructions
+
+To revert the integration:
+
+1. Restore auto_fix_diagnostics.py:
+   cp /home/aipass/.claude/hooks/auto_fix_diagnostics.py.backup \
+      /home/aipass/.claude/hooks/auto_fix_diagnostics.py
+
+2. Remove new hook:
+   rm /home/aipass/.claude/hooks/seed_standards_injector.py
+
+3. Edit settings.json - remove lines 69-77:
+   (PreToolUse hook registration for Write tool)
+
+4. Optional - restore README.md:
+   git checkout /home/aipass/.claude/hooks/README.md
+
+## Integration Status
+
+✓ Active and tested
+✓ All hooks working correctly
+✓ Documentation complete
+✓ Backups available
+✓ Safe to use in production

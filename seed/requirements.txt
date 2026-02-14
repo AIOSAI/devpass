@@ -1,0 +1,74 @@
+# =============================================
+# META DATA HEADER
+# Name: requirements.txt - SEED Dependencies
+# Date: 2025-11-29
+# Version: 0.2.0
+# Category: SEED
+#
+# CHANGELOG:
+#   - v0.2.0 (2025-11-29): Full dependency documentation for standalone deployment
+#   - v0.1.0 (2025-11-13): Initial template
+# =============================================
+
+# AIPass SEED - Python Dependencies
+# Python >=3.12 required
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# Note: This documents dependencies for standalone Seed operation.
+# In AIPass context, these are provided by the shared environment.
+
+# =============================================================================
+# PIP PACKAGES (External)
+# =============================================================================
+
+rich>=13.0.0                # CLI formatting, tables, panels, colors
+
+# =============================================================================
+# STANDARD LIBRARY (No installation needed)
+# =============================================================================
+# Used directly:
+#   - sys, pathlib, typing, importlib, json, re, subprocess, datetime, os
+
+# =============================================================================
+# INTERNAL DEPENDENCIES (AIPass branches)
+# =============================================================================
+# Seed requires these AIPass branches/modules to function:
+#
+# PRAX (required)
+#   - from prax.apps.modules.logger import system_logger as logger
+#   - Provides: System-wide logging
+#
+# CLI (required)
+#   - from cli.apps.modules import console, header
+#   - Provides: Rich console output, formatted headers
+#
+# DRONE (required for branch discovery)
+#   - from drone.apps.modules import normalize_branch_arg, get_all_branches
+#   - Provides: @ argument resolution, branch registry access
+#
+# BRANCH_REGISTRY.json (required)
+#   - Path: /home/aipass/BRANCH_REGISTRY.json
+#   - Purpose: Branch path resolution for audit operations
+#
+# =============================================================================
+# DIRECTORY STRUCTURE REQUIRED
+# =============================================================================
+# seed/
+# ├── apps/
+# │   ├── seed.py              # Entry point
+# │   ├── modules/             # 13 modules with handle_command()
+# │   └── handlers/
+# │       ├── json/            # JSON handler (3-JSON pattern)
+# │       └── standards/       # 10 standards checkers + content
+# ├── seed_json/               # Three-JSON pattern (config, data, log)
+# ├── docs/                    # Technical documentation (markdown)
+# └── .seed/                   # Seed-specific config (bypass.json)
+
+# =============================================================================
+# DEVELOPMENT DEPENDENCIES (optional)
+# =============================================================================
+# pytest>=7.4.3              # Testing
+# pytest-cov>=4.1.0          # Coverage
+# pyright                    # Type checking (used by diagnostics module)

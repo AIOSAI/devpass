@@ -1,0 +1,22 @@
+# Dependencies
+app/node_modules/
+
+# Expo
+app/.expo/
+app/dist/
+
+# Native builds
+app/ios/
+app/android/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+[user]
+	name = AIOSAI
+	email = aipass.system@gmail.com
+
+
+
+
+[core]
+	fsmonitor = true

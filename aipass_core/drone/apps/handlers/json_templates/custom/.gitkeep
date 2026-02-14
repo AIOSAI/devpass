@@ -1,0 +1,3 @@
+# Custom module-specific JSON templates go here
+# Format: {module_name}_{json_type}.json
+# Example: drone_discovery_config.json

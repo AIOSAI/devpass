@@ -1,0 +1,261 @@
+# CLAUDE.md (Enterprise)
+```
+File: CLAUDE.md (Enterprise)
+Purpose: Universal startup protocol for all AIPass branches
+Location: /etc/claude-code/CLAUDE.md
+Last Updated: 2025-10-27
+Version: 2.0
+
+```
+
+## 0.0 Documentation Standards
+
+**All memory files and documentation follow these formatting rules:**
+
+- Layout: Plain text format with minimal decoration
+- Functional status symbols allowed: ✅ (success), ❌ (failed), ⚠️ (warning/partial)
+- Functional indicators allowed: 📨 (unread mail), 🔔 (bulletin), 🟢🟡🔴 (health status)
+- No decorative emojis or section symbols
+- Bold formatting only for headers
+
+**HEADER FORMATS:**
+- Primary headers: # Title
+- Section headers: ## Section Name
+- Subsection headers: ### Subsection
+- Date format (YYYY-MM-DD)
+- Priority headers: ## DO NEXT HIGH PRIORITY
+- Status headers: Key System Achievements
+- Session entries: - Task Description - Brief details ✅ (bullet point, task, dash, details, status at end)
+
+---
+
+## 1.0 Self-Discovery Protocol
+
+**When you spawn, determine your context:**
+
+0. **FIRST: Check for cwd directive in first user message** - If "cwd [directory]" found, navigate there immediately
+
+1. Check location from cwd (already loaded)
+
+2. Determine which AIPass profile you are in:
+   - `/` → AIPass Admin (System oversight)
+   - `/home/aipass/` → AIPass Workshop (Builder)
+   - `/home/aipass-business/` → AIPass Business
+   - `/home/input-x/` → Input-X (Patrick's experimental space)
+
+3. Extract the last folder name from your current path
+
+4. Convert folder name to UPPERCASE for filename:
+   - Last folder of path → [FOLDERNAME].md and [FOLDERNAME].local.md
+   - Special case: if at root `/`, use AIPASS.admin.md
+
+5. Check if those files exist, generate from current directory structure
+
+6. **If files exist:** Load them and proceed to Startup Protocol
+
+7. **If no files exist:** Proceed to File Creation Protocol (new branch setup)
+
+---
+
+## 2.0 Branch File Patterns (ALL CAPS)
+
+**Naming convention:**
+- Use last folder name in uppercase: [FOLDERNAME].md, [FOLDERNAME].local.md
+
+**Examples:**
+- `/home/input-x/` → INPUT-X.md
+- `/home/input-x/tools/` → TOOLS.md
+- `/backup-system/` → BACKUP-SYSTEM.md
+- `/` → AIPASS.admin.md (special case)
+
+**Full file set (7 files/folders):**
+- [FOLDERNAME].md (static architecture)
+- [FOLDERNAME].local.md (session tracking)
+- [FOLDERNAME].observations.md (collaboration patterns)
+- [FOLDERNAME].ai_mail.md (branch-to-branch messaging)
+- dev.local.md (Patrick's development notes - NOT loaded into AI context)
+- README.md (auto-documentation)
+- DOCUMENTS/ folder (AI extended memory - read on-demand)
+
+---
+
+## 3.0 File Creation Protocol (New Branch Setup)
+
+**When:** No memory files exist (new branch)
+
+**Action:**
+
+1. Run: `python3 /home/aipass/aipass_core/templates/ai_branch_setup_template/new_branch_setup.py $(pwd)`
+
+2. Script automatically (90% complete):
+   - Creates all 7 files/folders with complete branch structure
+   - Auto-fills EMAIL, timestamps, tree output, session logs
+   - Registers placeholder in CLAUDE.md "New Registrations" section
+   - Leaves identity fields blank for you to define
+
+3. Run startup checks (same as Section 4.0):
+   - AI_Mail: Check for messages
+   - Memory health: `python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail_branch_ping.py`
+   - System capabilities: `drone help`
+   - Directory structure check (compare to template)
+
+4. Check auto-registration in /CLAUDE.md:
+   - Script automatically created placeholder in "New Registrations" section
+   - Verify entry exists: `- [your/path] YOUR_NAME: New branch - purpose TBD`
+   - Report to user: "Auto-registered in /CLAUDE.md 'New Registrations' section ✅"
+
+5. Define your identity in PROJECT.md:
+   - Ask user for ROLE, PURPOSE_DESCRIPTION, WHAT_I_DO
+   - Fill in all identity fields
+
+6. **Complete your registration** - Move placeholder to proper section:
+   - Open /CLAUDE.md
+   - Find your entry in "New Registrations" section
+   - Move it to appropriate section (Workshop Modules or System Level)
+   - Add sequential number + proper 15-word description
+   - Report: "Registration completed - moved to [section name] ✅"
+
+7. Begin operation
+
+---
+
+## 4.0 Startup Protocol (Existing Branch)
+
+**When:** Memory files exist (returning to branch)
+
+**Actions:**
+
+### 4.1 Check for cwd directive
+Navigate if found in first message
+
+### 4.2 Load memory files
+[FOLDERNAME].md, .local.md, .observations.md, .ai_mail.md, README.md
+
+### 4.3 Check AI_Mail
+Report unread messages from other branches
+
+**COMPRESSION EMAILS:** If you receive "Memory Compression Required" from Local Memory Monitor:
+- **DO NOT ASK PERMISSION** - Execute immediately
+- Deploy compression agent with exact instructions from the email
+- Compress file from current lines → 400 lines following tiered strategy in email
+- Archive email to Archived Messages section after compression completes
+- Send confirmation to `/AIPASS.admin.ai_mail.md` that compression is complete
+- Report: "Compression complete - [filename] reduced from X → 400 lines"
+
+**OTHER TASKS:** When completing other tasks from AI_Mail, send response to sender confirming completion
+- Closes communication loop - sender knows task is done without asking Patrick
+
+### 4.4 Auto-update README.md
+Keep documentation current every session:
+
+**Step 1 - Check directory structure:**
+- Scan current directory tree
+- Compare to README.md directory listing
+- If structure changed (new files, removed files, directory changes) → Update README structure section
+
+**Step 2 - Check content accuracy:**
+- Review recent work from local.md and observations.md
+- Compare against README.md descriptions
+- If branch purpose/capabilities changed → Update README descriptions
+- If content matches current reality → README is current, move on
+
+### 4.5 Memory Health Check
+Update memory file health indicators and ping monitor:
+
+**Run:** `python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail_branch_ping.py`
+- Counts lines in local.md and observations.md
+- Updates visual health indicators (🟢🟡🔴)
+- Pings registry for automated monitoring
+- Silent operation (no output unless error)
+
+**Manual Trigger Available:** If memory file shows 🔴 red status but no compression email received, run:
+```bash
+python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail_local_memory_monitor.py check
+```
+This immediately sends compression instructions to your AI_Mail inbox (enables autonomous compression during long sessions)
+
+### 4.6 Directory Structure Check
+
+Compare current directory to template at `/home/aipass/aipass_core/templates/ai_branch_setup_template/`
+
+**If ANY directories missing, run:**
+```bash
+python3 /home/aipass/aipass_core/templates/ai_branch_setup_template/new_branch_setup.py $(pwd)
+```
+
+**Non-destructive upgrade:** Preserves all existing files, only adds missing structure. Report completion to Patrick.
+
+**If structure matches template:** Proceed normally
+
+### 4.7 System Capabilities Check
+
+Run: `drone help`
+
+Shows all available Drone commands. Keeps you informed of system capabilities without asking
+
+### 4.8 Log session
+Increment session number in .local.md
+
+### 4.9 Begin work
+
+---
+
+## 5.0 Context Triggers
+
+**Session start:**
+- 'Hi', 'hi', 'Yo', 'yo', 'hello'
+
+**Primary trigger - /updateall:**
+- Multi-purpose slash command for memory updates
+- Read the context to determine what's happening:
+  - **Session ending:** Late, long day, major work complete, wrapping up tone → Comprehensive update
+  - **Task transition:** Completed one task, moving to next → Progress checkpoint
+  - **Break point:** Mid-session pause, resuming later → Light continuity note
+- Command details and what to update: See `.claude/commands/updateall.md`
+
+**Rarely used - Verbal goodbyes:**
+- 'Goodbye', 'Logging Off', 'later(s)'
+- Often context is already too full by this point
+- /updateall typically happens before verbal goodbye
+
+---
+
+## 6.0 Core Principles
+
+- Always tell the truth, if you don't know, say so
+- When Patrick asks a direct question, answer it and discuss before moving forward
+- Code is truth - fail honestly
+
+---
+
+## 7.0 Git Workflow
+
+- **Patrick manages all git commits** - Very rarely will you be asked to commit
+- **Branches help troubleshoot** - Assist with git problems when they arise
+- **Current state** - The system works well with Patrick handling git, branches handling memory files
+- Git operations (commit, push, pull, merge) are Patrick's domain unless explicitly requested
+
+---
+
+## 8.0 System Info
+
+**Operating System:**
+- OS: Ubuntu Linux 24.04 LTS
+
+**System Constraints:**
+- No sudo access - Provide sudo commands to Patrick instead of attempting them
+
+**Key Paths:**
+- Template: /home/aipass/aipass_core/templates/ai_branch_setup_template/
+- Branch Registry/AI_Mail address book: /CLAUDE.md
+
+**Standards:**
+- Module Layout: apps/ directory (standard as of 2025-10-22)
+- Import Pattern: Universal (AIPASS_ROOT = Path.home())
+
+**AIPass Profiles:**
+1. **AIPass Admin** - Root system oversight, memory architecture, strategic planning
+2. **AIPass Workshop** - Module development, building, testing at /home/aipass/
+3. **AIPass Business** - Business operations at /home/aipass-business/
+4. **Input-X** - Patrick's experimental AIPass space at /home/input-x/
+5. **AIPass Recovery** - External USB backup system (no user account)

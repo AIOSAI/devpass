@@ -1,0 +1,406 @@
+# =============================================
+# META DATA HEADER
+# Name: drone.py
+# Date: 2025-01-11
+# Version: 0.1.1
+# 
+# CHANGELOG:
+#   - v0.1.1 (2025-01-11): Added help command
+#     * Feature: 'drone help' displays available commands
+#   - v0.1.0 (2025-01-11): Initial implementation
+#     * Feature: Core command executor for AIPass ecosystem
+#     * Feature: 'run seed' command support
+#     * Feature: Path resolution from any directory
+# =============================================
+
+"""
+AIPass Drone Command Executor
+
+Simple command orchestrator for the AIPass ecosystem.
+Executes predefined commands from anywhere in the terminal.
+
+Status: Development
+"""
+
+import sys
+import subprocess
+from pathlib import Path
+import json
+
+# Determine AIPass ecosystem root directory
+ECOSYSTEM_ROOT = Path(__file__).parent.parent.resolve()
+
+# Command mappings
+COMMANDS = {
+    "run": {
+        "seed": {
+            "path": str(ECOSYSTEM_ROOT / "a.i" / "seed" / "seed.py"),
+            "description": "Run Seed AI with skill auto-discovery"
+        },
+        "nexus": {
+            "path": str(ECOSYSTEM_ROOT / "a.i" / "legacy" / "AIPass_Core" / "a.i_core" / "a.i_profiles" / "Nexus" / "nexus.py"),
+            "args": ["legacy"],
+            "description": "Run Nexus AI (legacy)"
+        },
+        "code": {
+            "tutor": {
+                "path": "python3",
+                "args": ["-m", "http.server", "8081"],
+                "cwd": str(ECOSYSTEM_ROOT / "workshop" / "claude_workspace" / "projects" / "0021_code_learning_typing_tutor" / "src"),
+                "description": "Run code typing tutor on http://localhost:8081"
+            }
+        }
+    },
+    "create": {
+        "plan": {
+            "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan.py"),
+            "args": ["create"],
+            "description": "Create new PLAN in current directory"
+        },
+        "project": {
+            "path": str(ECOSYSTEM_ROOT / "flow" / "flow_workshop" / "claude_workspace" / "projects" / "create_project_folder.py"),
+            "description": "Create new project folder with PLAN"
+        }
+    },
+    "close": {
+        "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan.py"),
+        "args": ["close"],
+        "description": "Close a PLAN file"
+    },
+    "plan": {
+        "show": {
+            "open": {
+                "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan.py"),
+                "args": ["show", "open"],
+                "description": "Show open PLANs"
+            },
+            "closed": {
+                "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan.py"),
+                "args": ["show", "closed"],
+                "description": "Show closed PLANs"
+            }
+        },
+        "status": {
+            "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan.py"),
+            "args": ["status"],
+            "description": "Show PLAN statistics"
+        }
+    },
+    "snapshot": {
+        "path": str(ECOSYSTEM_ROOT / "backup_system" / "backup.py"),
+        "args": ["snapshot", "--note", "drone snapshot"],
+        "description": "Create snapshot backup"
+    },
+    "backup": {
+        "path": str(ECOSYSTEM_ROOT / "backup_system" / "backup.py"),
+        "description": "Run backup.py"
+    },
+    "cleanup": {
+        "path": str(ECOSYSTEM_ROOT / "tools" / "test_cleanup.py"),
+        "description": "Interactive test cleanup tool"
+    },
+    "summarize": {
+        "path": str(ECOSYSTEM_ROOT / "flow" / "flow_plan_summarizer.py"),
+        "description": "Generate AI summaries of all PLANs and update CLAUDE.md"
+    }
+}
+
+def show_help():
+    """Display help information for drone commands."""
+    print("AIPass Drone - Command Executor")
+    print("\nUsage: drone [command] [target]")
+    print("\nAvailable commands:")
+    print("  drone help              - Show this help message")
+    print("\nAI Systems:")
+    print("  drone run seed          - Run Seed AI with skill auto-discovery")
+    print("  drone run nexus legacy  - Run Nexus AI (legacy)")
+    print("  drone run code tutor    - Run code typing tutor on http://localhost:8081")
+    print("\nPLAN Management:")
+    print("  drone create plan       - Create new PLAN in current directory")
+    print("  drone create plan@folder - Create PLAN in specific folder")
+    print("  drone create plan @folder - Alternative syntax for folder")
+    print("  drone create project    - Create new project folder with PLAN")
+    print("  drone close plan0028    - Close PLAN0028")
+    print("  drone plan show open    - List all open PLANs")
+    print("  drone plan show closed  - List all closed PLANs")
+    print("  drone plan status       - Show PLAN statistics")
+    print("\nSystem Commands:")
+    print("  drone snapshot          - Create snapshot backup")
+    print("  drone backup            - Run backup.py")
+    print("\nTest Cleanup:")
+    print("  drone cleanup           - Interactive test cleanup tool")
+    print("  drone cleanup flow/api  - Quick preview of API test cleanup")
+    print("  drone cleanup full --delete - Delete all files for full reset")
+    print("  drone cleanup custom-test --archive - Archive custom config files")
+    print("\nPlan Management:")
+    print("  drone summarize         - Generate AI summaries of all PLANs")
+    print("\nPhilosophy:")
+    print("  Drone is a simple executor - it triggers commands, modules do the work.")
+    return 0
+
+def execute_command(cmd_path, args=None):
+    """Execute a Python script with optional arguments."""
+    try:
+        command = ["python", cmd_path]
+        if args:
+            command.extend(args)
+        
+        result = subprocess.run(
+            command,
+            cwd=ECOSYSTEM_ROOT,
+            capture_output=False,
+            text=True,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr
+        )
+        return result.returncode
+    except KeyboardInterrupt:
+        print("\nDrone: Command interrupted by user")
+        return 130  # Standard exit code for Ctrl+C
+    except FileNotFoundError:
+        print(f"Error: Could not find file: {cmd_path}")
+        return 1
+    except Exception as e:
+        print(f"Error executing command: {e}")
+        return 1
+
+def execute_command_in_dir(cmd_path, args=None, working_dir=None):
+    """Execute a command with optional arguments in a specific directory."""
+    try:
+        # Handle direct commands like 'python3'
+        if cmd_path in ['python3', 'python', 'node', 'npm']:
+            command = [cmd_path]
+        else:
+            command = ["python", cmd_path]
+        
+        if args:
+            command.extend(args)
+        
+        result = subprocess.run(
+            command,
+            cwd=working_dir or ECOSYSTEM_ROOT,
+            capture_output=False,
+            text=True,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr
+        )
+        return result.returncode
+    except KeyboardInterrupt:
+        print("\nDrone: Command interrupted by user")
+        return 130  # Standard exit code for Ctrl+C
+    except FileNotFoundError:
+        print(f"Error: Could not find file: {cmd_path}")
+        return 1
+    except Exception as e:
+        print(f"Error executing command: {e}")
+        return 1
+
+def main():
+    """Main entry point for drone command."""
+    if len(sys.argv) < 2:
+        return show_help()
+    
+    command = sys.argv[1]
+    
+    # Handle help command
+    if command == "help":
+        return show_help()
+    
+    # Handle 'run' commands with targets
+    elif command == "run":
+        if len(sys.argv) < 3:
+            print("Error: 'run' command requires a target")
+            print("Available targets: seed, nexus, code")
+            return 1
+        
+        target = sys.argv[2]
+        if target in COMMANDS["run"]:
+            cmd_info = COMMANDS["run"][target]
+            
+            # Handle nested commands like "code tutor"
+            if isinstance(cmd_info, dict) and "path" not in cmd_info:
+                if len(sys.argv) < 4:
+                    print(f"Error: '{target}' command requires a subtarget")
+                    available = list(cmd_info.keys())
+                    print(f"Available subtargets: {', '.join(available)}")
+                    return 1
+                
+                subtarget = sys.argv[3]
+                if subtarget in cmd_info:
+                    cmd_info = cmd_info[subtarget]
+                    print(f"Drone: Executing {target} {subtarget}...")
+                else:
+                    print(f"Error: Unknown subtarget '{subtarget}' for {target}")
+                    available = list(cmd_info.keys())
+                    print(f"Available subtargets: {', '.join(available)}")
+                    return 1
+            else:
+                print(f"Drone: Executing {target}...")
+            
+            args = cmd_info.get("args", None)
+            cwd = cmd_info.get("cwd", None)
+            
+            # Handle legacy nexus argument
+            if len(sys.argv) > 3 and sys.argv[3] == "legacy" and target == "nexus":
+                args = ["legacy"]
+            
+            if cwd:
+                return execute_command_in_dir(cmd_info["path"], args, cwd)
+            else:
+                return execute_command(cmd_info["path"], args)
+        else:
+            print(f"Error: Unknown target '{target}'")
+            print("Available targets: seed, nexus, code")
+            return 1
+    
+    # Handle 'create' commands
+    elif command == "create":
+        if len(sys.argv) < 3:
+            print("Error: 'create' command requires a target")
+            print("Available targets: plan, project")
+            return 1
+        
+        target = sys.argv[2]
+        
+        # Handle project creation
+        if target == "project":
+            cmd_info = COMMANDS["create"]["project"]
+            print("Drone: Creating new project with PLAN...")
+            return execute_command(cmd_info["path"])
+        
+        # Handle both "plan @folder" and "plan@folder" syntax
+        elif target == "plan" or target.startswith("plan@"):
+            cmd_info = COMMANDS["create"]["plan"]
+            
+            # Parse location from different formats
+            location = None
+            if target.startswith("plan@"):
+                # Format: "plan@folder"
+                location = target[5:]  # Remove "plan@" prefix
+            elif len(sys.argv) > 3:
+                # Format: "plan folder" (no @ needed for PowerShell compatibility) or "plan @folder"
+                raw_location = sys.argv[3]
+                location = raw_location[1:] if raw_location.startswith("@") else raw_location
+            else:
+                # No location specified - create in root (this is normal behavior)
+                location = None
+            
+            if location:
+                # FIX: Change to target directory and validate it exists
+                target_dir = ECOSYSTEM_ROOT / location
+                if target_dir.exists() and target_dir.is_dir():
+                    print(f"Drone: Creating PLAN in {location}/")
+                    # Execute with changed working directory
+                    return execute_command_in_dir(cmd_info["path"], ["create"], target_dir)
+                else:
+                    print(f"Error: Directory '{location}' does not exist in ecosystem root")
+                    return 1
+            else:
+                args = cmd_info.get("args", ["create"])
+                print(f"Drone: Creating new PLAN...")
+                return execute_command(cmd_info["path"], args)
+        else:
+            print(f"Error: Unknown create target '{target}'")
+            print("Available targets: plan, plan@folder")
+            return 1
+    
+    # Handle 'plan' commands
+    elif command == "plan":
+        if len(sys.argv) < 3:
+            print("Error: 'plan' command requires a subcommand")
+            print("Available: show, status")
+            return 1
+        
+        subcommand = sys.argv[2]
+        
+        if subcommand == "show":
+            if len(sys.argv) < 4:
+                print("Error: 'plan show' requires 'open' or 'closed'")
+                return 1
+            show_type = sys.argv[3]
+            if show_type in COMMANDS["plan"]["show"]:
+                cmd_info = COMMANDS["plan"]["show"][show_type]
+                print(f"Drone: Showing {show_type} PLANs...")
+                return execute_command(cmd_info["path"], cmd_info.get("args"))
+            else:
+                print(f"Error: Unknown show type '{show_type}'")
+                print("Available: open, closed")
+                return 1
+        
+        elif subcommand == "status":
+            cmd_info = COMMANDS["plan"]["status"]
+            print("Drone: PLAN status...")
+            return execute_command(cmd_info["path"], cmd_info.get("args"))
+        
+        else:
+            print(f"Error: Unknown plan subcommand '{subcommand}'")
+            print("Available: show, status")
+            return 1
+    
+    # Handle 'close' command for plans (drone close plan0001)
+    elif command == "close":
+        if len(sys.argv) < 3:
+            print("Error: 'close' requires a PLAN identifier")
+            print("Usage: drone close plan0001 or drone close plan 0001")
+            return 1
+        
+        plan_id = sys.argv[2].lower()
+        
+        # Handle both "plan 0006" and "plan0006" syntax
+        if plan_id == "plan" and len(sys.argv) >= 4:
+            # Handle "drone close plan 0006" format
+            plan_num = sys.argv[3]
+        elif plan_id.startswith("plan"):
+            # Handle "drone close plan0006" format  
+            plan_num = plan_id[4:]
+        else:
+            plan_num = plan_id
+        
+        # Use the close command
+        cmd_info = COMMANDS["close"]
+        args = ["close", plan_num]
+        print(f"Drone: Closing PLAN{plan_num}...")
+        return execute_command(cmd_info["path"], args)
+    
+    # Handle 'cleanup' command with optional configuration
+    elif command == "cleanup":
+        cmd_info = COMMANDS["cleanup"]
+        
+        if len(sys.argv) >= 3:
+            # Handle specific configuration: drone cleanup flow/api
+            config_name = sys.argv[2]
+            
+            # Check if there's an action specified: drone cleanup flow/api --delete
+            if len(sys.argv) >= 4:
+                action = sys.argv[3]
+                args = [config_name, action]
+                if len(sys.argv) >= 5:
+                    # Add any additional flags
+                    args.extend(sys.argv[4:])
+            else:
+                # Just config name, default to interactive
+                args = [config_name, "--delete", "--dry-run"]
+            
+            print(f"Drone: Running cleanup with config '{config_name}'...")
+            return execute_command(cmd_info["path"], args)
+        else:
+            # No args - run interactive mode
+            print("Drone: Running interactive cleanup...")
+            return execute_command(cmd_info["path"])
+    
+    # Handle direct commands (snapshot, backup)
+    elif command in COMMANDS:
+        cmd_info = COMMANDS[command]
+        print(f"Drone: Executing {command}...")
+        args = cmd_info.get("args", None)
+        return execute_command(cmd_info["path"], args)
+    
+    else:
+        print(f"Error: Unknown command '{command}'")
+        print("Run 'drone help' to see available commands")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())

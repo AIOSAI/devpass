@@ -1,0 +1,22 @@
+#!/bin/bash
+# Main pre-commit hook - calls all scripts in pre-commit.d/
+
+HOOK_DIR="$(dirname "$0")/pre-commit.d"
+
+# Run each script in order
+for hook in "$HOOK_DIR"/*; do
+    if [ -x "$hook" ]; then
+        echo "Running: $(basename "$hook")"
+        "$hook"
+        RESULT=$?
+        if [ $RESULT != 0 ]; then
+            echo ""
+            echo "Pre-commit check failed. Use 'git commit --no-verify' to bypass."
+            exit $RESULT
+        fi
+        echo ""
+    fi
+done
+
+echo "✅ All pre-commit checks passed"
+exit 0

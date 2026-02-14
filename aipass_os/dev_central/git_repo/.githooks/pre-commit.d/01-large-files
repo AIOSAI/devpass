@@ -1,0 +1,19 @@
+#!/bin/bash
+# Large file check - blocks files over 100MB
+
+max_size=104857600  # 100MB in bytes
+
+while IFS= read -r file; do
+    if [ -f "$file" ]; then
+        size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
+        if [ "$size" -gt "$max_size" ]; then
+            size_mb=$((size / 1048576))
+            echo ""
+            echo "❌ Large file detected: $file is ${size_mb}MB (over 100MB limit)"
+            echo "   Add to .gitignore or use: git commit --no-verify"
+            exit 1
+        fi
+    fi
+done < <(git diff --cached --name-only)
+
+exit 0

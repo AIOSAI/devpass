@@ -1,0 +1,110 @@
+{
+  "_TEMPLATE_WARNING": "⚠️ WARNING: This is a local cache copy. All template edits must be made in /home/aipass/aipass_core/branch_operations/templates/flow_templates/. Local edits will be overwritten on next template update.",
+  "_TEMPLATE_SOURCE": "/home/aipass/aipass_core/branch_operations/templates/flow_templates/plan_memory.json.template",
+  "_MANAGED_BY": "branch_operations template distribution system",
+  "document_metadata": {
+    "document_type": "plan_memory",
+    "document_name": "{{PLAN_NUMBER}}_MEMORY",
+    "version": "1.0.0",
+    "schema_version": "1.0.0",
+    "created": "{{CREATED_DATE}}",
+    "last_updated": "{{CREATED_DATE}}",
+    "source": "{{SOURCE_PATH}}",
+    "plan_number": "{{PLAN_NUMBER}}",
+    "managed_by": "flow_mbank",
+    "processed_by": "flow_mbank v1.0.0",
+    "trl_tags": {
+      "type": "{{TRL_TYPE}}",
+      "category": "{{TRL_CATEGORY}}",
+      "action": "{{TRL_ACTION}}"
+    },
+    "tags": [
+      "{{TRL_TYPE}}",
+      "{{TRL_CATEGORY}}",
+      "{{TRL_ACTION}}",
+      "{{BRANCH_CONTEXT}}",
+      "{{SEMANTIC_TAGS}}"
+    ],
+    "allowed_emojis": {
+      "global": ["✅", "❌", "⚠️", "ℹ️", "🟢", "🟡", "🔴", "📌", "🚨", "⏸️", "🔄", "✨", "🐛", "🔧", "📝"],
+      "document_specific": ["📝", "🔧", "🐛", "✅", "⚠️", "🎯", "🔄", "💡"]
+    },
+    "limits": {
+      "max_word_count": 1000,
+      "max_token_count": 3000,
+      "note": "Guidelines not hard limits - system warns when exceeded"
+    },
+    "status": {
+      "health": "healthy",
+      "completion_status": "{{COMPLETION_STATUS}}",
+      "current_word_count": 0,
+      "current_token_count": 0,
+      "last_health_check": "{{CREATED_DATE}}"
+    },
+    "original_filename": "{{ORIGINAL_FILENAME}}"
+  },
+  "summary": "{{AI_GENERATED_SUMMARY}}",
+  "plan_info": {
+    "plan_number": "PLAN{{PLAN_NUMBER}}",
+    "location": "{{LOCATION}}",
+    "type": "{{PLAN_TYPE}}",
+    "created_date": "{{CREATED_DATE}}",
+    "completion_date": "{{COMPLETION_DATE}}",
+    "session": "{{SESSION}}"
+  },
+  "goals_achieved": {
+    "primary_goals": [
+      "{{GOAL_1_WITH_EMOJI}}",
+      "{{GOAL_2_WITH_EMOJI}}",
+      "{{GOAL_3_WITH_EMOJI}}"
+    ],
+    "completion_status": "{{fully_completed|partially_completed|incomplete}}",
+    "success_indicators": [
+      "{{INDICATOR_1}}",
+      "{{INDICATOR_2}}"
+    ]
+  },
+  "key_discoveries": {
+    "issues_found": [
+      "{{ISSUE_1_WITH_EMOJI}}",
+      "{{ISSUE_2_WITH_EMOJI}}"
+    ],
+    "patterns_learned": [
+      "{{PATTERN_1_WITH_EMOJI}}",
+      "{{PATTERN_2_WITH_EMOJI}}"
+    ],
+    "research_conducted": [
+      "{{RESEARCH_1_WITH_EMOJI}}",
+      "{{RESEARCH_2_WITH_EMOJI}}"
+    ]
+  },
+  "implementation_details": {
+    "{{DETAIL_KEY}}": {
+      "status": "{{completed|in_progress|failed}}",
+      "description": "{{DESCRIPTION}}",
+      "changes": [
+        "{{CHANGE_1}}",
+        "{{CHANGE_2}}"
+      ],
+      "tested_with": "{{TEST_METHOD}}",
+      "result": "{{RESULT}}"
+    }
+  },
+  "work_approach": {
+    "methodology": "{{METHODOLOGY}}",
+    "workflow": "{{WORKFLOW_PATTERN}}",
+    "problem_solving_principles": [
+      "{{PRINCIPLE_1}}",
+      "{{PRINCIPLE_2}}"
+    ],
+    "agent_decision": "{{AGENT_USAGE_DECISION}}"
+  },
+  "reference_materials": {
+    "code_standards": "{{CODE_STANDARDS_PATH}}",
+    "working_examples": [
+      "{{EXAMPLE_1}}",
+      "{{EXAMPLE_2}}"
+    ]
+  },
+  "narrative": "{{ORIGINAL_PLAN_CONTENT_AS_MARKDOWN_WITH_NEWLINES_PRESERVED}}"
+}

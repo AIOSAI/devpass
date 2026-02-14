@@ -1,0 +1,5 @@
+# Gemini CLI ignore file for AIPass Ecosystem
+# Only exclude backup directories to avoid duplicate GEMINI.md files
+
+# Backup directories (contain duplicates)
+/backup_system/

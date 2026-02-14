@@ -1,0 +1,68 @@
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: requirements.txt - DRONE Dependencies
+# Date: 2025-11-29
+# Version: 1.0.0
+# Category: DRONE
+#
+# CHANGELOG (Max 5 entries):
+#   - v1.0.0 (2025-11-29): Complete dependency documentation
+#   - v0.1.0 (2025-11-13): Initial template
+# =============================================
+
+# AIPass DRONE - Complete Dependencies
+# Python >=3.10 required
+#
+# This documents ALL requirements for DRONE to run standalone.
+# Includes pip packages AND AIPass internal dependencies.
+
+# ---------------------------------------------
+# PIP PACKAGES
+# ---------------------------------------------
+# Install with: pip install -r requirements.txt
+
+rich>=13.0.0          # Console output, panels, formatting
+
+# ---------------------------------------------
+# STANDARD LIBRARY (built-in)
+# ---------------------------------------------
+# pathlib, sys, json, os, datetime, typing, subprocess, shutil
+# No installation needed
+
+# ---------------------------------------------
+# INTERNAL DEPENDENCIES (AIPass branches)
+# ---------------------------------------------
+# These are NOT pip-installable. They're AIPass ecosystem components.
+# Must be available in PYTHONPATH for DRONE to function.
+#
+# PRAX (required)
+#   Import: from prax.apps.modules.logger import system_logger
+#   Purpose: Centralized logging
+#   Path: /home/aipass/aipass_core/prax
+#
+# CLI (required)
+#   Import: from cli.apps.modules import console, header
+#   Purpose: Rich console formatting
+#   Path: /home/aipass/aipass_os/cli
+#
+# BRANCH_REGISTRY.json (required)
+#   Path: /home/aipass/BRANCH_REGISTRY.json
+#   Purpose: Branch path resolution for @ arguments
+
+# ---------------------------------------------
+# STANDALONE DEPLOYMENT
+# ---------------------------------------------
+# To deploy DRONE outside AIPass:
+#
+# 1. pip install rich
+#
+# 2. Copy required branches or create stubs:
+#    - prax/apps/modules/logger.py
+#    - cli/apps/modules/*.py
+#
+# 3. Create BRANCH_REGISTRY.json with target branch paths
+#
+# 4. Set PYTHONPATH:
+#    export PYTHONPATH=/path/to/aipass_core:/path/to/aipass_os
+#
+# 5. Run: python3 apps/drone.py --help

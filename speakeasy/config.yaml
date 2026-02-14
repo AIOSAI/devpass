@@ -1,0 +1,29 @@
+model:
+  name: base.en
+  device: auto
+  compute_type: default
+  language: en
+  temperature: 0.0
+  vad_filter: true
+recording:
+  activation_key: ctrl+space
+  recording_mode: press_to_toggle
+  sample_rate: 16000
+  silence_duration: 900
+  min_duration: 100
+  vad_aggressiveness: 2
+input:
+  method: pynput
+  key_delay: 0.01
+  paste_threshold: 5000
+post_processing:
+  remove_trailing_period: false
+  add_trailing_space: true
+  remove_capitalization: false
+cursor_lock:
+  enabled: true
+ui:
+  show_status_window: true
+  show_notifications: true
+  sound_on_start: true
+  sound_on_complete: true
