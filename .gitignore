@@ -24,8 +24,6 @@ test_large_file.bin
 .claude
 .claude-code-docs 
 .claude.json
-.claude.json.backup
-.claude.json.backup.1771030714898
 .claude/chrome/chrome-native-host
 .claude/plugins/known_marketplaces.json
 .codex
@@ -87,7 +85,6 @@ sandbox.img
 speakeasy(disabled)
 system_log
 Videos
-
 
 !.claude
 !Nexus/config/profile.json
