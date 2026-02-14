@@ -2,6 +2,8 @@
 
 **Universal Display & Output Service Provider for AIPass**
 
+*Last Updated: 2026-02-14*
+
 ## Purpose
 
 CLI provides centralized display and formatting services to all AIPass branches. Other branches import CLI's functions for consistent, Rich-formatted terminal output. Update CLI once, all branches benefit.
@@ -16,12 +18,18 @@ CLI provides centralized display and formatting services to all AIPass branches.
 - `section(title)` - Visual section separators
 
 ### Templates Module (`templates.py`)
-- `operation_start()` - Standard operation headers
-- `operation_complete()` - Standard completion summaries
+- `operation_start(operation, **details)` - Standard operation headers with optional detail key-values
+- `operation_complete(success=None, **summary)` - Standard completion summaries with statistics
 
 ### Rich Console
 - Direct access to Rich library console via `console` export
 - Beautiful terminal formatting (tables, panels, columns)
+
+### JSON Handler (`handlers/json/json_handler.py`)
+- `log_operation(operation, data, module_name)` - Log operations with auto-rotation
+- `load_json(module_name, json_type)` / `save_json(...)` - Auto-creating JSON read/write
+- `ensure_module_jsons(module_name)` - Create config/data/log JSON triplet from templates
+- `increment_counter(module_name, counter_name)` - Data counter management
 
 ## Usage
 
@@ -35,6 +43,9 @@ from cli.apps.modules.templates import operation_start, operation_complete
 # Import Rich console (lowercase service instance pattern)
 from cli.apps.modules import console
 console.print("[bold cyan]Formatted output[/bold cyan]")
+
+# JSON handler (internal/handler-level)
+from cli.apps.handlers.json.json_handler import log_operation, load_json
 ```
 
 ## Architecture
@@ -42,7 +53,7 @@ console.print("[bold cyan]Formatted output[/bold cyan]")
 ```
 cli/
 ├── apps/
-│   ├── cli.py              # Entry point
+│   ├── cli.py              # Entry point (showroom)
 │   ├── __init__.py
 │   ├── modules/            # PUBLIC API (what branches import)
 │   │   ├── __init__.py     # Exports: console, header, success, error, warning, section
@@ -50,17 +61,14 @@ cli/
 │   │   └── templates.py    # Operation templates
 │   ├── handlers/           # PRIVATE implementation
 │   │   ├── __init__.py
-│   │   ├── json/           # JSON operations
+│   │   ├── json/           # JSON auto-creation and management
 │   │   │   └── json_handler.py
-│   │   └── templates/      # Template handling
-│   ├── json_templates/     # JSON template storage
-│   │   ├── custom/         # User templates
-│   │   ├── default/        # Built-in templates (config, data, log)
-│   │   └── registry/       # Template registry
-│   ├── extensions/
-│   └── plugins/
-├── cli_json/               # CLI-specific JSON storage
-│   └── error_handler_json/ # Error handler config/data/logs
+│   │   └── templates/      # Template handling (placeholder)
+│   └── json_templates/     # JSON template storage
+│       ├── custom/         # User templates
+│       ├── default/        # Built-in templates (config, data, log)
+│       └── registry/       # Template registry
+├── cli_json/               # Runtime JSON storage (auto-created by json_handler)
 └── README.md
 ```
 
@@ -69,7 +77,7 @@ cli/
 CLI is a **foundation-level service provider**:
 - All branches can import from CLI
 - CLI does NOT import from other branches (prevents circular dependencies)
-- CLI cannot import Prax (Prax imports CLI)
+- Exception: `cli.py` entry point imports Prax logger for error reporting only
 
 ## Standards Compliance
 
@@ -77,7 +85,6 @@ CLI is a **foundation-level service provider**:
 - ✅ Rich formatting throughout
 - ✅ SEED module pattern (introspection/help/command handling)
 - ✅ Service provider model
-- ✅ 100% Seed audit compliance
 
 ## Contact
 

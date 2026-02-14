@@ -23,16 +23,22 @@ apps/
 ├── memory_bank.py          # Main entry point CLI
 ├── modules/
 │   ├── rollover.py         # Rollover orchestration
-│   └── search.py           # Search orchestration
+│   ├── search.py           # Search orchestration
+│   └── symbolic.py         # Fragmented memory orchestration
 ├── handlers/
-│   ├── intake/             # Memory pool processing
+│   ├── archive/            # Code archive indexing
+│   ├── intake/             # Memory pool + plans processing
 │   ├── json/               # JSON file operations
+│   ├── learnings/          # Key learnings + recently_completed management
 │   ├── monitor/            # Memory file watching + auto-processing
 │   ├── rollover/           # Extraction and embedding
+│   ├── schema/             # JSON normalization
 │   ├── search/             # Vector search subprocess
 │   ├── storage/            # ChromaDB persistence
+│   ├── symbolic/           # Fragmented memory (extractors, retrieval, hooks)
 │   ├── tracking/           # Line counting and metadata
 │   └── vector/             # Embedding operations
+├── tests/                  # Unit tests (symbolic extractors, storage, retrieval)
 
 memory_pool/                # Drop files here for auto-vectorization
 ├── .archive/               # Archived files (beyond keep_recent limit)
@@ -46,9 +52,12 @@ code_archive/               # Archived code from across AIPass
 ├── ai_mail/                # Old AI_Mail code
 ├── api/                    # Old API code
 ├── backup/                 # Old backup code
+├── drone/                  # Old Drone code
 ├── error_handling/         # Old error handlers
+├── flow/                   # Old Flow code
 ├── migration/              # Migration scripts
 ├── misc/                   # Uncategorized
+├── prax/                   # Old Prax code
 └── index.json              # Auto-generated catalog
 
 memory_bank_json/
@@ -58,23 +67,35 @@ memory_bank_json/
 ### Core Components
 - **handlers/archive/** - Code archive indexing (extracts docstrings, functions, classes)
 - **handlers/intake/** - Memory pool + plans processing (vectorize + archive)
-- **handlers/monitor/** - Startup checks, auto-triggers rollover, pool, and plans processing
+- **handlers/learnings/** - Key learnings and recently_completed list management (timestamps, limits, vectorization of pruned entries)
+- **handlers/monitor/** - Startup checks, auto-triggers rollover, pool, and plans processing; syncs line count metadata
 - **handlers/rollover/** - Extracts oldest entries from memory files
+- **handlers/schema/** - JSON normalization utilities
 - **handlers/search/** - Vector similarity search via subprocess
-- **handlers/symbolic/** - Fragmented memory extraction and retrieval
-- **handlers/vector/** - Embedding operations (all-MiniLM-L6-v2)
 - **handlers/storage/** - ChromaDB persistence layer
+- **handlers/symbolic/** - Fragmented memory: 5 extractors, storage, retrieval, hook surfacing
+- **handlers/tracking/** - Line counting and metadata sync
+- **handlers/vector/** - Embedding operations (all-MiniLM-L6-v2)
 
 ### Collections (ChromaDB)
 | Collection | Source | Vectors |
 |------------|--------|---------|
 | `memory_pool_docs` | Archived documents | ~3,500 |
-| `flow_plans` | Closed Flow plans | ~140 |
-| `symbolic_fragments` | Fragmented memory | varies |
-| `seed_local` | SEED branch memories | 56 |
+| `flow_plans` | Closed Flow plans | ~392 |
+| `seed_local` | SEED branch memories | 71 |
+| `drone_local` | DRONE branch memories | 48 |
+| `dev_central_local` | DEV_CENTRAL branch memories | 31 |
+| `memory_bank_local` | MEMORY_BANK branch memories | 26 |
+| `dev_central_key_learnings` | DEV_CENTRAL pruned learnings | 25 |
 | `aipass_local` | Root AIPASS memories | 24 |
-| `drone_local` | DRONE branch memories | 16 |
-| `*_local` | Other branch memories | varies |
+| `flow_local` | FLOW branch memories | 18 |
+| `api_local` | API branch memories | 11 |
+| `trigger_local` | TRIGGER branch memories | 10 |
+| `dev_central_recently_completed` | DEV_CENTRAL pruned completions | 7 |
+| `cortex_local` | CORTEX branch memories | 6 |
+| `cortex_observations` | CORTEX observation memories | 6 |
+| `symbolic_fragments` | Fragmented memory | 3 |
+| **Total** | **15 collections** | **~4,180** |
 
 ### Storage Architecture
 - **Global**: All vectors in `/home/aipass/MEMORY_BANK/.chroma/`
@@ -106,33 +127,34 @@ memory_bank_json/
 
 ## Usage
 
-Note: Use Memory Bank's Python venv for all commands.
-
-### Search
+### Via Drone (preferred)
 ```bash
 # Search all memories and documents
+drone @memory_bank search "query"
+
+# Help and available commands
+drone @memory_bank --help
+
+# System status
+drone @memory_bank status
+```
+
+### Direct (use Memory Bank's .venv Python)
+```bash
+# Search with filters
 python3 apps/modules/search.py search "query"
-
-# Filter by branch
 python3 apps/modules/search.py search "query" --branch SEED
-
-# Filter by type and limit results
 python3 apps/modules/search.py search "query" --type local --n 10
-```
 
-### Memory Pool
-```bash
-# Check pool status
+# Memory pool status / manual process
 python3 apps/handlers/intake/pool_processor.py status
-
-# Manual process (usually automatic)
 python3 apps/handlers/intake/pool_processor.py
-```
 
-### Rollover
-```bash
 # Manual rollover (usually automatic)
 python3 apps/modules/rollover.py
+
+# Key learnings management
+python3 apps/handlers/learnings/manager.py process-file --file <path>
 ```
 
 ## Configuration
@@ -198,11 +220,11 @@ Edit `apps/json_templates/custom/fragmented_memory_config.json`:
 ## Technical Details
 - **Embedding**: all-MiniLM-L6-v2 (384 dimensions)
 - **Vector DB**: ChromaDB with persistent storage
-- **Python**: 3.14 via isolated `.venv`
+- **Python**: 3.12 via isolated `.venv` (system uses 3.14; venv required for ChromaDB compatibility)
 - **Similarity**: 40% minimum threshold filters noise
 
 ---
 
-**Branch**: MEMORY_BANK | **Created**: 2025-11-08
+**Branch**: MEMORY_BANK | **Created**: 2025-11-08 | **Last Updated**: 2026-02-14
 
 *The memory never forgets - it just transforms.*

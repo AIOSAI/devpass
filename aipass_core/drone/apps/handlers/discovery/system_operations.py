@@ -786,7 +786,7 @@ def is_long_running_command(command_args: List[str]) -> bool:
     daemon_keywords = ['watcher', 'watch', 'monitor', 'daemon', 'serve', 'server']
 
     # Slow commands (need extended time but not infinite)
-    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist']
+    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist', 'snapshot', 'versioned', 'backup', 'restore', 'close']
 
     # Check for daemon keywords in command
     if any(keyword in args_str for keyword in daemon_keywords):
@@ -801,6 +801,32 @@ def is_long_running_command(command_args: List[str]) -> bool:
         return True
 
     return False
+
+
+def _report_to_error_registry(error_type: str, command: str, branch: str, stderr_snippet: str, severity: str = "medium") -> None:
+    """Push error to Trigger's error registry at point of failure.
+
+    Best-effort reporting - Drone continues normally if registry is unavailable.
+    Uses Trigger's public module API (not the guarded handler directly).
+    Adds AIPASS_ROOT to sys.path so 'trigger' package resolves from Drone's runtime context.
+    """
+    try:
+        import sys
+        from pathlib import Path
+        aipass_root = str(Path.home() / "aipass_core")
+        if aipass_root not in sys.path:
+            sys.path.insert(0, aipass_root)
+        from trigger.apps.modules.errors import report_error
+        report_error(
+            error_type=error_type,
+            message=f"Command failed: {command} | {stderr_snippet}",
+            component=branch.upper(),
+            severity=severity,
+            fire_event=True
+        )
+    except Exception:
+        # Registry unavailable - Drone must not break
+        pass
 
 
 def _notify_env_failure(branch_name: str, command: str, stderr: str, python_cmd: str) -> None:
@@ -898,6 +924,14 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
         # ai_mail send can take 25-30s due to startup overhead - extend timeout
         elif entry_point.name == 'ai_mail.py' and 'send' in args_lower:
             timeout = 60
+        # Flow close command (triggers API calls for plan analysis) - 120 seconds
+        elif entry_point.name == 'flow.py' and 'close' in args_lower:
+            timeout = 120
+        # Backup commands (file scanning of ~/home tree can exceed 30s) - 120 seconds
+        elif entry_point.name == 'backup_system.py' and any(
+            kw in args_str for kw in ['snapshot', 'versioned', 'backup', 'restore']
+        ):
+            timeout = 120
         # Default timeout for normal commands - 30 seconds
         else:
             timeout = 30
@@ -958,6 +992,15 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
                 # Notify @dev_central of environment failure
                 _notify_env_failure(branch_name, cmd_str, result.stderr, python_cmd)
 
+                # Push to Trigger's error registry
+                _report_to_error_registry(
+                    error_type="import_error",
+                    command=cmd_str,
+                    branch=branch_name,
+                    stderr_snippet=result.stderr.strip().splitlines()[-1],
+                    severity="high"
+                )
+
                 return False
             elif result.returncode != 0:
                 # Log the failure so TRIGGER can detect it
@@ -970,12 +1013,33 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
                 for line in result.stderr.strip().splitlines():
                     console.print(f"  [dim red]{line}[/dim red]", highlight=False)
 
+                # Push to Trigger's error registry
+                branch_name = entry_point.parent.parent.name if entry_point.parent.name == 'apps' else entry_point.parent.name
+                _report_to_error_registry(
+                    error_type="crash",
+                    command=f"{entry_point.name} {' '.join(module_args)}",
+                    branch=branch_name,
+                    stderr_snippet=last_line,
+                    severity="medium"
+                )
+
         return result.returncode == 0
     except subprocess.TimeoutExpired:
         timeout_msg = f"Command timed out after {timeout} seconds"
         logger.error(f"[{MODULE_NAME}] {timeout_msg}: {entry_point}")
         console.print(f"\n[red]{timeout_msg}[/red]")
         console.print(f"[dim]Try running directly: python3 {entry_point} {' '.join(module_args)}[/dim]")
+
+        # Push to Trigger's error registry
+        branch_name = entry_point.parent.parent.name if entry_point.parent.name == 'apps' else entry_point.parent.name
+        _report_to_error_registry(
+            error_type="timeout",
+            command=f"{entry_point.name} {' '.join(module_args)}",
+            branch=branch_name,
+            stderr_snippet=timeout_msg,
+            severity="high"
+        )
+
         return False
     except BrokenPipeError:
         # Pipe closed before output finished (e.g. parent process exited).
@@ -988,6 +1052,17 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
             console.print(f"[red]Error: {str(e)}[/red]")
         except BrokenPipeError:
             pass
+
+        # Push to Trigger's error registry
+        branch_name = entry_point.parent.parent.name if entry_point.parent.name == 'apps' else entry_point.parent.name
+        _report_to_error_registry(
+            error_type=type(e).__name__,
+            command=f"{entry_point.name} {' '.join(module_args)}",
+            branch=branch_name,
+            stderr_snippet=str(e)[:200],
+            severity="medium"
+        )
+
         return False
 
 

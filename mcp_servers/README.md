@@ -4,25 +4,29 @@ MCP server integrations for the AIPass ecosystem.
 
 ## Purpose
 
-Manages Model Context Protocol (MCP) server configurations and provides infrastructure for working with Serena, Context7, Playwright, and Sequential Thinking servers. Hosts cloned MCP server repositories and utility scripts for configuration management.
+Manages Model Context Protocol (MCP) server configurations and hosts cloned MCP server repositories. Provides utility scripts for configuration management across the system.
 
 ## MCP Servers
 
+Four servers configured in the global config (`/home/aipass/.mcp.json`), available system-wide:
+
 | Server | Description | Status |
 |--------|-------------|--------|
-| **Serena** | Project management and code navigation | Active |
+| **Serena** | Project management and code navigation (`--project /home/aipass`) | Active |
 | **Context7** | Documentation and library access | Active |
-| **Playwright** | Browser automation | Active |
+| **Playwright** | Browser automation (global only) | Active |
 | **Sequential Thinking** | Step-by-step reasoning | Active |
 
-Additional servers in `servers/src/`: everything, fetch, filesystem, git, memory, time.
+A local config (`/home/aipass/mcp_servers/.mcp.json`) exists with 3 servers (no Playwright).
+
+Reference server sources in `servers/src/`: everything, fetch, filesystem, git, memory, sequentialthinking, time.
 
 ## Configuration
 
-- **Global config:** `/home/aipass/.mcp.json` (system-wide, 4 servers)
-- **Local config:** `/home/aipass/mcp_servers/.mcp.json` (3 servers, no Playwright)
+- **Global:** `/home/aipass/.mcp.json` — primary config used by Claude Code across all branches
+- **Local:** `/home/aipass/mcp_servers/.mcp.json` — branch-specific (3 servers, no Playwright)
 
-The global config at `/home/aipass/.mcp.json` is the primary MCP configuration used by Claude Code across all branches. Serena uses `--project /home/aipass` for system-wide access.
+Global config is the source of truth. Serena uses `--project /home/aipass` for system-wide access.
 
 ## Usage
 
@@ -39,18 +43,18 @@ mcp_servers/
 ├── apps/
 │   ├── mcp_servers.py         # Main orchestrator (modular, auto-discovery)
 │   ├── handlers/json/         # JSON handler (json_handler.py)
-│   ├── modules/               # Auto-discovered modules (empty currently)
+│   ├── modules/               # Auto-discovered modules
 │   ├── json_templates/        # JSON templates
 │   ├── extensions/            # Extensions
 │   └── plugins/               # Plugins
 ├── context7/                  # Context7 server (cloned repo)
 ├── playwright-mcp/            # Playwright server (cloned repo)
-├── serena/                    # Serena server (cloned repo, with .venv)
-├── servers/                   # MCP reference servers (filesystem, git, memory, etc.)
-├── tools/                     # Utility scripts (5 tools)
+├── serena/                    # Serena server (cloned repo)
+├── servers/                   # MCP reference servers (src/: everything, fetch, filesystem, git, memory, sequentialthinking, time)
+├── tools/                     # Utility scripts (6 tools)
 ├── tests/                     # Test configuration
 ├── logs/                      # Application logs
-├── docs/                      # Documentation templates
+├── docs/                      # Documentation
 └── *.json                     # Memory files (id, local, observations)
 ```
 
@@ -77,3 +81,5 @@ mcp_servers/
 
 - Branch: @mcp_servers
 - Email: aipass.system@gmail.com
+
+*Last Updated: 2026-02-14*

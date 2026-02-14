@@ -49,6 +49,7 @@ from seed.apps.handlers.standards import testing_check
 from seed.apps.handlers.standards import error_handling_check
 from seed.apps.handlers.standards import encapsulation_check
 from seed.apps.handlers.standards import trigger_check
+from seed.apps.handlers.standards import log_level_check
 from seed.apps.handlers.standards import diagnostics_check
 from seed.apps.handlers.config import ignore_handler
 
@@ -105,7 +106,8 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list) -> Dict:
         'testing': testing_check,
         'error_handling': error_handling_check,
         'encapsulation': encapsulation_check,
-        'trigger': trigger_check
+        'trigger': trigger_check,
+        'log_level': log_level_check
     }
 
     results = {}
@@ -270,6 +272,33 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list) -> Dict:
         scores['trigger'] = int(sum(trigger_scores) / len(trigger_scores))
         avg_score = int(sum(scores.values()) / len(scores)) if scores else 0
 
+    # Check LOG_LEVEL on ALL files (ERROR vs WARNING hygiene)
+    log_level_violations = []
+    log_level_scores = []
+    if all_file_results:
+        for file_info in all_file_results:
+            try:
+                ll_result = log_level_check.check_module(file_info['file'], bypass_rules=bypass_rules)
+                ll_score = ll_result.get('score', 0)
+                if ll_result.get('checks', []):
+                    log_level_scores.append(ll_score)
+                if not ll_result.get('passed', True):
+                    failed_checks = [c for c in ll_result.get('checks', []) if not c.get('passed', False)]
+                    if failed_checks:
+                        log_level_violations.append({
+                            'file': file_info['name'],
+                            'path': file_info['file'],
+                            'score': ll_score,
+                            'issues': [c.get('message', 'Unknown') for c in failed_checks]
+                        })
+            except Exception:
+                pass
+
+    # Update log_level score to reflect ALL files
+    if log_level_scores:
+        scores['log_level'] = int(sum(log_level_scores) / len(log_level_scores))
+        avg_score = int(sum(scores.values()) / len(scores)) if scores else 0
+
     # Check JSON_STRUCTURE on json_handler.py files (for misconfiguration)
     # Note: Only check json_handler.py files, not all handlers - handlers legitimately
     # read JSON files directly for config/registry purposes. The three-JSON pattern
@@ -336,6 +365,7 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list) -> Dict:
         'encapsulation_violations': encapsulation_violations,
         'error_handling_violations': error_handling_violations,
         'trigger_violations': trigger_violations,
+        'log_level_violations': log_level_violations,
         'json_structure_violations': json_structure_violations,
         'deprecated_patterns': deprecated_patterns,
         'files_checked': len(all_file_results),

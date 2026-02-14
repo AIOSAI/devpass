@@ -10,18 +10,51 @@
 
 ## What is DEV_CENTRAL?
 
-This is the shared workspace where Patrick and Claude collaborate on system-wide orchestration. Not a code-building branch - a conversation and coordination hub.
+Central command for the AIPass ecosystem. This is where Patrick and Claude collaborate on system-wide planning, coordination, and architectural decisions. Not a code-building branch - an orchestration hub.
 
 **What happens here:**
 - System-wide planning and architecture discussions
-- Central aggregations (all branch READMEs, plans, notes in one place)
-- Cross-branch coordination via @assistant workflow
-- Admin operations on the whole ecosystem
-- Sub-branches for specific concerns (git_repo, permissions, devpulse, assistant)
+- Cross-branch task delegation via dispatch (`ai_mail send --dispatch`)
+- Monitoring and follow-up on dispatched work (monitoring agents)
+- Flow plan creation and lifecycle management
+- Central aggregation of branch status and activity
 
 **What doesn't happen here:**
-- Code building (agents do that in proper branches)
+- Code building (agents do that at proper branches)
 - Heavy file operations (agents handle those)
+- Domain-specific debugging (branch experts own their systems)
+
+---
+
+## Workflow
+
+DEV_CENTRAL operates on a **dispatch + monitor** pattern:
+
+```bash
+# Send task to a branch (spawns agent there)
+ai_mail send @branch "Task Subject" "Details" --dispatch
+
+# Check for responses
+ai_mail inbox
+ai_mail view <id>
+```
+
+**Monitoring agents** run in the background to catch responses from dispatched work. They check inbox, error registry, and lock files on a timer, then report back. This keeps conversations with Patrick unblocked while work happens asynchronously.
+
+**Decision reflex:** Before debugging any domain yourself, ask which branch owns it. They have deep memory on their systems - a 1-email question saves hours of guessing.
+
+| Domain | Branch |
+|--------|--------|
+| File monitoring, events | @prax |
+| Email system, delivery | @ai_mail |
+| Standards, code quality | @seed (14 standards) |
+| Plans, workflows | @flow |
+| Command routing | @drone |
+| Branch lifecycle | @cortex |
+| Backups, snapshots | @backup_system |
+| API, model access | @api |
+| Vector search, archives | @memory_bank |
+| Dev notes, dashboard | @devpulse |
 
 ---
 
@@ -30,23 +63,22 @@ This is the shared workspace where Patrick and Claude collaborate on system-wide
 ```
 dev_central/
 ├── DEV_CENTRAL.*.json        # Memory files (800 line limit)
-├── DASHBOARD.local.json      # System status at a glance
-│
-├── Central Aggregations
-│   ├── readme.central.md     # All branch READMEs combined
-│   ├── plans_central.md      # All active plans
-│   ├── notepad.central.md    # All branch notepads
-│   └── devpulse.central.md   # Dev tracking summary
+├── DASHBOARD.local.json      # System status (auto-refreshed)
+├── FPLAN-*.md                # Active flow plans
+├── notepad.md                # Async scratchpad during builds
+├── dev.local.md              # Shared dev notes (issues, ideas)
 │
 ├── Sub-branches
-│   ├── assistant/            # Workflow coordinator (dispatches tasks, handles feedback loops)
-│   ├── devpulse/             # Human notes, dashboard, dev tracking
-│   ├── git_repo/             # Git operations
-│   └── permissions/          # ACL/permission management
+│   ├── assistant/            # Workflow coordinator (dispatch, monitoring, aggregation)
+│   ├── devpulse/             # Human notes, dashboard updates, dev tracking
+│   ├── git_repo/             # Git operations and repo management
+│   └── permissions/          # ACL/permission management (skeleton)
 │
-├── dev_planning/             # Planning docs (per-branch subdirs + active ideas)
+├── dev_planning/             # Per-branch planning directories + workflow docs
 ├── docs/                     # Technical documentation
 ├── templates/                # Branch welcome, proposals, etc.
+├── .aipass/                  # Branch system prompt (injected on every prompt)
+├── .seed/                    # Seed compliance config (bypass rules)
 └── .chroma/                  # Local vector DB
 ```
 
@@ -56,107 +88,61 @@ dev_central/
 
 | File | Purpose | Limit |
 |------|---------|-------|
-| `DEV_CENTRAL.id.json` | Shared identity | Permanent |
-| `DEV_CENTRAL.local.json` | Session history, key learnings | 800 lines |
-| `DEV_CENTRAL.observations.json` | Collaboration patterns | 800 lines |
+| `DEV_CENTRAL.id.json` | Identity, role, principles | Permanent |
+| `DEV_CENTRAL.local.json` | Session history, key learnings, active tasks | 800 lines |
+| `DEV_CENTRAL.observations.json` | Collaboration patterns, insights | 800 lines |
 
-Increased limits (800 vs standard 600) since this branch is conversation-focused.
-
----
-
-## Central Aggregations
-
-These files aggregate data from across all branches into one place:
-
-| File | Source | Purpose |
-|------|--------|---------|
-| `readme.central.md` | All branch READMEs | System overview |
-| `plans_central.md` | PLANS.central.json | Active workflows |
-| `notepad.central.md` | All branch notepads | Notes aggregation |
-| `devpulse.central.md` | DEVPULSE.central.json | Dev tracking |
-
-Generated by sync scripts in `devpulse/apps/` directory.
+Memory files auto-roll to Memory Bank (ChromaDB vectors) when they exceed limits. This is by design - nothing is lost, it just moves to searchable archive.
 
 ---
 
 ## Sub-branches
 
-Dev_central contains proper sub-branches with full 3-layer architecture:
+All sub-branches follow 3-layer architecture (`apps/ → modules/ → handlers/`):
 
-### ASSISTANT (NEW)
+### ASSISTANT
 Workflow coordinator - dispatches tasks, monitors responses, handles correction loops.
-- Path: `dev_central/assistant/`
 - Entry: `apps/assistant.py`
 - Commands: `drone @assistant update` (status digest)
-- Pattern: Tasks sent with `--reply-to @assistant` route back here for validation
+- Pattern: Tasks sent with `--reply-to @assistant` route back for validation
 
 ### DEVPULSE
-Human notes, dashboard updates, dev tracking.
-- Path: `dev_central/devpulse/`
+Human and AI shared dev notes, dashboard updates, dev tracking.
 - Entry: `apps/devpulse.py`
-- Features: dev.local.md per branch, DASHBOARD.local.json updates
+- Features: `dev.local.md` per branch, `DASHBOARD.local.json` updates
+- Commands: `drone @devpulse dev add @branch "Section" "Note"`
 
 ### GIT_REPO
 Git operations and repository management.
-- Path: `dev_central/git_repo/`
+- Entry: `apps/git_repo.py`
 
 ### PERMISSIONS
-Access control and permission systems.
-- Path: `dev_central/permissions/`
+Access control and permission systems. Currently skeletal framework - structure exists but no active modules.
+- Entry: `apps/permissions.py`
 
 ---
 
-## Workflow Patterns
-
-### Assistant-Mediated Workflow
-DEV_CENTRAL doesn't monitor every branch reply directly. @assistant handles the feedback loop:
+## Key Commands
 
 ```bash
-# Send task with reply routing
-ai_mail send @branch "Task Subject" "Description" --reply-to @assistant --auto-execute
+# Email (from DEV_CENTRAL, use full path for sender identity)
+python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail.py inbox
+python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail.py send @branch "Subj" "Msg" --dispatch
 
-# Check in when ready
-drone @assistant update
-```
+# Flow plans
+drone @flow create . "subject"
+drone @flow close FPLAN-XXXX
+drone @flow list
 
-### Branch Expertise
-Before debugging yourself, ask who owns that domain:
-
-| Domain | Branch |
-|--------|--------|
-| File monitoring | @prax |
-| Email system | @ai_mail |
-| Standards | @seed |
-| Plans/workflows | @flow |
-| Command routing | @drone |
-| Branch lifecycle | @cortex |
-| Backups | @backup_system |
-| API access | @api |
-| Vector search | @memory_bank |
-| Human notes | @devpulse |
-
-See `dev_planning/workflow/claude_p_workflow.md` for full workflow documentation.
-
----
-
-## Quick Reference
-
-```bash
-# Check inbox
-ai_mail inbox
-
-# Send task with assistant routing
-ai_mail send @branch "Subject" "Body" --reply-to @assistant --auto-execute
-
-# Check assistant status
+# Cross-branch commands
+drone @seed audit @branch
+drone @seed verify
+drone @memory_bank search "query"
 drone @assistant update
 
-# Vector search (branch-filtered)
-drone @memory_bank search "query" --branch DEV_CENTRAL
-
-# Sync central files
-bash devpulse/apps/sync-readme.sh
-bash devpulse/apps/sync-plans.sh
+# Discovery
+drone systems
+drone list @branch
 ```
 
 ---
@@ -165,13 +151,14 @@ bash devpulse/apps/sync-plans.sh
 
 This is a **conversation hub**, not a code factory.
 
-- **Discuss** architecture, plans, direction
-- **Deploy agents** for actual work (via @assistant workflow)
-- **Read** central aggregations for system overview
-- **Coordinate** cross-branch operations
+- **Discuss** architecture, plans, direction with Patrick
+- **Dispatch** work to specialist branches via email
+- **Monitor** responses with background monitoring agents
+- **Coordinate** cross-branch operations and multi-phase builds
+- **Update memories** - they are your presence in this ecosystem
 
-When something needs building, spawn an agent to the appropriate branch.
+When something needs building, dispatch it to the branch that owns that domain.
 
 ---
 
-*Last Updated: 2026-02-12*
+*Last Updated: 2026-02-14*

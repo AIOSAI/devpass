@@ -38,12 +38,9 @@ import sys
 sys.path.append(str(AIPASS_ROOT))
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Union, Tuple, TYPE_CHECKING
+from typing import Optional, Dict, Any, Union
 import re
 import logging
-
-if TYPE_CHECKING:
-    from watchdog.observers import Observer
 
 from watchdog.observers import Observer as WatchdogObserver
 from watchdog.events import FileSystemEventHandler
@@ -232,101 +229,132 @@ class LogFileWatcher(FileSystemEventHandler):
         else:
             return 'info'
 
-    def _extract_command_info(self, log_line: str) -> Optional[Union[str, Tuple[str, Optional[str]]]]:
+    def _extract_command_info(self, log_line: str) -> Optional[Dict[str, Optional[str]]]:
         """
         Extract command information from log line if it's a new command execution.
 
-        Detects various command patterns and returns formatted command string or
-        tuple of (command, caller) for drone executions.
+        Returns dict with keys: command, caller (optional), target (optional)
+        or None if not a command line.
         """
         # Pattern 1: Drone commands - "Drone started with args: ['close', 'plan', '0098']"
         if "Drone started with args:" in log_line or "[drone] Drone started with args:" in log_line:
             match = re.search(r"args:\s*\[([^\]]+)\]", log_line)
             if match:
                 args = match.group(1).replace("'", "").replace('"', '')
-                return f"drone {args}"
+                return {'command': f"drone {args}", 'caller': None, 'target': None}
 
         # Pattern 2: Flow plan commands
         if "FLOW_PLAN]" in log_line and ("Creating" in log_line or "Closing" in log_line or "Opening" in log_line):
             if "Creating" in log_line:
-                return "flow create plan"
+                return {'command': "flow create plan", 'caller': None, 'target': None}
             elif "Closing" in log_line:
                 match = re.search(r"PLAN(\d+)", log_line)
                 if match:
-                    return f"flow close plan {match.group(1)}"
+                    return {'command': f"flow close plan {match.group(1)}", 'caller': None, 'target': None}
             elif "Opening" in log_line:
                 match = re.search(r"PLAN(\d+)", log_line)
                 if match:
-                    return f"flow open plan {match.group(1)}"
+                    return {'command': f"flow open plan {match.group(1)}", 'caller': None, 'target': None}
 
-        # Pattern 3: Seed audit commands
+        # Pattern 3: Seed audit commands - extract target branch
         if "[seed]" in log_line.lower() and "audit" in log_line.lower():
             match = re.search(r"Auditing\s+(\w+)", log_line)
             if match:
-                return f"seed audit @{match.group(1).lower()}"
+                target = match.group(1).upper()
+                return {'command': f"seed audit @{target.lower()}", 'caller': None, 'target': target}
 
         # Pattern 4: Seed checklist commands
         if "standards_checklist" in log_line.lower() and "Running" in log_line:
             match = re.search(r"Running\s+(\w+)\s+standard\s+check\s+on\s+(.+)", log_line)
             if match:
-                return f"seed checklist {match.group(2)}"
+                return {'command': f"seed checklist {match.group(2)}", 'caller': None, 'target': None}
 
-        # Pattern 5: AI Mail commands
+        # Pattern 5: AI Mail commands - extract target
         if "[ai_mail]" in log_line.lower():
             if "Sending" in log_line:
-                return "ai_mail send"
+                # Try to extract recipient
+                target_match = re.search(r"to\s+@?(\w+)", log_line, re.IGNORECASE)
+                target = target_match.group(1).upper() if target_match else None
+                return {'command': "ai_mail send", 'caller': None, 'target': target}
             elif "inbox" in log_line.lower():
-                return "ai_mail inbox"
+                return {'command': "ai_mail inbox", 'caller': None, 'target': None}
 
         # Pattern 6: Prax commands
         if "[prax]" in log_line.lower():
             if "monitor" in log_line.lower():
-                return "prax monitor"
+                return {'command': "prax monitor", 'caller': None, 'target': None}
             elif "status" in log_line.lower():
-                return "prax status"
+                return {'command': "prax status", 'caller': None, 'target': None}
 
         # Pattern 7: ALL drone command executions - HIGH PRIORITY
-        # Format 1: "Executing activated command [CALLER:PRAX]: seed.py audit @prax"
-        # Format 2: "Executing command [CALLER:PRAX]: seed.py audit @prax"
+        # Format: "Executing command [CALLER:PRAX]: seed.py audit @prax"
         if "Executing" in log_line and "command" in log_line:
-            # Extract caller if present
             caller_match = re.search(r"\[CALLER:(\w+)\]", log_line)
             caller = caller_match.group(1) if caller_match else None
 
-            # Extract command (after the colon, handles both formats)
             cmd_match = re.search(r"Executing(?:\s+activated)?\s+command(?:\s*\[CALLER:\w+\])?:\s*(.+)", log_line)
             if cmd_match:
                 cmd = cmd_match.group(1).strip()
-                return (cmd, caller)  # Tuple: (command, caller)
+                # Extract target from command (e.g., "seed.py audit @prax" -> PRAX)
+                # Or "seed.py audit /home/aipass/aipass_core/prax" -> PRAX
+                target = None
+                target_match = re.search(r'@(\w+)', cmd)
+                if target_match:
+                    target = target_match.group(1).upper()
+                else:
+                    # Check for full path target
+                    path_match = re.search(r'/home/aipass/(?:aipass_core|aipass_os)/(\w+)', cmd)
+                    if path_match:
+                        target = path_match.group(1).upper()
+
+                # Clean up command display - simplify paths
+                display_cmd = cmd
+                # Replace full paths with @branch notation
+                display_cmd = re.sub(r'/home/aipass/aipass_core/(\w+)/apps/\w+\.py', lambda m: f"@{m.group(1)}", display_cmd)
+                display_cmd = re.sub(r'/home/aipass/aipass_core/(\w+)', lambda m: f"@{m.group(1)}", display_cmd)
+
+                return {'command': display_cmd, 'caller': caller, 'target': target}
 
         return None
 
     def _emit_command_separator(self, branch: str, command_info) -> None:
         """
-        Emit command separator event to queue with caller attribution.
-
-        Args:
-            branch: Branch where log was written (executor)
-            command_info: Either string (old format) or tuple (command, caller)
+        Emit command separator event to queue with caller and target attribution.
+        Deduplicates consecutive identical commands per branch.
         """
-        # Handle both string and tuple formats
-        if isinstance(command_info, tuple):
+        # Handle dict format (new) and legacy string/tuple formats
+        if isinstance(command_info, dict):
+            command = command_info.get('command', '')
+            caller = command_info.get('caller')
+            target = command_info.get('target')
+        elif isinstance(command_info, tuple):
             command, caller = command_info
+            target = None
         else:
             command = command_info
             caller = None
+            target = None
 
-        # Create command separator event with caller info
+        # Deduplicate: skip if same command just emitted for this branch
+        dedup_key = f"{branch}:{command}"
+        if self.last_command_per_branch.get(branch) == dedup_key:
+            return
+        self.last_command_per_branch[branch] = dedup_key
+
         separator_event = MonitoringEvent(
-            priority=2,  # High priority for command separators
+            priority=2,
             event_type='command',
             branch=branch,
             action='executed',
             message=command,
             level='info',
             timestamp=datetime.now(),
-            caller=caller  # Who initiated the command
+            caller=caller
         )
+
+        # Store target in action field since MonitoringEvent doesn't have a target field
+        if target:
+            separator_event.action = f"executed:{target}"
 
         self.event_queue.enqueue(separator_event)
 

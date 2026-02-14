@@ -167,6 +167,16 @@ def print_branch_summary(audit_result: Dict, system_averages: Dict[str, int] | N
             for issue in violation.get('issues', []):
                 console.print(f"      [dim]• {issue}[/dim]")
 
+    # Show LOG_LEVEL violations (ERROR vs WARNING hygiene)
+    log_level_violations = audit_result.get('log_level_violations', [])
+    if log_level_violations:
+        console.print()
+        console.print(f"  [bold red]LOG_LEVEL VIOLATIONS ({len(log_level_violations)} files):[/bold red]")
+        for violation in log_level_violations:
+            console.print(f"    [red]✗[/red] {violation['path']} [dim](score: {violation['score']}%)[/dim]")
+            for issue in violation.get('issues', []):
+                console.print(f"      [dim]• {issue}[/dim]")
+
     # Show JSON_STRUCTURE violations (json_handler misconfiguration)
     json_structure_violations = audit_result.get('json_structure_violations', [])
     if json_structure_violations:

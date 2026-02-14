@@ -61,6 +61,7 @@ from seed.apps.handlers.standards import testing_check
 from seed.apps.handlers.standards import error_handling_check
 from seed.apps.handlers.standards import encapsulation_check
 from seed.apps.handlers.standards import trigger_check
+from seed.apps.handlers.standards import log_level_check
 
 # =============================================================================
 # BYPASS SYSTEM - .seed/ config per branch
@@ -456,7 +457,7 @@ def print_checklist(args: List[str]):
         console.print("  # Check a different branch module")
         console.print("  python3 /home/aipass/seed/apps/modules/standards_checklist.py /home/aipass/aipass_core/api/apps/api.py")
         console.print()
-        console.print("[yellow]AVAILABLE CHECKERS (10/10 COMPLETE):[/yellow]")
+        console.print("[yellow]AVAILABLE CHECKERS (11/11 COMPLETE):[/yellow]")
         console.print("  [green]✓[/green] imports_check        - Import standards validation")
         console.print("  [green]✓[/green] architecture_check   - Architecture standards validation")
         console.print("  [green]✓[/green] naming_check         - Naming standards validation")
@@ -468,6 +469,7 @@ def print_checklist(args: List[str]):
         console.print("  [green]✓[/green] testing_check        - Testing standards validation")
         console.print("  [green]✓[/green] error_handling_check - Error handling standards validation")
         console.print("  [green]✓[/green] encapsulation_check  - Handler encapsulation (cross-branch/package imports)")
+        console.print("  [green]✓[/green] log_level_check      - Log level hygiene (ERROR vs WARNING)")
         console.print()
         console.print("─" * 70)
         console.print()
@@ -733,10 +735,29 @@ def print_checklist(args: List[str]):
     console.print()
     logger.info(f"[{MODULE_NAME}] TRIGGER check complete: {trigger_score}/100")
 
+    # Run log level check
+    logger.info(f"[{MODULE_NAME}] Running LOG_LEVEL standard check on {file_path}")
+    console.print("[bold cyan]LOG LEVEL STANDARD:[/bold cyan]")
+    log_level_result = log_level_check.check_module(file_path, bypass_rules=bypass_rules)
+
+    # Display results
+    for check in log_level_result['checks']:
+        symbol = "[green]✓[/green]" if check['passed'] else "[red]✗[/red]"
+        console.print(f"  {symbol} {check['name']}: {check['message']}")
+
+    console.print()
+
+    # Show score
+    log_level_score = log_level_result['score']
+    log_level_status = "[green]PASS[/green]" if log_level_result['passed'] else "[red]FAIL[/red]"
+    console.print(f"  Score: {log_level_score}/100 - {log_level_status}")
+    console.print()
+    logger.info(f"[{MODULE_NAME}] LOG_LEVEL check complete: {log_level_score}/100")
+
     # Overall summary
-    avg_score = int((imports_score + architecture_score + naming_score + cli_score + handlers_score + modules_score + documentation_score + json_structure_score + testing_score + error_handling_score + encapsulation_score + trigger_score) / 12)
+    avg_score = int((imports_score + architecture_score + naming_score + cli_score + handlers_score + modules_score + documentation_score + json_structure_score + testing_score + error_handling_score + encapsulation_score + trigger_score + log_level_score) / 13)
     console.print("─" * 70)
-    console.print(f"[bold]OVERALL:[/bold] 12/12 standards checked - {avg_score}% average compliance")
+    console.print(f"[bold]OVERALL:[/bold] 13/13 standards checked - {avg_score}% average compliance")
     console.print("─" * 70)
     console.print()
     logger.info(f"[{MODULE_NAME}] Standards check complete: {avg_score}% average compliance")

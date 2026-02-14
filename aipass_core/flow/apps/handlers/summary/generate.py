@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: generate.py - Plan Summary Generation Handler
 # Date: 2025-11-21
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: flow/handlers/summary
 #
 # CHANGELOG:
+#   - v1.1.0 (2026-02-14): Sequential processing with backoff - delay between API calls, stop on rate limit
 #   - v1.0.0 (2025-11-21): Extracted from archive_temp/flow_plan_summarizer.py
 #
 # CODE STANDARDS:
@@ -28,6 +29,7 @@ Output generation is handled by the dashboard/update_local handler.
 from pathlib import Path
 import sys
 import json
+import time
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
@@ -49,6 +51,7 @@ FLOW_ROOT = AIPASS_ROOT / "flow"
 FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
 REGISTRY_FILE = FLOW_JSON_DIR / "flow_registry.json"
 SUMMARIES_FILE = FLOW_JSON_DIR / "plan_summaries.json"
+API_DELAY_SECONDS = 3  # Delay between sequential API calls to avoid rate limits
 CONFIG_FILE = FLOW_JSON_DIR / "flow_plan_summarizer_config.json"
 SHARED_API_CONFIG = FLOW_ROOT / "apps" / "handlers" / "json_templates" / "custom" / "api_config.json"
 
@@ -473,6 +476,8 @@ def generate_summaries() -> Dict[str, Any]:
         cached_summaries = load_summaries()
         updated_summaries = {}
 
+        api_call_count = 0
+        rate_limited = False
         for plan_num, plan_info in registry.get("plans", {}).items():
             try:
                 # Check if summary needs update
@@ -495,6 +500,10 @@ def generate_summaries() -> Dict[str, Any]:
                     updated_summaries[plan_num] = cached
                     continue
 
+                # Stop processing if we hit a rate limit - try again later
+                if rate_limited:
+                    continue
+
                 # Read plan file
                 plan_path = Path(plan_info["file_path"])
                 if not plan_path.exists():
@@ -509,14 +518,22 @@ def generate_summaries() -> Dict[str, Any]:
                     # Skip AI call for empty templates - use fixed summary
                     summary = "Empty plan template - no content added"
                 else:
+                    # Add delay between API calls (not before the first one)
+                    if api_call_count > 0:
+                        time.sleep(API_DELAY_SECONDS)
+
                     # Extract content
                     content = extract_content_from_plan(plan_path)
 
                     # Generate summary with AI
                     summary = generate_ai_summary(content, plan_num)
+                    api_call_count += 1
 
                 # Check if summary generation failed
                 if any(error in summary for error in ["ERROR:", "CONNECTION ERROR", "RESPONSE ERROR", "INVALID KEY", "API NOT AVAILABLE"]):
+                    # Detect rate limit - stop processing remaining plans
+                    if "429" in summary or "rate limit" in summary.lower():
+                        rate_limited = True
                     # Don't cache failed summaries - let them retry next time
                     continue
 
@@ -532,6 +549,10 @@ def generate_summaries() -> Dict[str, Any]:
                 }
 
             except Exception as e:
+                # Detect rate limit in exceptions - stop processing
+                error_str = str(e)
+                if "429" in error_str or "rate limit" in error_str.lower():
+                    rate_limited = True
                 # Skip individual plan failures, continue with others
                 continue
 

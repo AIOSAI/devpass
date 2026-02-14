@@ -101,7 +101,7 @@ MONITOR_IGNORE_PATTERNS = [
     ".idea",
     ".eclipse",
 
-    # Claude Code session files (change constantly, not user code)
+    # Claude Code internal files (change constantly, not user code)
     ".claude/todos",
     ".claude/shell-snapshots",
     ".claude/ide",
@@ -111,6 +111,10 @@ MONITOR_IGNORE_PATTERNS = [
     ".claude/file-history",
     ".claude/history.jsonl",
     ".claude/.update.lock",
+    ".claude/plugins",
+    ".claude.json.backup",
+    ".claude.json.tmp",
+    ".last_diagnostics_file",
     ".serena/logs",
     ".code",
 
@@ -155,9 +159,10 @@ MONITOR_IGNORE_PATTERNS = [
     "*.7z",
     "*.whl",
 
-    # Temporary files
+    # Temporary files (includes Claude Code atomic writes: file.py.tmp.PID.TIMESTAMP)
     "*.tmp",
     "*.temp",
+    ".tmp.",
     "*.swp",
     "*.swo",
     "*~",
@@ -314,6 +319,11 @@ def should_monitor(path: Path) -> bool:
     path_str = str(path)
     parts = set(path_str.split(os.sep))
     name = path.name
+
+    # Early exit: Claude Code atomic writes and backups (override ALWAYS patterns)
+    # These contain .claude.json as substring, which would match the ALWAYS pattern
+    if '.claude.json.backup' in name or '.claude.json.tmp' in name:
+        return False
 
     # Check ALWAYS patterns first (exceptions that override ignores)
     for pattern in MONITOR_ALWAYS_PATTERNS:

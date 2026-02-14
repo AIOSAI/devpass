@@ -1,6 +1,6 @@
 # PROJECTS
 
-**Purpose:** Experimental workspace for project scaffolding and development experiments
+**Purpose:** Project workshop - where real products get built
 **Location:** `/home/aipass/projects`
 **Profile:** Workshop
 **Created:** 2025-11-23
@@ -9,20 +9,38 @@
 
 ## Overview
 
-PROJECTS is a workshop branch - a scaffolded template ready for development. Contains base architecture with no active modules, plus external project clones for reference/experimentation.
+PROJECTS is the workshop of the AIPass ecosystem. Not a service branch - this is where things that face the outside world get built. Apps, tools, and products that people actually use. Work arrives from Patrick or DEV_CENTRAL as ideas with scaffolding, and gets built into working software here.
 
 ### What This Branch Does
 
-- Provides auto-discovery module architecture
-- Houses experimental code and project scaffolding
-- Serves as a development sandbox
-- Hosts cloned external projects (e.g., moltbot)
+- Builds and manages real projects (feel_good_app, guest_portal, youtube)
+- Studies external repos for patterns and ideas
+- Orchestrates development through agent delegation
+- Takes handoffs from Patrick/DEV_CENTRAL and owns them to completion
 
 ### Current State
 
-**Modules:** 0 discovered (apps/modules/ is empty)
-**Status:** Template deployed, awaiting module development
-**External Projects:** moltbot (personal AI assistant clone)
+**Active Projects:** 3 (feel_good_app, guest_portal, youtube)
+**External Repos:** 9 cloned for reference/study
+**Status:** Active workshop with ongoing development
+
+---
+
+## Projects
+
+### feel_good_app
+React Native/Expo mood tracking app. Feature-complete core with timed tasks, habits, mood tracking, and insights. Most mature project in the workshop.
+- **Location:** `feel_good_app/app/` (React Native source)
+- **Key features:** Mood tracking, timed tasks, habit classification, skip reflections, insights tab
+- **Recent work:** UTC timezone bug fix, timed tasks + habits feature
+
+### guest_portal
+Early-stage project with initial docs and notepad.
+- **Location:** `guest_portal/`
+
+### youtube
+Early-stage project with initial docs and notepad.
+- **Location:** `youtube/`
 
 ---
 
@@ -32,11 +50,7 @@ PROJECTS is a workshop branch - a scaffolded template ready for development. Con
 - **Entry Point:** `apps/projects.py`
 - **Module Interface:** Modules in `apps/modules/` implementing `handle_command(command, args) -> bool`
 
-### How It Works
-
-1. `projects.py` scans `apps/modules/` for `.py` files
-2. Modules with `handle_command()` are auto-registered
-3. Commands route to modules automatically
+No custom modules deployed yet - the orchestrator framework is in place for future use.
 
 ---
 
@@ -46,37 +60,35 @@ PROJECTS is a workshop branch - a scaffolded template ready for development. Con
 /home/aipass/projects/
 ├── apps/
 │   ├── projects.py          # Entry point (orchestrator)
-│   ├── modules/             # Command modules (empty)
+│   ├── modules/             # Command modules (none yet)
 │   ├── handlers/
 │   │   └── json/
 │   │       └── json_handler.py  # JSON utilities
 │   ├── extensions/          # Future extensions
 │   ├── plugins/             # Future plugins
 │   └── json_templates/      # JSON file templates
-│       └── default/
-├── artifacts/               # Old/experimental code (create_project_folder.py, projects.py)
-├── moltbot/                 # External clone: personal AI assistant project
-├── workshop/                # Project workspace (placeholder folders)
-├── tests/                   # Test suite (conftest.py only)
-├── tools/                   # Empty
+├── feel_good_app/           # React Native mood tracker (active)
+│   ├── app/                 # Source code
+│   ├── design/              # Design assets
+│   └── docs/                # Project docs
+├── guest_portal/            # Guest portal project (early stage)
+├── youtube/                 # YouTube project (early stage)
+├── external_repos/          # Cloned repos for reference/study
+│   ├── moltbot/             # Personal AI assistant
+│   ├── claude-code-telegram/
+│   ├── claudecode-telegram/
+│   ├── ccbot/
+│   ├── ccc/
+│   ├── claude_office/
+│   ├── gastown/
+│   ├── happy-coder/
+│   └── minibook/
+├── artifacts/               # Old/experimental code
+├── tests/                   # Test suite
+├── tools/                   # Tooling
 ├── logs/                    # Log files
-├── docs/                    # Documentation (template only)
+├── docs/                    # Branch documentation
 └── ai_mail.local/           # Branch messaging
-```
-
----
-
-## Usage
-
-```bash
-# Show introspection (discovered modules)
-python3 apps/projects.py
-
-# Show help
-python3 apps/projects.py --help
-
-# Run command (when modules exist)
-python3 apps/projects.py <command> [args...]
 ```
 
 ---
@@ -106,18 +118,7 @@ python3 apps/projects.py <command> [args...]
 
 - Python 3.12+
 - AIPass core infrastructure (prax, cli)
-- No external packages required
 
 ---
 
-## Development Notes
-
-To add a new module:
-
-1. Create `apps/modules/your_module.py`
-2. Implement `handle_command(command: str, args: List[str]) -> bool`
-3. Module auto-discovers on next run
-
----
-
-*Last Updated: 2026-01-30*
+*Last Updated: 2026-02-14*

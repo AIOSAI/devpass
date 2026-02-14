@@ -4,7 +4,7 @@
 # META DATA HEADER
 # Name: bridge.py - Telegram Bridge Service
 # Date: 2026-02-04
-# Version: 4.1.0
+# Version: 4.2.0
 # Category: api/handlers/telegram
 #
 # CHANGELOG (Max 5 entries):
@@ -962,6 +962,56 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as e:
         logger.warning("[URL] Failed to query ngrok: %s", e)
         await safe_reply(update.message, "Could not reach Expo dev server.")
+
+
+# =============================================
+# STARTUP HEALTH CHECK
+# =============================================
+
+def verify_connection(timeout: int = 10) -> bool:
+    """
+    Verify connection to Telegram API before entering polling loop.
+
+    Calls the getMe endpoint with a timeout to ensure the bot token
+    is valid and the API is reachable. Fails fast instead of hanging.
+
+    Args:
+        timeout: Connection timeout in seconds (default 10)
+
+    Returns:
+        True if connection succeeded, False otherwise
+    """
+    import httpx
+
+    token = get_bot_token()
+    if not token:
+        logger.error("No bot token configured")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/getMe"
+
+    try:
+        response = httpx.get(url, timeout=timeout)
+        data = response.json()
+
+        if response.status_code == 200 and data.get("ok"):
+            bot_info = data.get("result", {})
+            logger.info("Connected to Telegram API - @%s", bot_info.get("username", "unknown"))
+            return True
+
+        error_desc = data.get("description", "Unknown error")
+        logger.error("Telegram API rejected connection: %s", error_desc)
+        return False
+
+    except httpx.TimeoutException:
+        logger.error("Telegram API connection timed out after %ds", timeout)
+        return False
+    except httpx.ConnectError:
+        logger.error("Could not connect to Telegram API - check network")
+        return False
+    except Exception as e:
+        logger.error("Telegram API health check failed: %s", e)
+        return False
 
 
 # =============================================

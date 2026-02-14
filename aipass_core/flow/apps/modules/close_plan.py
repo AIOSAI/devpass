@@ -4,15 +4,16 @@
 # META DATA HEADER
 # Name: close_plan.py - PLAN closure module with registry cleanup
 # Date: 2025-11-25
-# Version: 2.4.0
+# Version: 3.1.0
 # Category: flow/modules
 #
 # CHANGELOG (Max 5 entries):
+#   - v3.1.0 (2026-02-14): FIX timeout - summary/archive now truly async via subprocess (was synchronous despite comments)
+#   - v3.0.0 (2026-02-14): DECOUPLE close from archive - close always succeeds, archive is non-blocking
 #   - v2.4.0 (2026-01-30): FIX close_all EOF error - handle non-interactive stdin in bulk close
 #   - v2.3.0 (2025-11-25): RE-ADDED template deletion - empty templates now deleted instead of archived
 #   - v2.2.0 (2025-11-22): Added proper error handling - surface mbank failures instead of hiding them
 #   - v2.1.0 (2025-11-22): CRITICAL FIX - Removed template deletion logic, all plans now archived
-#   - v2.0.0 (2025-11-21): Renamed from delete_plan, refactored --all flag, correct terminology
 #
 # CODE STANDARDS:
 #   - Seed v3.0 compliant (imports, architecture, error handling)
@@ -31,6 +32,7 @@ Usage:
 """
 
 import sys
+import subprocess
 from pathlib import Path
 from typing import List
 from datetime import datetime, timezone
@@ -62,7 +64,6 @@ from flow.apps.handlers.plan.display import (
     format_plan_deletion_header,
     format_plan_error,
     format_plan_deletion_success,
-    format_registry_removal_status,
     format_deletion_cancelled,
     format_delete_usage_error
 )
@@ -72,15 +73,15 @@ from flow.apps.handlers.dashboard.update_local import update_dashboard_local
 from flow.apps.handlers.dashboard.push_central import push_to_plans_central
 
 
-# Internal: Summary and memory bank handlers
-from flow.apps.handlers.summary.generate import generate_summaries
-from flow.apps.handlers.mbank.process import process_closed_plans, is_template_content
+# Internal: Memory bank template check (lightweight, no API calls)
+from flow.apps.handlers.mbank.process import is_template_content
 
 # =============================================
 # CONFIGURATION
 # =============================================
 
 MODULE_NAME = "close_plan"
+
 
 # =============================================
 # INTROSPECTION
@@ -210,77 +211,31 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
                 return False
 
         # 8. MARK AS CLOSED: Update registry status
+        # CRITICAL: Close ALWAYS succeeds from this point. Archive is non-blocking.
         plan_info['status'] = 'closed'
         plan_info['closed'] = datetime.now(timezone.utc).isoformat()
         save_registry(registry)
         logger.info(f"[{MODULE_NAME}] Marked FPLAN-{plan_key} as closed")
 
-        # 9. GENERATE SUMMARIES: AI summarization before archival (handler)
+        # 9. BACKGROUND POST-PROCESSING: Summary generation + memory bank archival
+        # Spawned as a background subprocess so close returns immediately.
+        # Plan is already marked closed in registry (step 8), so these are optional.
+        # If the subprocess fails, next close will retry (summaries/mbank check registry).
         try:
-            summary_result = generate_summaries()
-            if summary_result.get('success'):
-                logger.info(f"[{MODULE_NAME}] Generated summaries for closed plans")
-            else:
-                error_msg = summary_result.get('error', 'Unknown error')
-                logger.error(f"[{MODULE_NAME}] Summary generation failed: {error_msg}")
-                console.print(f"\n[red]ERROR: Summary generation failed - plan NOT closed[/red]")
-                console.print(f"[red]Details: {error_msg}[/red]")
-                console.print(f"[yellow]Plan status remains: {plan_info.get('status', 'unknown')}[/yellow]\n")
-                return False
+            bg_runner = FLOW_ROOT / "apps" / "modules" / "post_close_runner.py"
+            subprocess.Popen(
+                [sys.executable, str(bg_runner)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            logger.info(f"[{MODULE_NAME}] Spawned background post-processing for FPLAN-{plan_key}")
+            console.print(f"[dim]Summary generation and archival running in background[/dim]")
         except Exception as e:
-            error_msg = f"Failed to generate summaries: {e}"
-            logger.error(f"[{MODULE_NAME}] {error_msg}")
-            console.print(f"\n[red]ERROR: Summary generation failed - plan NOT closed[/red]")
-            console.print(f"[red]Details: {error_msg}[/red]")
-            console.print(f"[yellow]Plan status remains: {plan_info.get('status', 'unknown')}[/yellow]\n")
-            return False
+            logger.warning(f"[{MODULE_NAME}] Failed to spawn background post-processing: {e}")
+            console.print(f"[yellow]WARNING: Background archival failed to start - will retry on next close[/yellow]")
 
-        # 10. PROCESS TO MEMORY BANK: Archive closed plan (handler)
-        try:
-            mbank_result = process_closed_plans()
-
-            # Check for actual processing success
-            processed_count = mbank_result.get('processed', 0)
-            error_count = mbank_result.get('errors', 0)
-            results = mbank_result.get('results', [])
-
-            if not mbank_result.get('success'):
-                # Handler-level failure
-                error_msg = mbank_result.get('error', 'Unknown error')
-                logger.error(f"[{MODULE_NAME}] Memory bank processing failed: {error_msg}")
-                console.print(f"\n[red]ERROR: Memory bank processing failed[/red]")
-                console.print(f"[red]Details: {error_msg}[/red]")
-                console.print(f"[yellow]Plan marked as closed but NOT archived[/yellow]\n")
-                return False
-
-            if processed_count == 0 and error_count > 0:
-                # Processing ran but all plans failed
-                # Extract error details from results
-                error_details = []
-                for result in results:
-                    if result.get('status') == 'error':
-                        plan_name = result.get('plan', 'unknown')
-                        error_msg = result.get('error', 'unknown error')
-                        error_details.append(f"{plan_name}: {error_msg}")
-
-                full_error = "; ".join(error_details) if error_details else "Unknown errors occurred"
-                logger.error(f"[{MODULE_NAME}] Memory bank processing failed for all plans: {full_error}")
-                console.print(f"\n[red]ERROR: Failed to archive plan to memory bank[/red]")
-                console.print(f"[red]Details: {full_error}[/red]")
-                console.print(f"[yellow]Plan marked as closed but NOT moved to processed_plans[/yellow]")
-                console.print(f"[yellow]File remains at: {plan_file}[/yellow]\n")
-                return False
-
-            logger.info(f"[{MODULE_NAME}] Processed {processed_count} plans to memory bank")
-
-        except Exception as e:
-            error_msg = f"Failed to process memory bank: {e}"
-            logger.error(f"[{MODULE_NAME}] {error_msg}")
-            console.print(f"\n[red]ERROR: {error_msg}[/red]")
-            console.print(f"[yellow]Plan marked as closed but NOT archived[/yellow]\n")
-            return False
-
-        # 11. UPDATE DASHBOARDS: Sync dashboard files (handlers)
+        # 10. UPDATE DASHBOARDS: Sync dashboard files (handlers)
         dashboard_success = update_dashboard_local()
         central_success = push_to_plans_central()
 
@@ -291,7 +246,7 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
             logger.warning(f"[{MODULE_NAME}] Failed to update PLANS.central.json")
 
 
-        # 12. DISPLAY: Success message (handler)
+        # 11. DISPLAY: Success message (handler)
         console.print(format_plan_deletion_success(plan_key))
 
         # Fire trigger event for plan closure (optional - trigger module may not be available)

@@ -3,17 +3,16 @@
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: error_detected.py - Error Detected Event Handler
-# Date: 2026-02-02
-# Version: 1.3.0
+# Date: 2026-02-14
+# Version: 2.1.0
 # Category: trigger/handlers/events
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.1.0 (2026-02-14): Dispatch threshold - count >= 2 required (skip first occurrence)
+#   - v2.0.0 (2026-02-13): Medic v2 Phase 3 - Circuit breaker + per-fingerprint backoff dispatch
 #   - v1.3.0 (2026-02-12): Medic Phase 2 - per-branch mute/unmute check
 #   - v1.2.0 (2026-02-12): Medic toggle - check medic_enabled before dispatching
 #   - v1.1.1 (2026-02-10): Add Seed standards reminder to error dispatch template
-#   - v1.1.0 (2026-02-10): FPLAN-0310 Phase 2 - Rate limiting, structured context, reply_to fix
-#   - v1.0.1 (2026-02-06): Validate target branch exists before delivery (fixes @telegram spam)
-#   - v1.0.0 (2026-02-02): Created - FPLAN-0284 Phase 4 (moved from ai_mail)
 #
 # CODE STANDARDS:
 #   - Follows AIPass Seed standards
@@ -21,6 +20,8 @@
 #   - NO logger calls in handler (causes recursion with trigger)
 #   - Silent failure pattern - catch all exceptions
 #   - Responds to error_detected events from Trigger's log_watcher
+#   - Dispatch threshold: count >= 2 required (first occurrence is silent)
+#   - Dispatch gating: circuit breaker (global) + per-fingerprint backoff (Medic v2)
 # =============================================
 
 """
@@ -29,20 +30,25 @@ Error Detected Event Consumer
 Handles error_detected events fired by Trigger's log_watcher.
 Delivers notifications to affected branches via AI_MAIL.
 
-Event data from log_watcher.py:
+Event data from log_watcher.py (Medic v2):
     - branch: Target branch name (e.g., 'FLOW')
     - module: Module that logged the error
     - message: Error message text
     - log_path: Path to log file
-    - error_hash: 8-char hash for deduplication
+    - error_hash: Short ID from registry (or legacy 8-char MD5)
     - timestamp: When error occurred
+    - fingerprint: SHA1 fingerprint from error_registry (Medic v2)
+    - registry_id: Short UUID from error_registry (Medic v2)
+    - first_seen: ISO timestamp of first occurrence (Medic v2)
+    - last_seen: ISO timestamp of most recent occurrence (Medic v2)
 
-Architecture:
+Architecture (Medic v2):
     1. Trigger's log_watcher detects ERROR in branch logs
-    2. log_watcher fires error_detected event
-    3. This handler receives event, calls deliver_email_to_branch()
-    4. Email delivered to affected branch inbox (auto_execute=True)
-    5. Branch agent spawns and investigates
+    2. log_watcher reports to error_registry, fires error_detected if new
+    3. This handler checks circuit_breaker_allows() (global gate)
+    4. This handler checks should_dispatch(fingerprint) (per-error backoff)
+    5. If allowed, delivers email to affected branch (auto_execute=True)
+    6. Records dispatch via record_dispatch() and circuit_breaker_record_error()
 """
 
 import json
@@ -63,7 +69,19 @@ TRIGGER_CONFIG_FILE = AIPASS_ROOT / "trigger" / "trigger_json" / "trigger_config
 # Email send callback (set by module layer, avoids handler importing from modules)
 _send_email: Optional[Callable[..., bool]] = None
 
-# Rate limiting: max 3 dispatches per branch per 10 minutes
+# Try to import error_registry for Medic v2 circuit breaker + per-fingerprint backoff
+try:
+    from trigger.apps.handlers.error_registry import (
+        circuit_breaker_allows,
+        circuit_breaker_record_error,
+        should_dispatch as registry_should_dispatch,
+        record_dispatch as registry_record_dispatch,
+    )
+    _REGISTRY_DISPATCH_AVAILABLE = True
+except ImportError:
+    _REGISTRY_DISPATCH_AVAILABLE = False
+
+# Legacy rate limiting (kept for backward compat when registry unavailable)
 _dispatch_timestamps: Dict[str, List[float]] = {}
 MAX_DISPATCHES_PER_WINDOW = 3
 RATE_LIMIT_WINDOW_SECONDS = 600  # 10 minutes
@@ -145,6 +163,10 @@ def _is_rate_limited(branch_email: str) -> bool:
     """
     Check if a branch has exceeded the dispatch rate limit.
 
+    BACKWARD COMPAT: Legacy Medic v1 per-branch rate limiting.
+    Primary dispatch gating is now circuit_breaker_allows() +
+    should_dispatch(fingerprint) from error_registry (Medic v2).
+
     Args:
         branch_email: Target branch email (e.g., '@flow')
 
@@ -168,6 +190,9 @@ def _is_rate_limited(branch_email: str) -> bool:
 def _record_dispatch(branch_email: str) -> None:
     """
     Record a dispatch timestamp for rate limiting.
+
+    BACKWARD COMPAT: Legacy Medic v1 per-branch dispatch tracking.
+    Primary tracking is now record_dispatch(fingerprint) from error_registry (Medic v2).
 
     Args:
         branch_email: Target branch email (e.g., '@flow')
@@ -219,13 +244,15 @@ def _build_notification_message(
     occurrences: int = 1,
     first_seen: str = "",
     last_seen: str = "",
-    log_context: str = ""
+    log_context: str = "",
+    fingerprint: str = "",
+    registry_id: str = ""
 ) -> str:
     """
     Build error notification message with investigation instructions.
 
     Args:
-        error_hash: Unique error identifier (8-char)
+        error_hash: Unique error identifier (8-char legacy or registry ID)
         module: Module that logged the error
         message: Error message text
         timestamp: When error occurred
@@ -234,15 +261,28 @@ def _build_notification_message(
         first_seen: Timestamp of first occurrence
         last_seen: Timestamp of most recent occurrence
         log_context: Lines surrounding the error from the log file
+        fingerprint: SHA1 fingerprint from error_registry (Medic v2)
+        registry_id: Short UUID from error_registry (Medic v2)
 
     Returns:
         Formatted message string with investigation instructions
     """
-    ctx_block = ""
+    context_block = ""
     if log_context:
-        ctx_block = f"""
+        context_block = f"""
 Log context (surrounding lines):
 {log_context}
+"""
+
+    # Registry tracking info (Medic v2)
+    registry_block = ""
+    if fingerprint or registry_id:
+        display_fp = fingerprint[:12] if fingerprint else "n/a"
+        display_id = registry_id if registry_id else "n/a"
+        registry_block = f"""
+Registry tracking:
+  Fingerprint: {display_fp}
+  Registry ID: {display_id}
 """
 
     return f"""Error detected - investigate and respond.
@@ -254,10 +294,10 @@ Log file: {log_path}
 Occurrences: {occurrences}
 First seen: {first_seen or timestamp}
 Last seen: {last_seen or timestamp}
-
+{registry_block}
 Error message:
 {message}
-{ctx_block}
+{context_block}
 ---
 INVESTIGATION STEPS:
 1. Check the log file for context around this error
@@ -290,6 +330,11 @@ def handle_error_detected(
     log_path: str | None = None,
     error_hash: str | None = None,
     timestamp: str | None = None,
+    fingerprint: str = "",
+    registry_id: str = "",
+    first_seen: str = "",
+    last_seen: str = "",
+    count: int = 1,
     **kwargs: Any
 ) -> None:
     """
@@ -299,13 +344,29 @@ def handle_error_detected(
     Sends email to affected branch with auto_execute=True so an
     investigation agent spawns automatically.
 
+    Dispatch threshold: count >= 2 required before dispatching. First
+    occurrence (count == 1) is registered but NOT dispatched - could be
+    transient. Second occurrence (count >= 2) confirms a pattern and
+    triggers investigation dispatch.
+
+    Medic v2 dispatch gating (when error_registry available):
+        1. count >= 2 threshold (skip first occurrence)
+        2. circuit_breaker_allows() - global gate, pauses all dispatch on error storm
+        3. should_dispatch(fingerprint) - per-error exponential backoff
+    Fallback: legacy per-branch rate limiting (3 per 10 min) if registry unavailable.
+
     Args:
         branch: Target branch name (e.g., 'FLOW') - REQUIRED
         module: Module that logged the error - REQUIRED
         message: Error message text - REQUIRED
         log_path: Path to source log file
-        error_hash: 8-char unique error identifier - REQUIRED
+        error_hash: Short ID from registry or legacy 8-char hash - REQUIRED
         timestamp: When error occurred (defaults to now)
+        fingerprint: SHA1 fingerprint from error_registry (Medic v2)
+        registry_id: Short UUID from error_registry (Medic v2)
+        first_seen: ISO timestamp of first occurrence (Medic v2)
+        last_seen: ISO timestamp of most recent occurrence (Medic v2)
+        count: Registry occurrence count (default: 1). Dispatch requires >= 2.
         **kwargs: Additional event data (ignored)
 
     Returns:
@@ -324,9 +385,9 @@ def handle_error_detected(
         # Medic toggle - if disabled, log but do NOT dispatch
         if not _is_medic_enabled():
             try:
-                medic_log = AIPASS_ROOT / "trigger" / "logs" / "medic_suppressed.log"
-                medic_log.parent.mkdir(parents=True, exist_ok=True)
-                with open(medic_log, 'a') as f:
+                suppressed_log = AIPASS_ROOT / "trigger" / "logs" / "medic_suppressed.log"
+                suppressed_log.parent.mkdir(parents=True, exist_ok=True)
+                with open(suppressed_log, 'a') as f:
                     f.write(
                         f"{datetime.now().isoformat()} | "
                         f"Medic OFF - suppressed dispatch for {branch}: "
@@ -349,6 +410,22 @@ def handle_error_detected(
                     )
             except Exception:
                 return  # Can't log suppression, but still skip dispatch
+            return
+
+        # Dispatch threshold: count >= 2 required. First occurrence could
+        # be transient - only dispatch when the error recurs.
+        if count < 2:
+            try:
+                suppressed_log = AIPASS_ROOT / "trigger" / "logs" / "medic_suppressed.log"
+                suppressed_log.parent.mkdir(parents=True, exist_ok=True)
+                with open(suppressed_log, 'a') as f:
+                    f.write(
+                        f"{datetime.now().isoformat()} | "
+                        f"First occurrence (count={count}) - waiting for pattern: "
+                        f"{branch}: {module} - {message[:100]}\n"
+                    )
+            except Exception:
+                return  # Can't log, but still skip dispatch
             return
 
         # Callback must be set by module layer before events fire
@@ -379,25 +456,55 @@ def handle_error_detected(
                 return  # Can't log skip, still don't dispatch
             return
 
-        # Check rate limit before dispatching
-        recent_count = len([
-            ts for ts in _dispatch_timestamps.get(recipient, [])
-            if ts > time.time() - RATE_LIMIT_WINDOW_SECONDS
-        ])
-        if _is_rate_limited(recipient):
-            # Log rate limit hit (safe - writing to file, not using logger)
-            try:
-                rate_limit_log = AIPASS_ROOT / "trigger" / "logs" / "rate_limited.log"
-                rate_limit_log.parent.mkdir(parents=True, exist_ok=True)
-                with open(rate_limit_log, 'a') as f:
-                    f.write(
-                        f"{datetime.now().isoformat()} | "
-                        f"Rate limited: {recipient} has {recent_count} "
-                        f"recent dispatches, skipping\n"
-                    )
-            except Exception:
-                return  # Can't log rate limit, but still skip dispatch
-            return
+        # --- Dispatch gating ---
+        if _REGISTRY_DISPATCH_AVAILABLE and fingerprint:
+            # Medic v2: Circuit breaker (global) + per-fingerprint backoff
+            if not circuit_breaker_allows():
+                try:
+                    suppressed_log = AIPASS_ROOT / "trigger" / "logs" / "medic_suppressed.log"
+                    suppressed_log.parent.mkdir(parents=True, exist_ok=True)
+                    with open(suppressed_log, 'a') as f:
+                        f.write(
+                            f"{datetime.now().isoformat()} | "
+                            f"Circuit breaker OPEN - suppressed dispatch for {branch}: "
+                            f"{module} - {message[:100]}\n"
+                        )
+                except Exception:
+                    pass
+                return
+
+            if not registry_should_dispatch(fingerprint):
+                try:
+                    rate_log = AIPASS_ROOT / "trigger" / "logs" / "rate_limited.log"
+                    rate_log.parent.mkdir(parents=True, exist_ok=True)
+                    with open(rate_log, 'a') as f:
+                        f.write(
+                            f"{datetime.now().isoformat()} | "
+                            f"Backoff active for fingerprint {fingerprint[:12]}: "
+                            f"{recipient} - {module}, skipping\n"
+                        )
+                except Exception:
+                    pass
+                return
+        else:
+            # Legacy fallback: per-branch rate limiting (Medic v1)
+            recent_count = len([
+                ts for ts in _dispatch_timestamps.get(recipient, [])
+                if ts > time.time() - RATE_LIMIT_WINDOW_SECONDS
+            ])
+            if _is_rate_limited(recipient):
+                try:
+                    rate_log = AIPASS_ROOT / "trigger" / "logs" / "rate_limited.log"
+                    rate_log.parent.mkdir(parents=True, exist_ok=True)
+                    with open(rate_log, 'a') as f:
+                        f.write(
+                            f"{datetime.now().isoformat()} | "
+                            f"Rate limited: {recipient} has {recent_count} "
+                            f"recent dispatches, skipping\n"
+                        )
+                except Exception:
+                    pass
+                return
 
         # Default timestamp to now if not provided
         if not timestamp:
@@ -420,9 +527,11 @@ def handle_error_detected(
             timestamp=timestamp,
             log_path=effective_log_path,
             occurrences=1,
-            first_seen=timestamp,
-            last_seen=timestamp,
-            log_context=error_log_context
+            first_seen=first_seen or timestamp,
+            last_seen=last_seen or timestamp,
+            log_context=error_log_context,
+            fingerprint=fingerprint,
+            registry_id=registry_id
         )
 
         # Send via callback (set by module layer, trigger isn't a branch so PWD detection fails)
@@ -435,8 +544,14 @@ def handle_error_detected(
             from_branch='@trigger'
         )
 
-        # Record dispatch for rate limiting
-        _record_dispatch(recipient)
+        # Record dispatch for tracking
+        if _REGISTRY_DISPATCH_AVAILABLE and fingerprint:
+            # Medic v2: per-fingerprint dispatch tracking + circuit breaker
+            registry_record_dispatch(fingerprint)
+            circuit_breaker_record_error()
+        else:
+            # Legacy: per-branch rate limiting
+            _record_dispatch(recipient)
 
     except Exception:
         return  # Silent failure - handler must not raise

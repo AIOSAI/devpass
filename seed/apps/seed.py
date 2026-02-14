@@ -116,7 +116,7 @@ def print_help():
     console.print("Seed is the [bold]AIPass Code Standards Showroom[/bold] - a reference branch that:")
     # RICH FORMATTING TIP: Use [green]✓[/green] for checkmarks in lists
     console.print("  [green]✓[/green] Demonstrates proper AIPass architecture patterns")
-    console.print("  [green]✓[/green] Provides [green]13 queryable code standards[/green] via modules")
+    console.print("  [green]✓[/green] Provides [green]14 queryable code standards[/green] via modules")
     console.print("  [green]✓[/green] Serves as a living example for other branches to follow")
     console.print()
 
@@ -124,7 +124,7 @@ def print_help():
     # RICH FORMATTING TIP: Tables are powerful for structured data
     # Create with Table(), add columns, add rows, then print
     # =========================================================================
-    console.print("[bold cyan]AVAILABLE STANDARDS (13):[/bold cyan]")
+    console.print("[bold cyan]AVAILABLE STANDARDS (14):[/bold cyan]")
     console.print()
 
     # RICH FORMATTING TIP: Table styling - show_header, header_style, border_style
@@ -142,6 +142,10 @@ def print_help():
     table.add_row("json_structure", "JSON Structure", "Three-JSON pattern")
     table.add_row("error_handling", "Error Handling", "Fail honestly, CLI service")
     table.add_row("documentation", "Documentation", "META headers, docstrings")
+    table.add_row("testing", "Testing", "Error handling, edge cases")
+    table.add_row("encapsulation", "Encapsulation", "Cross-branch import boundaries")
+    table.add_row("trigger", "Trigger", "Event bus patterns, inline ops")
+    table.add_row("log_level", "Log Level", "ERROR vs WARNING hygiene")
 
     # RICH FORMATTING TIP: Print the table after adding all rows
     console.print(table)
@@ -181,7 +185,7 @@ def print_help():
   [yellow]Command:[/yellow]  [dim]python3 seed.py checklist <file.py>[/dim]
 
   [bold]What it does:[/bold]
-  • Checks 13/13 standards automatically (95%+ accuracy - v0.3.0 false positives eliminated)
+  • Checks 14/14 standards automatically (95%+ accuracy - v0.3.0 false positives eliminated)
   • Scores your file 0-100 on each standard
   • Shows specific violations with line numbers
   • Fast - runs in seconds
@@ -306,7 +310,7 @@ def print_help():
 
     # RICH FORMATTING TIP: Commands line required for drone discovery
     # This is how drone finds available commands - keep [dim] style
-    console.print("[dim]Commands: architecture, cli, documentation, error_handling, handlers, imports, json_structure, modules, naming, checklist, audit, verify, diagnostics, help, --help[/dim]")
+    console.print("[dim]Commands: architecture, cli, documentation, encapsulation, error_handling, handlers, imports, json_structure, log_level, modules, naming, testing, trigger, checklist, audit, verify, diagnostics, help, --help[/dim]")
     console.print()
 
 

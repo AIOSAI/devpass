@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Seed branch automated checking system validates Python modules against AIPass code standards. It provides a unified CLI interface (`drone @seed checklist`) that runs 11 specialized checkers, each scoring 0-100 based on compliance with specific standard categories.
+The Seed branch automated checking system validates Python modules against AIPass code standards. It provides a unified CLI interface (`drone @seed checklist`) that runs 14 specialized checkers, each scoring 0-100 based on compliance with specific standard categories.
 
 This system is the **enforcement layer** for AIPass standards - it turns documented best practices into measurable, automated validation.
 
@@ -81,7 +81,7 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
 - Overall pass if score >= 75%
 - Each check is weighted equally
 
-## The 13 Checkers
+## The 14 Checkers
 
 ### 1. imports_check.py - Import Standards
 
@@ -285,6 +285,18 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
 - Using variables before assignment
 - Missing module imports
 
+### 14. log_level_check.py - Log Level Hygiene
+
+**What it validates:**
+- ERROR level reserved for real system failures only
+- User input errors use WARNING not ERROR
+- Command routing failures use WARNING not ERROR
+
+**Key checks:**
+- `logger.error()` not used for user input patterns (unknown command, invalid argument, etc.)
+- Command routing failures (`route_command`, `handle_command`) logged as WARNING
+- AST-aware docstring tracking to avoid false positives from code examples
+
 ## Usage
 
 ### Via Drone (Recommended)
@@ -335,7 +347,7 @@ score = (passed_checks / total_checks) × 100
 The orchestrator averages all checker scores:
 
 ```
-overall_score = sum(all_checker_scores) / 13
+overall_score = sum(all_checker_scores) / 14
 ```
 
 **Example output:**

@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: process.py - Memory Bank Processing Handler
 # Date: 2025-11-25
-# Version: 1.3.0
+# Version: 1.4.0
 # Category: flow/handlers/mbank
 #
 # CHANGELOG:
+#   - v1.4.0 (2026-02-14): Sequential processing with backoff - stop on 429, delay between API calls
 #   - v1.3.0 (2025-11-25): Restructured config - separated TRL mapping to flow_mbank_registry.json
 #                          Updated get_ai_model() to use custom api_config.json
 #   - v1.2.0 (2025-11-25): Added auto-cleanup for -TEMP files in MEMORY_BANK after processing
@@ -44,6 +45,7 @@ sys.path.insert(0, str(AIPASS_ROOT))
 # Standard imports
 import json
 import re
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
@@ -58,6 +60,7 @@ FLOW_ROOT = AIPASS_ROOT / "flow"
 FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
 MEMORY_BANK_PATH = Path.home() / "MEMORY_BANK" / "plans"
 PROCESSED_PLANS_DIR = AIPASS_ROOT / "backup_system" / "processed_plans"
+API_DELAY_SECONDS = 3  # Delay between sequential API calls to avoid rate limits
 REGISTRY_FILE = FLOW_JSON_DIR / "flow_registry.json"
 CONFIG_FILE = FLOW_JSON_DIR / "flow_mbank_config.json"
 TRL_REGISTRY_FILE = FLOW_JSON_DIR / "flow_mbank_registry.json"
@@ -684,8 +687,22 @@ def process_closed_plans() -> Dict[str, Any]:
         error_count = 0
         results = []
 
-        # Process each closed plan
-        for plan in closed_plans:
+        # Process each closed plan sequentially with delay between API calls
+        rate_limited = False
+        for i, plan in enumerate(closed_plans):
+            # Stop processing if we hit a rate limit - try again later
+            if rate_limited:
+                results.append({
+                    "plan": f"FPLAN-{plan.get('number', 'unknown')}",
+                    "status": "skipped",
+                    "error": "Skipped due to API rate limit on previous plan"
+                })
+                continue
+
+            # Add delay between API calls (not before the first one)
+            if i > 0:
+                time.sleep(API_DELAY_SECONDS)
+
             try:
                 plan_path = plan["path"]
                 plan_num = plan["number"]
@@ -755,11 +772,22 @@ def process_closed_plans() -> Dict[str, Any]:
             except Exception as e:
                 error_count += 1
                 plan_num = plan.get('number', 'unknown')
-                results.append({
-                    "plan": f"FPLAN-{plan_num}",
-                    "status": "error",
-                    "error": str(e)
-                })
+                error_str = str(e)
+
+                # Detect rate limit (429) - stop processing remaining plans
+                if "429" in error_str or "rate limit" in error_str.lower() or "too many requests" in error_str.lower():
+                    rate_limited = True
+                    results.append({
+                        "plan": f"FPLAN-{plan_num}",
+                        "status": "rate_limited",
+                        "error": f"API rate limit hit - stopping batch: {error_str}"
+                    })
+                else:
+                    results.append({
+                        "plan": f"FPLAN-{plan_num}",
+                        "status": "error",
+                        "error": error_str
+                    })
 
         # AUTO-HEAL: Clean up old -TEMP files from MEMORY_BANK
         cleanup_result = cleanup_temp_files()

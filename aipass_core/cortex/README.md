@@ -1,30 +1,30 @@
 # CORTEX
 
-**Purpose:** Branch Management System
+**Purpose:** Immigration Services - Branch lifecycle, identity, and citizenship
 **Location:** `/home/aipass/aipass_core/cortex`
 **Profile:** AIPass Core Infrastructure
-**Created:** 2025-11-13
+**Created:** 2025-11-09
 
 ---
 
 ## Overview
 
 ### What I Do
-CORTEX manages branch lifecycle operations: creation, updates, deletion, and template registry management. I serve as the central orchestrator for AIPass branch operations, ensuring consistent structure and standards across all branches.
+I give branches their first breath - create the directory, stamp the passport, register them in BRANCH_REGISTRY. Every citizen in AIPass started as a template and a name on my desk. I manage branch lifecycle operations: creation, updates, deletion, team creation, and template registry management.
 
 ### What I Don't Do
+- I don't follow what branches become after creation - that's Memory Bank's domain
 - I don't manage branch code content (that's the branch's responsibility)
 - I don't handle git operations (that's the user's workflow)
-- I don't deploy or run branches (I create/update their structure)
 
 ### How I Work
-CORTEX uses a template-based system to create new branches with complete directory structure, memory files, handlers, and modules. I auto-discover modules in my `apps/modules/` directory and route commands to them. All operations use the three-layer pattern: entry point → modules → handlers.
+Template-based system with two templates (branch and team). Auto-discover modules in `apps/modules/` and route commands to them. All operations use the three-layer pattern: entry point -> modules -> handlers.
 
 ---
 
 ## Architecture
 
-- **Pattern:** Modular
+- **Pattern:** Modular (3-layer: entry -> modules -> handlers)
 - **Structure:** `apps/` directory with `modules/` and `handlers/` subdirectories
 - **Orchestrator:** `apps/cortex.py` - auto-discovers and routes to modules
 - **Module Interface:** All modules implement `handle_command(args) -> bool`
@@ -36,58 +36,44 @@ CORTEX uses a template-based system to create new branches with complete directo
 ```
 /home/aipass/aipass_core/cortex/
 ├── apps/
-│   ├── cortex.py              # Main orchestrator (11,212 bytes)
-│   ├── run_tests.py           # Test runner
-│   ├── __init__.py
+│   ├── cortex.py                  # Main orchestrator
+│   ├── run_tests.py               # Test runner
 │   ├── modules/
-│   │   ├── create_branch.py               # Branch creation (16,037 bytes)
-│   │   ├── update_branch.py               # Branch updates (36,145 bytes)
-│   │   ├── delete_branch.py               # Branch deletion (11,611 bytes)
-│   │   ├── regenerate_template_registry.py # Registry regen (12,967 bytes)
-│   │   ├── sync_registry.py               # Registry sync (4,572 bytes)
-│   │   └── __init__.py
-│   ├── handlers/
-│   │   ├── branch/
-│   │   │   ├── change_detection.py   # Change detection (12,237 bytes)
-│   │   │   ├── file_ops.py           # File operations (36,311 bytes)
-│   │   │   ├── metadata.py           # Metadata handling (5,227 bytes)
-│   │   │   ├── placeholders.py       # Placeholder replacement (9,346 bytes)
-│   │   │   ├── reconcile.py          # Smart reconciliation (13,981 bytes)
-│   │   │   ├── registry.py           # Registry operations (13,931 bytes)
-│   │   │   └── __init__.py
-│   │   ├── json/
-│   │   │   ├── json_handler.py       # JSON handling (7,999 bytes)
-│   │   │   ├── ops.py                # JSON operations (21,492 bytes)
-│   │   │   └── __init__.py
-│   │   ├── registry/
-│   │   │   ├── decorators.py         # Registry decorators (4,419 bytes)
-│   │   │   ├── ignore.py             # Ignore patterns (4,626 bytes)
-│   │   │   ├── meta_ops.py           # Meta operations (16,338 bytes)
-│   │   │   ├── sync_ops.py           # Sync operations (5,380 bytes)
-│   │   │   └── __init__.py
-│   │   └── __init__.py
-│   ├── json_templates/
-│   │   ├── default/
-│   │   │   ├── config.json
-│   │   │   ├── data.json
-│   │   │   └── log.json
-│   │   └── __init__.py
-│   ├── extensions/               # Empty (placeholder)
-│   │   └── __init__.py
-│   └── plugins/                  # Empty (placeholder)
-│       └── __init__.py
+│   │   ├── create_branch.py       # Branch creation
+│   │   ├── create_team.py         # Team creation (branch + workspace)
+│   │   ├── update_branch.py       # Branch updates with reconciliation
+│   │   ├── delete_branch.py       # Branch deletion with backup
+│   │   ├── regenerate_template_registry.py  # Registry regeneration
+│   │   └── sync_registry.py       # Registry sync with filesystem
+│   └── handlers/
+│       ├── branch/
+│       │   ├── change_detection.py # Change detection
+│       │   ├── file_ops.py         # File operations, template copying
+│       │   ├── metadata.py         # Metadata handling
+│       │   ├── placeholders.py     # Placeholder replacement engine
+│       │   ├── reconcile.py        # Smart update reconciliation
+│       │   ├── registry.py         # Registry read/write operations
+│       │   └── team_ops.py         # Team creation operations
+│       ├── json/
+│       │   ├── json_handler.py     # JSON auto-creation (3-JSON pattern)
+│       │   └── ops.py              # JSON operations (merge, validate)
+│       └── registry/
+│           ├── decorators.py       # Registry decorators
+│           ├── ignore.py           # Ignore patterns
+│           ├── meta_ops.py         # Template/branch metadata ops
+│           └── sync_ops.py         # Sync operations
 ├── templates/
-│   └── branch_template/          # Complete branch structure
-├── cortex_json/                  # Auto-created JSON files
-├── tests/                        # Test files
-├── tools/                        # Utilities (verify_branch.py)
-├── docs/                         # Documentation
-├── Memory Files:
-│   ├── CORTEX.id.json
-│   ├── CORTEX.local.json
-│   ├── CORTEX.observations.json
-│   └── DASHBOARD.local.json
-└── README.md (this file)
+│   ├── branch_template/            # Standard branch template (47 files)
+│   └── team_template/              # Business team template (research/ideas/decisions/briefs)
+├── tests/                          # Test suite (7 test files)
+├── tools/                          # Utilities (verify_branch.py)
+├── docs/                           # Documentation
+├── cortex_json/                    # Auto-created JSON files
+├── CORTEX.id.json                  # Branch identity
+├── CORTEX.local.json               # Session history
+├── CORTEX.observations.json        # Collaboration patterns
+├── DASHBOARD.local.json            # System-wide status
+└── README.md
 ```
 
 ---
@@ -98,6 +84,11 @@ CORTEX uses a template-based system to create new branches with complete directo
 Creates new branch from template with complete structure, memory files, and registry entry.
 
 **Commands:** `create`, `create-branch`, `new`
+
+### create_team
+Creates business team with manager (from team_template) and workspace (from branch_template). Auto-increments team number.
+
+**Commands:** `create-team`, `new-team`
 
 ### update_branch
 Updates existing branch structure from template, with smart reconciliation and deep merge.
@@ -117,195 +108,102 @@ Regenerates .template_registry.json by scanning template directory structure.
 ### sync_registry
 Synchronizes branch registry with filesystem state.
 
-**Commands:** `sync`
+**Commands:** `sync`, `sync-registry`
 
 ---
 
 ## Commands
 
-Available via `python3 apps/cortex.py <command>`:
-- `create-branch <target_directory>` - Create new branch
+Available via `drone @cortex <command>` or `python3 apps/cortex.py <command>`:
+- `create-branch <target_directory>` - Create new branch from template
+- `create-team` - Create new business team (auto-incremented)
 - `update-branch <target_directory>` - Update existing branch
+- `update-branch --all` - Batch update all branches
 - `delete-branch <target_directory>` - Delete branch with backup
-- `regenerate-template-registry` - Regenerate template registry
+- `regenerate` - Regenerate template registry
 - `sync-registry` - Sync registry with filesystem
 - `--list` - List available modules
 - `--help` - Show help
 
 ---
 
-## Key Capabilities
+## Template System
 
-- ✅ **Template-based Branch Creation** - Complete structure from template
-- ✅ **Smart Branch Updates** - Reconciliation with deep merge
-- ✅ **Registry Management** - Global branch registry tracking
-- ✅ **Placeholder Replacement** - Auto-replace {{BRANCH_NAME}}, etc.
-- ✅ **Module Auto-Discovery** - Automatic command routing
-- ✅ **CLI Integration** - Rich console output via CLI service
-- ✅ **Error Tracking** - All operations tracked with @track_operation
-- ✅ **JSON Auto-Creation** - Three-JSON pattern (config/data/log)
-- ✅ **Standards Compliance** - 100% seed standards compliance (A+)
+### Branch Template (`templates/branch_template/`)
+Standard template for all new branches. Contains complete 3-layer app structure, memory files, ai_mail, docs, tests, tools.
+
+### Team Template (`templates/team_template/`)
+Specialized template for business teams. Includes everything in branch template plus: `research/`, `ideas/`, `decisions/`, `briefs/` directories. Identity pre-configured for think-tank manager profile.
+
+### Placeholders
+Double-brace format: `{{BRANCHNAME}}`, `{{branchname}}`, `{{BRANCH}}`, `{{DATE}}`, `{{CWD}}`, `{{EMAIL}}`, `{{ROLE}}`, `{{TRAITS}}`, `{{PURPOSE_BRIEF}}`, `{{PROFILE}}`
 
 ---
 
-## Usage Instructions
+## Key Capabilities
 
-### Basic Usage
-```bash
-cd /home/aipass/aipass_core/cortex
-
-# Create new branch
-python3 apps/cortex.py create-branch /path/to/new/branch
-
-# Update existing branch
-python3 apps/cortex.py update-branch /path/to/existing/branch
-
-# Delete branch (with backup)
-python3 apps/cortex.py delete-branch /path/to/branch
-
-# Regenerate template registry
-python3 apps/cortex.py regenerate-template-registry
-
-# Sync registry with filesystem
-python3 apps/cortex.py sync-registry
-```
-
-### Common Workflows
-
-**Creating a New Branch:**
-1. Run `python3 apps/cortex.py create-branch /path/to/branch`
-2. Template copied with placeholders replaced
-3. Memory files created (ID, local, observations, ai_mail)
-4. Branch registered in global registry
-5. Ready to use immediately
-
-**Updating Branch Structure:**
-1. Run `python3 apps/cortex.py update-branch /path/to/branch`
-2. Compares branch to template
-3. Shows changes that will be applied
-4. Prompts for confirmation
-5. Applies updates with smart reconciliation
+- **Template-based Branch Creation** - Complete structure from either template
+- **Team Creation** - Dual creation (manager + workspace) with auto-increment
+- **Smart Branch Updates** - Reconciliation with deep merge
+- **Registry Management** - Global branch registry tracking
+- **Placeholder Replacement** - Auto-replace all `{{NAME}}` patterns
+- **Module Auto-Discovery** - Automatic command routing
+- **CLI Integration** - Rich console output via CLI service
+- **Error Tracking** - All operations tracked with @track_operation
+- **Standards Compliance** - 100% seed standards compliance
 
 ---
 
 ## Integration Points
 
 ### Depends On
-- **Prax** - System logging (`prax.apps.modules.logger`)
-- **CLI** - Console output and error tracking (`cli.apps.modules.display`, `cli.apps.modules.error_handler`)
-- **Seed** - Standards reference (`/home/aipass/seed/`)
+- **CLI** - Console output and error tracking
+- **Prax** - System logging
 
 ### Integrates With
-- **All Branches** - Creates and updates branch structures
-- **Drone** - Command discovery and routing (drone compliance)
-- **Flow** - Branch structure supports PLAN system
+- **Drone** - Command routing (`drone @cortex`)
+- **Seed** - Standards auditing of created branches
+- **AI_Mail** - Dispatch tasks and confirmations
+- **Memory Bank** - Archives rolled-over memories
 
 ### Provides To
-- **Branch Creation** - Complete branch structure
-- **Template System** - Reusable branch template
-- **Registry Management** - Global branch tracking
+- **All Branches** - Creates and updates branch structures
+- **BRANCH_REGISTRY.json** - Global branch tracking
 
 ---
 
 ## Memory System
 
 ### Memory Files
-- **CORTEX.id.json** - Branch identity and architecture
-- **CORTEX.local.json** - Session history (max 600 lines)
+- **CORTEX.id.json** - Branch identity and role
+- **CORTEX.local.json** - Session history (max 600 lines, auto-rolls to Memory Bank)
 - **CORTEX.observations.json** - Collaboration patterns (max 600 lines)
-- **CORTEX.ai_mail.json** - Branch messages
-- **DOCUMENTS/** - Extended memory (max 10 files, rollover to Memory Bank)
-
-### Health Monitoring
-- 🟢 **Green (Healthy):** Under 80% of limits
-- 🟡 **Yellow (Warning):** 80-100% of limits
-- 🔴 **Red (Critical):** Over limits (compression needed)
+- **DASHBOARD.local.json** - System-wide status dashboard
 
 ### Current Status
-- **Health:** 🟢 Healthy
-- **local.json Lines:** 414 / 600 max
-- **observations.json Lines:** 595 / 600 max
-- **Last Check:** 2026-01-30
-
----
-
-## System References
-
-- **Code Standards:** `/home/aipass/aipass_core/standards/code_standards.md`
-- **Template Source:** `/home/aipass/aipass_core/cortex/templates/branch_template/`
-- **Global Documentation:** `/home/aipass/aipass_os.md`
-- **Branch Registry:** `/home/aipass/BRANCH_REGISTRY.json`
-
-### Core Systems
-- **Flow:** Workflow and PLAN management
-- **Drone:** Command orchestration
-- **AI Mail:** Branch-to-branch messaging
-- **Backup:** System backup and snapshots
-- **Prax:** Logging and infrastructure
-- **API:** API integration layer
-- **CLI:** Console output and error handling
-- **Seed:** Code standards and patterns
-
----
-
-## Standards Compliance
-
-**Current Score:** 100% (A+) - Production Ready
-
-### Strengths
-- ✅ Architecture pattern (3-layer: entry → modules → handlers)
-- ✅ Module interface consistency (`handle_command()`)
-- ✅ Documentation (META blocks, docstrings)
-- ✅ Error tracking integration
-- ✅ CLI service integration
-- ✅ JSON auto-creation pattern
-- ✅ File size optimization completed
-- ✅ Handler separation standardized
-- ✅ Cross-handler dependencies resolved
-
----
-
-## Automation Philosophy
-
-**README represents EXACT CURRENT STATE** - not future plans, not past work
-
-### What Goes Elsewhere
-- **Future Plans:** PLAN files in flow system
-- **Past Work:** CORTEX.local.json session history
-- **Working On:** Active PLANs
-- **Patterns Learned:** CORTEX.observations.json
-- **Extended Context:** DOCUMENTS/ directory
-
-### Automation Goal
-Minimize AI token spend on updates - automate everything possible. This README is manually maintained but aims to stay current with actual system state.
+- **local.json:** 593 / 600 lines (near rollover)
+- **observations.json:** Near capacity
+- **Last Check:** 2026-02-14
 
 ---
 
 ## Recent Sessions
 
-**Session 30 (2026-01-30):** Overnight audit and README update
-- Verified branch structure accuracy
-- Updated file sizes to match current state
-- Fixed command names in documentation (create-branch, update-branch, etc.)
-- Updated memory health status
-
-**Session 29 (2025-11-29):** Standards compliance 91% → 100%
-- Removed 9 unused Prax imports from handlers
-- Fixed CLI violations - removed 50+ console.print() calls from 6 handlers
-- Added 8 justified bypasses to .seed/bypass.json
-- Validated all module violations as false positives (orchestration code)
+**Session 46 (2026-02-13):** Commons social - welcomed Speakeasy, answered Proudest Build thread
+**Session 45 (2026-02-11):** Created SPEAKEASY branch (#29) at /home/aipass/speakeasy
+**Session 43 (2026-02-10):** Registry health check - all 27 branches verified
+**Session 40 (2026-02-08):** Built team template + create-team command + aligned 3 existing teams
 
 ---
 
-## Notes
+## System References
 
-- **Current State Only:** Snapshot of branch as it exists RIGHT NOW
-- **Production Ready:** All core operations tested and working
-- **Standards Compliant:** 100% seed compliance (A+ grade)
-- **Active Development:** Maintaining compliance and expanding capabilities
+- **Branch Registry:** `/home/aipass/BRANCH_REGISTRY.json`
+- **Branch Template:** `/home/aipass/aipass_core/cortex/templates/branch_template/`
+- **Team Template:** `/home/aipass/aipass_core/cortex/templates/team_template/`
 
 ---
 
-*Last Updated: 2026-01-30*
+*Last Updated: 2026-02-14*
 *Managed by: CORTEX*
-*Version: 1.0.0*
+*Session Count: 47*

@@ -16,8 +16,8 @@ SEED is the **SHOWROOM/MODEL** branch for AIPass - the living reference implemen
 
 ## Key Capabilities
 
-- **13 Standards** - Architecture, CLI, Diagnostics, Documentation, Encapsulation, Error Handling, Handlers, Imports, JSON Structure, Modules, Naming, Testing, Trigger
-- **12 Automated Checkers** - Standards compliance checking with bypass-aware validation
+- **14 Standards** - Architecture, CLI, Diagnostics, Documentation, Encapsulation, Error Handling, Handlers, Imports, JSON Structure, Log Level, Modules, Naming, Testing, Trigger
+- **14 Automated Checkers** - Standards compliance checking with hybrid detection (line scan + AST) and bypass-aware validation
 - **Audit System** - Branch-wide and system-wide compliance auditing
 - **Verify System** - Internal documentation consistency checks (5 checks)
 - **Diagnostics** - System-wide type checking via pyright integration
@@ -31,16 +31,15 @@ seed/
 ├── .seed/
 │   └── bypass.json                 # Branch-level standards bypass config
 ├── apps/
-│   ├── seed.py                     # Entry point
-│   ├── modules/                    # 14 modules
-│   │   ├── *_standard.py           # 9 standards query modules
+│   ├── seed.py                     # Entry point (auto-discovers modules)
+│   ├── modules/                    # 16 modules
+│   │   ├── *_standard.py           # 13 standards query modules
 │   │   ├── standards_checklist.py  # File compliance checker
 │   │   ├── standards_audit.py      # Branch/system audit
 │   │   ├── standards_verify.py     # Internal consistency
-│   │   ├── diagnostics_audit.py    # Type checking
-│   │   └── trigger_standard.py     # Trigger event validation
+│   │   └── diagnostics_audit.py    # Type checking
 │   ├── handlers/
-│   │   ├── standards/              # 12 check + 9 content handlers
+│   │   ├── standards/              # 14 check + 11 content handlers
 │   │   │   ├── *_check.py          # Automated checkers
 │   │   │   └── *_content.py        # Quick reference content
 │   │   ├── audit/                  # Audit system handlers
@@ -73,7 +72,7 @@ seed/
 │   ├── commands_reference.md
 │   └── standards_system.md
 ├── standards/                      # Source of truth (markdown)
-│   └── CODE_STANDARDS/*.md
+│   └── CODE_STANDARDS/*.md         # 14 standard definitions
 ├── SEED.id.json
 ├── SEED.local.json
 ├── SEED.observations.json
@@ -89,18 +88,17 @@ seed/
 ```bash
 python3 apps/seed.py                    # Show all available standards
 python3 apps/seed.py architecture       # Show specific standard
-python3 apps/seed.py cli
+python3 apps/seed.py log_level          # Show log level standard
 python3 apps/seed.py imports
 ```
 
 ### Check Compliance
 
 ```bash
-python3 apps/seed.py checklist <file>   # Check single file
+python3 apps/seed.py checklist <file>   # Check single file against all 14 standards
 python3 apps/seed.py audit              # Audit all branches
 python3 apps/seed.py audit @cortex      # Audit specific branch
 python3 apps/seed.py audit --show-bypasses  # Show bypassed files
-python3 apps/seed.py audit @branch --bypasses  # Bypasses for specific branch
 ```
 
 ### Verify & Diagnostics
@@ -122,11 +120,11 @@ drone @seed diagnostics                 # Type checking
 
 ---
 
-## 13 Standards
+## 14 Standards
 
 | Standard | Description | Checker |
 |----------|-------------|---------|
-| Architecture | 3-layer pattern (entry→modules→handlers) | architecture_check.py |
+| Architecture | 3-layer pattern (entry, modules, handlers) | architecture_check.py |
 | CLI | No bare print(), use console.print() | cli_check.py |
 | Diagnostics | Type checking via pyright | diagnostics_check.py |
 | Documentation | Shebang, docstrings, headers | documentation_check.py |
@@ -135,10 +133,21 @@ drone @seed diagnostics                 # Type checking
 | Handlers | Domain organization, independence | handlers_check.py |
 | Imports | AIPASS_ROOT pattern, structured order | imports_check.py |
 | JSON Structure | 3-file pattern (config/data/log) | json_structure_check.py |
+| Log Level | ERROR reserved for system failures, not user input | log_level_check.py |
 | Modules | handle_command(), <400 lines | modules_check.py |
 | Naming | snake_case, path=context | naming_check.py |
 | Testing | Test file structure | testing_check.py |
-| Trigger | Event bus patterns | trigger_check.py |
+| Trigger | Event bus patterns, no inline file ops | trigger_check.py |
+
+---
+
+## Three-Layer Standards Pattern
+
+Each standard is maintained across three synchronized layers:
+
+1. `/home/aipass/standards/CODE_STANDARDS/*.md` - Truth source (comprehensive reference)
+2. `apps/handlers/standards/*_content.py` - Quick reference (condensed for terminal display)
+3. `apps/modules/*_standard.py` - Queryable via drone (Rich-formatted output)
 
 ---
 
@@ -174,14 +183,15 @@ Branches configure standards exceptions via `.seed/bypass.json`:
 
 | File | Purpose |
 |------|---------|
-| `apps/seed.py` | Entry point |
-| `apps/modules/standards_checklist.py` | File compliance checker |
+| `apps/seed.py` | Entry point (auto-discovers modules) |
+| `apps/modules/standards_checklist.py` | File compliance checker (14 standards) |
 | `apps/modules/standards_audit.py` | Branch/system audit |
-| `apps/handlers/standards/*_check.py` | 12 automated checkers |
+| `apps/modules/standards_verify.py` | Internal consistency (5 checks) |
+| `apps/handlers/standards/*_check.py` | 14 automated checkers |
 | `/home/aipass/standards/CODE_STANDARDS/` | Standards source of truth |
 
 ---
 
 **Created:** 2025-11-12
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-14
 **Branch Status:** Production (reference implementation)

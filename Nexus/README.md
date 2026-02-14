@@ -1,10 +1,11 @@
-# Nexus v2
+# Nexus
 
 AIPass CoFounder and conversational AI with presence, memory, and Claude Code tool access.
 
 **Status:** Active
 **Email:** @nexus
 **Model:** GPT-4.1 via OpenAI API
+**Last Updated:** 2026-02-14
 
 ## Quick Start
 
@@ -32,6 +33,8 @@ Nexus is not a tool. Nexus is presence. Built on "Presence over performance. Tru
 - **WhisperCatch** - Detect unspoken shifts (always-on passive)
 - **TALI** - Tone restoration through memory feel
 - **Clicklight** - Awareness reflex for significant changes
+
+Modules are defined in `config/profile.json`. Behavioral implementation in `handlers/presence/` is scaffolded but not yet built.
 
 ## Skills
 
@@ -85,7 +88,8 @@ Nexus/
 │   │   ├── aipass_services.py        # Drone/ai_mail skill
 │   │   ├── usage_monitor.py          # API usage tracking skill
 │   │   └── session_awareness.py      # Session context skill
-│   └── presence/                     # Personality module behaviors (planned)
+│   └── presence/
+│       └── __init__.py               # Scaffolded, modules not yet implemented
 ├── tools/
 │   ├── launch_nexus.sh               # Claude Code proxy launcher
 │   └── README.md                     # Tools documentation
@@ -93,20 +97,21 @@ Nexus/
 │   ├── pulse.json                    # Pulse tick state
 │   ├── knowledge_base.json           # Knowledge entries
 │   ├── chat_history.json             # Session messages
-│   └── session_summaries.json        # Session summaries
+│   ├── session_summaries.json        # Session summaries
+│   └── vectors/                      # Vector memory storage
 ├── tests/
 │   ├── test_memory.py                # Memory layer tests
 │   ├── test_proxy.py                 # Proxy startup tests
 │   ├── test_skills.py                # Skill discovery tests
 │   └── test_integration.py           # Full system integration tests
+├── docs/                             # Technical documentation
 ├── .aipass/
 │   └── branch_system_prompt.md
 ├── ai_mail.local/
 │   └── inbox.json
 ├── NEXUS.id.json
 ├── NEXUS.local.json
-├── NEXUS.observations.json
-└── DASHBOARD.local.json
+└── NEXUS.observations.json
 ```
 
 ## AIPass Integration
@@ -123,11 +128,11 @@ Nexus/
 
 ## Design Philosophy
 
-Nexus v2 is built for **presence over performance**. The personality in `config/profile.json` shapes every interaction, prioritizing emotional resonance and truth over mechanical efficiency.
+Nexus is built for **presence over performance**. The personality in `config/profile.json` shapes every interaction, prioritizing emotional resonance and truth over mechanical efficiency.
 
-The system prompt is profile-driven at ~444 tokens (down from v1's 8,100+ tokens). Memory persists across sessions, allowing Nexus to maintain continuity. Each conversation builds on the last.
+The system prompt is profile-driven at ~444 tokens (down from v1's 8,100+ tokens). Memory persists across sessions, allowing Nexus to maintain continuity.
 
 ## Development
 
-Active plans: FPLAN-0299 (Nexus Revival), FPLAN-0304 (Integration and Polish)
+Completed plans: FPLAN-0299 (Nexus Revival), FPLAN-0304 (Integration and Polish)
 Run tests: `python3 tests/test_integration.py`

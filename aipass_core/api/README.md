@@ -1,7 +1,8 @@
 # API Branch
 
-**Purpose**: OpenRouter API client - key management, model discovery, usage aggregation
+**Purpose**: OpenRouter API client and Telegram bridge service
 **Location**: `/home/aipass/aipass_core/api`
+**Last Updated**: 2026-02-14
 
 ---
 
@@ -25,7 +26,9 @@ apps/
 ├── modules/
 │   ├── api_key.py            # Key management
 │   ├── openrouter_client.py  # OpenRouter client
-│   └── usage_tracker.py      # Usage tracking
+│   ├── usage_tracker.py      # Usage tracking
+│   ├── telegram_bridge.py    # Telegram bridge entry point
+│   └── telegram_service.py   # Telegram systemd service control
 └── handlers/
     ├── auth/
     │   ├── env.py            # .env file operations
@@ -39,10 +42,18 @@ apps/
     │   ├── client.py         # OpenAI SDK client, connection pooling
     │   ├── models.py         # Model discovery and filtering
     │   └── provision.py      # Config provisioning
-    └── usage/
-        ├── aggregation.py    # Usage statistics
-        ├── cleanup.py        # Data retention
-        └── tracking.py       # Usage storage
+    ├── usage/
+    │   ├── aggregation.py    # Usage statistics
+    │   ├── cleanup.py        # Data retention
+    │   └── tracking.py       # Usage storage
+    ├── telegram/
+    │   ├── bridge.py         # v4.1.0 - Polling, tmux injection, commands
+    │   ├── config.py         # Bot configuration loading
+    │   ├── tmux_manager.py   # tmux session create/kill/send/list
+    │   ├── session_store.py  # v2.0.0 - Per-chat branch tracking
+    │   └── file_handler.py   # Photo/document upload handling
+    └── telegram_service/
+        └── service.py        # systemd operations
 ```
 
 ---
@@ -62,10 +73,21 @@ apps/
 |---------|--------|-------------|
 | `get-key [provider]` | api_key | Retrieve API key (default: openrouter) |
 | `validate [provider]` | api_key | Validate API credentials and connection |
+| `list-providers` | api_key | List configured providers |
+| `init` | api_key | Initialize .env template |
 | `test` | openrouter_client | Test OpenRouter connection status |
+| `call` | openrouter_client | Make an API call |
 | `models` | openrouter_client | List available models from OpenRouter API |
+| `status` | openrouter_client | Show client status |
 | `track` | usage_tracker | Track API usage metrics |
-| `stats` | usage_tracker | Display API usage statistics |
+| `stats` | usage_tracker | Display usage statistics |
+| `session` | usage_tracker | Show current session usage |
+| `caller-usage` | usage_tracker | Per-caller usage breakdown |
+| `cleanup` | usage_tracker | Run data retention cleanup |
+| `telegram start` | telegram_service | Start the bridge service |
+| `telegram stop` | telegram_service | Stop the bridge service |
+| `telegram status` | telegram_service | Check service status |
+| `telegram logs` | telegram_service | View service logs |
 
 ---
 
@@ -110,6 +132,7 @@ get_caller_usage(caller: str) -> Dict
 - `prax.apps.modules.logger` - Logging
 - `cli.apps.modules` - Rich console output
 - OpenAI Python SDK
+- python-telegram-bot 22.6
 
 ---
 
@@ -143,20 +166,6 @@ Telegram → bridge.py → tmux send-keys → Claude Code (persistent) → Stop 
 ```
 
 ```
-apps/
-├── modules/
-│   ├── telegram_bridge.py       # Bridge entry point
-│   └── telegram_service.py      # Service control module
-└── handlers/
-    ├── telegram/
-    │   ├── bridge.py            # v4.0.0 - Polling, tmux injection, commands
-    │   ├── config.py            # Configuration loading
-    │   ├── tmux_manager.py      # tmux session create/kill/send/list
-    │   ├── session_store.py     # v2.0.0 - Per-chat branch tracking
-    │   └── file_handler.py      # Photo/document handling
-    └── telegram_service/
-        └── service.py           # systemd operations
-
 ~/.claude/hooks/
 └── telegram_response.py         # Stop hook - reads transcript, sends to Telegram
 
@@ -178,11 +187,19 @@ apps/
 | Command | Description |
 |---------|-------------|
 | `/new` | Kill current session, start fresh |
-| `/status` | Show session details |
+| `/status` | Show session details (includes chat_id) |
 | `/switch @branch` | Switch to a different branch |
 | `/list` | List active tmux sessions |
 | `/end` | Kill current branch session |
 | `/branch` | Show current branch target |
+| `/help` | Show available commands |
+
+### Security
+
+- User allowlist (`~/.aipass/allowlist.json`) - empty = allow all, populated = strict
+- Rate limiting: 5 messages per 60 seconds per user
+- File size limit: 10MB max
+- 30+ supported text file extensions + images/PDFs
 
 ### Configuration
 

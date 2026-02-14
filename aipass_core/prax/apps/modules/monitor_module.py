@@ -268,9 +268,15 @@ def _display_worker():
             if _filter_state and should_display_event(event.event_type, event.branch, event.level, _filter_state, event.message):
                 # Display the event - use separator for commands, regular format for others
                 if event.event_type == 'command':
-                    # Pass caller for attribution (who initiated the command)
+                    # Pass caller and target for attribution
                     caller = getattr(event, 'caller', None)
-                    print_command_separator(event.branch, event.message, caller)
+                    # Target encoded in action field as "executed:TARGET"
+                    target = None
+                    if hasattr(event, 'action') and event.action and ':' in event.action:
+                        parts = event.action.split(':', 1)
+                        if len(parts) == 2 and parts[1]:
+                            target = parts[1]
+                    print_command_separator(event.branch, event.message, caller, target)
                 else:
                     print_event(event.event_type, event.branch, event.message, event.level)
 

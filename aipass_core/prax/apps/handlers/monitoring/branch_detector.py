@@ -62,7 +62,7 @@ class BranchDetector:
                 self._load_fallback_branches()
                 return
 
-            with open(registry_path) as f:
+            with open(registry_path, encoding='utf-8') as f:
                 data = json.load(f)
 
                 branches = data.get('branches', [])
@@ -140,7 +140,54 @@ class BranchDetector:
                     self.log_map[path_str] = result
                     return result
 
-            # Strategy 3: Parse path for known branch names
+            # Strategy 3: Claude Code project files
+            # Path: ~/.claude/projects/-home-aipass-aipass-core-trigger/session.jsonl
+            # Folder name encodes the project path with - replacing /
+            if '.claude/projects/' in path_str:
+                projects_idx = path_str.index('.claude/projects/') + len('.claude/projects/')
+                remaining = path_str[projects_idx:]
+                # Get the project folder name (first path segment after projects/)
+                project_folder = remaining.split('/')[0]
+                # Convert folder name back to path: -home-aipass-aipass-core-trigger -> /home/aipass/aipass_core/trigger
+                project_path = '/' + project_folder.replace('-', '/')
+                # Check against branch_map (registered branch paths)
+                for registered_path, branch_name in self.branch_map.items():
+                    # Normalize for comparison: aipass_core vs aipass-core
+                    registered_normalized = registered_path.replace('_', '/')
+                    project_normalized = project_path.replace('_', '/')
+                    if registered_normalized == project_normalized or registered_path == project_path:
+                        self.log_map[path_str] = branch_name
+                        return branch_name
+                # Fallback: extract last segment as branch name
+                segments = [s for s in project_folder.split('-') if s]
+                # Try matching from end (last meaningful segment)
+                if segments:
+                    last = segments[-1].upper()
+                    # Check for compound names by trying progressively longer matches from end
+                    for i in range(len(segments) - 1, 0, -1):
+                        candidate = '_'.join(segments[i:]).upper()
+                        if candidate in self.known_branches:
+                            self.log_map[path_str] = candidate
+                            return candidate
+                    if last in self.known_branches:
+                        self.log_map[path_str] = last
+                        return last
+
+            # Strategy 4: AI_CENTRAL files - {BRANCH}.central.json or {BRANCH}_central.json
+            # Path: /home/aipass/aipass_os/AI_CENTRAL/AI_MAIL.central.json -> AI_MAIL
+            if 'AI_CENTRAL' in path_str or 'ai_central' in path_str.lower():
+                name = path.name
+                # Extract branch from filename patterns
+                branch_candidate = None
+                if '.central.json' in name:
+                    branch_candidate = name.replace('.central.json', '').upper()
+                elif '_central.json' in name:
+                    branch_candidate = name.replace('_central.json', '').upper()
+                if branch_candidate:
+                    self.log_map[path_str] = branch_candidate
+                    return branch_candidate
+
+            # Strategy 5: Parse path for known branch names
             path_parts = path_str.lower().split('/')
             for part in path_parts:
                 branch_upper = part.upper()
@@ -148,7 +195,7 @@ class BranchDetector:
                     self.log_map[path_str] = branch_upper
                     return branch_upper
 
-            # Strategy 4: Check for compound names (aipass_core -> check for CORE patterns)
+            # Strategy 6: Check for compound names (aipass_core -> check for CORE patterns)
             for part in path_parts:
                 if '_' in part:
                     subparts = part.split('_')
@@ -159,7 +206,7 @@ class BranchDetector:
                             return branch_upper
 
             # No match found
-            logger.debug(f"Could not detect branch for path: {file_path}")
+            logger.info(f"Could not detect branch for path: {file_path}")
             return 'UNKNOWN'
 
         except Exception as e:
@@ -190,12 +237,19 @@ class BranchDetector:
             if name in self.log_map:
                 return self.log_map[name]
 
-            # Split on underscore - ALWAYS use first part for branch name
+            # Check known branches first (longest match wins)
+            # Handles compound names like ai_mail, backup_system, memory_bank
+            for branch_name in sorted(self.known_branches, key=len, reverse=True):
+                prefix = branch_name.lower() + '_'
+                if name.lower().startswith(prefix) or name.lower() == branch_name.lower():
+                    self.log_map[name] = branch_name
+                    return branch_name
+
+            # Fallback: split on underscore for branches not in registry
             # Log files follow pattern: branch_operation.log
             if '_' in name:
                 parts = name.split('_')
                 first_part = parts[0].upper()
-                # Always use first part - it's the branch name
                 self.log_map[name] = first_part
                 return first_part
 
@@ -244,7 +298,7 @@ class BranchDetector:
                     self.module_map[module_name] = first_part
                     return first_part
 
-            logger.debug(f"Could not detect branch from module: {module_name}")
+            logger.info(f"Could not detect branch from module: {module_name}")
             return 'UNKNOWN'
 
         except Exception as e:

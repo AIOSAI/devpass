@@ -4,11 +4,13 @@
 # META DATA HEADER
 # Name: telegram_bridge.py - Telegram Bridge Module
 # Date: 2026-02-03
-# Version: 1.1.0
+# Version: 1.4.0
 # Category: api/modules
 # CODE STANDARDS: Seed v1.0.0
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.4.0 (2026-02-13): Remove 'start' from drone routing - blocking call causes 30s timeout
+#   - v1.3.0 (2026-02-13): Add startup health check - verify Telegram API connection before polling
 #   - v1.2.0 (2026-02-10): Handle start/status only, pass stop/logs to telegram_service.py
 #   - v1.1.0 (2026-02-10): Disable drone routing - only telegram_service.py handles telegram commands
 #   - v1.0.0 (2026-02-03): Initial module - Telegram bridge entry point
@@ -101,9 +103,8 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     Handle Telegram bridge commands.
 
-    Only handles 'start' and 'status' commands directly.
-    All other commands (stop, logs, etc.) return False so
-    telegram_service.py can handle them via drone routing.
+    Only handles 'status' directly. Start/stop/logs return False
+    so telegram_service.py handles them via systemd (non-blocking).
 
     Args:
         command: Command name
@@ -117,11 +118,8 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     subcommand = args[0] if args else ""
 
-    if command == "telegram" and subcommand in ("start", "status"):
-        if subcommand == "start":
-            start()
-        elif subcommand == "status":
-            status()
+    if command == "telegram" and subcommand == "status":
+        status()
         return True
 
     return False

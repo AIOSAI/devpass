@@ -88,6 +88,10 @@ BRANCH_COLORS = {
     'API': 'bright_red',
     'SECURITY': 'red',
     'AIPASS': 'bold white',
+    'TRIGGER': 'bright_red',
+    'SPEAKEASY': 'bright_white',
+    'THE_COMMONS': 'bright_green',
+    'ASSISTANT': 'bright_yellow',
 }
 
 
@@ -127,29 +131,84 @@ def print_event(event_type: str, branch: str, message: str, level: str = 'info')
         console.print(f"[dim]{timestamp}[/dim] {branch_formatted} [{msg_color}]{message}[/{msg_color}]")
 
 
-def print_command_separator(branch: str, command: str, caller: Optional[str] = None):
+def print_command_separator(branch: str, command: str, caller: Optional[str] = None, target: Optional[str] = None):
     """
     Print prominent command separator/header with caller attribution.
 
-    Shows when a new command is executed, visually grouping its output.
-
     Args:
         branch: Branch that executed the command (log location)
-        command: The command that was run (e.g., "seed.py audit @prax")
+        command: The command that was run
         caller: Branch that initiated the command (optional)
+        target: Branch being acted upon (optional, e.g. audit target)
     """
     with _print_lock:
         branch_color = BRANCH_COLORS.get(branch.upper(), 'white')
         console.print()
         console.print(f"[bold {branch_color}]{'─' * 60}[/bold {branch_color}]")
 
-        # Show caller if available
-        if caller:
+        # Build context line: CALLER → TARGET
+        context_parts = []
+        if caller and caller.upper() != 'UNKNOWN':
             caller_color = BRANCH_COLORS.get(caller.upper(), 'cyan')
-            console.print(f"[{caller_color}]CALLER: {caller}[/{caller_color}]")
+            context_parts.append(f"[{caller_color}]{caller}[/{caller_color}]")
+        if target:
+            target_color = BRANCH_COLORS.get(target.upper(), 'cyan')
+            if context_parts:
+                context_parts.append(f"→ [{target_color}]{target}[/{target_color}]")
+            else:
+                context_parts.append(f"→ [{target_color}]{target}[/{target_color}]")
+
+        if context_parts:
+            console.print(f"  {' '.join(context_parts)}")
 
         console.print(f"[bold {branch_color}]▶ {command}[/bold {branch_color}]")
         console.print(f"[bold {branch_color}]{'─' * 60}[/bold {branch_color}]")
+
+
+def get_file_category(filename: str) -> str:
+    """Categorize a file by its type for display context.
+
+    Args:
+        filename: Just the filename (not full path)
+
+    Returns:
+        Short category tag like 'code', 'memory', 'config', etc.
+    """
+    name_lower = filename.lower()
+
+    # Dashboard (check before general memory)
+    if name_lower == 'dashboard.local.json':
+        return 'dashboard'
+
+    # Memory files
+    if name_lower.endswith('.local.json') or name_lower.endswith('.id.json') or name_lower.endswith('.observations.json'):
+        return 'memory'
+
+    # Dev notes
+    if name_lower == 'dev.local.md':
+        return 'devnotes'
+
+    # Config
+    if name_lower.endswith('_config.json') or name_lower.endswith('config.json'):
+        return 'config'
+
+    # Documentation
+    if name_lower.endswith('.md'):
+        return 'docs'
+
+    # Code
+    if name_lower.endswith('.py'):
+        return 'code'
+
+    # Data/JSON
+    if name_lower.endswith('.json'):
+        return 'data'
+
+    # Mail
+    if 'ai_mail' in name_lower or 'mail' in name_lower:
+        return 'mail'
+
+    return ''
 
 
 def print_file_event(event_type: str, branch: str, file_path: str, details: Optional[str] = None):
@@ -162,7 +221,13 @@ def print_file_event(event_type: str, branch: str, file_path: str, details: Opti
         file_path: Path to file
         details: Optional additional details
     """
-    message = f"File {event_type}: {file_path}"
+    # Get file category for context
+    filename = file_path.split('/')[-1] if '/' in file_path else file_path
+    category = get_file_category(filename)
+
+    # Build message with category context
+    category_tag = f"[dim]\\[{category}][/dim] " if category else ""
+    message = f"{category_tag}{event_type.upper()}: {file_path}"
     if details:
         message += f" ({details})"
 

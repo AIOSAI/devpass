@@ -3,11 +3,12 @@
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: log_watcher.py - Branch Log Watcher Event Producer
-# Date: 2026-02-02
-# Version: 1.0.0
+# Date: 2026-02-13
+# Version: 2.0.0
 # Category: trigger/handlers
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-13): Medic v2 Phase 3 - Registry-based dedup via error_registry.report()
 #   - v1.0.1 (2026-02-10): FPLAN-0310 Phase 2 - Persist dedup hashes to trigger_data.json, increase max to 2000
 #   - v1.0.0 (2026-02-02): Created - FPLAN-0284 Phase 1
 #
@@ -15,7 +16,9 @@
 #   - Follows AIPass Seed standards
 #   - NO console.print() - handlers return data to modules
 #   - Fires error_detected events when ERROR entries found in branch logs
-#   - Hash-based deduplication to avoid spam on repeated errors
+#   - Primary dedup path: error_registry.report() (Medic v2)
+#   - Fallback dedup: MD5 hash-based (Medic v1, kept for backward compat)
+#   - Dispatch threshold: fires event on count==1 (register) AND count==2 (dispatch)
 # =============================================
 
 """
@@ -30,7 +33,8 @@ Architecture:
     - Watches: /home/aipass/system_logs/*.log (mapped to owning branch)
     - Parses: Prax format (timestamp | module | LEVEL | message)
     - Fires: error_detected event (via callback, branch=..., module=..., message=..., log_path=...)
-    - Deduplicates: By hash of (module + message) to avoid spam
+    - Primary dedup: error_registry.report() with SHA1 fingerprinting (Medic v2)
+    - Fallback dedup: MD5 hash of (module + message) if registry unavailable (Medic v1)
 """
 
 import json
@@ -46,6 +50,13 @@ sys.path.insert(0, str(AIPASS_HOME))
 
 # Persistent hash storage
 TRIGGER_DATA_FILE = AIPASS_ROOT / "trigger" / "trigger_data.json"
+
+# Try to import error_registry for Medic v2 registry-based dedup
+try:
+    from trigger.apps.handlers.error_registry import report as registry_report
+    _REGISTRY_AVAILABLE = True
+except ImportError:
+    _REGISTRY_AVAILABLE = False
 
 # Try to import watchdog
 try:
@@ -123,6 +134,9 @@ def _save_seen_hashes() -> None:
 def _generate_error_hash(source_module: str, message: str) -> str:
     """
     Generate hash for error deduplication.
+
+    BACKWARD COMPAT: Kept for fallback when error_registry is unavailable.
+    Primary dedup path is now error_registry.report() (Medic v2).
 
     Args:
         source_module: Module that generated the error
@@ -229,6 +243,9 @@ def _is_duplicate_error(error_hash: str) -> bool:
     """
     Check if error has been seen before (deduplication).
 
+    BACKWARD COMPAT: Kept for fallback when error_registry is unavailable.
+    Primary dedup path is now error_registry.report() (Medic v2).
+
     Args:
         error_hash: Hash of module + message
 
@@ -325,6 +342,14 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
         """
         Process a log line and fire error_detected if ERROR found.
 
+        Primary path (Medic v2): Uses error_registry.report() for structured
+        dedup with SHA1 fingerprinting. Fires event on first occurrence (count==1)
+        and second occurrence (count==2) so the handler can apply the dispatch
+        threshold. Subsequent occurrences are silent until backoff allows.
+
+        Fallback path (Medic v1): Uses MD5 hash dedup if error_registry is
+        unavailable (import failed).
+
         Args:
             log_line: Raw log line
             log_path: Path to log file
@@ -338,14 +363,52 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
             module = parsed['module']
             message = parsed['message']
 
-            # Generate hash for deduplication
+            # Primary path: Medic v2 registry-based dedup
+            if _REGISTRY_AVAILABLE:
+                try:
+                    result = registry_report(
+                        error_type=parsed['level'],
+                        message=message,
+                        component=branch,
+                        log_path=log_path,
+                        severity='medium'
+                    )
+
+                    # Fire event for new errors (count == 1) and on second
+                    # occurrence (count == 2) so the handler can apply the
+                    # dispatch threshold.  Subsequent occurrences are silent
+                    # until the per-fingerprint backoff schedule allows.
+                    error_count = result.get('count', 1)
+                    if not result.get('is_new', False) and error_count != 2:
+                        return
+
+                    # Fire error_detected event with registry data
+                    if _fire_event is not None:
+                        _fire_event(
+                            'error_detected',
+                            branch=branch,
+                            module=module,
+                            message=message,
+                            log_path=log_path,
+                            error_hash=result.get('id', ''),
+                            timestamp=parsed['timestamp'],
+                            fingerprint=result.get('fingerprint', ''),
+                            registry_id=result.get('id', ''),
+                            first_seen=result.get('first_seen', ''),
+                            last_seen=result.get('last_seen', ''),
+                            count=error_count,
+                        )
+                    return
+
+                except Exception:
+                    pass  # Fall through to legacy dedup on registry failure
+
+            # Fallback path: Medic v1 hash-based dedup
             error_hash = _generate_error_hash(module, message)
 
-            # Skip if duplicate
             if _is_duplicate_error(error_hash):
                 return
 
-            # Fire error_detected event via callback
             if _fire_event is not None:
                 _fire_event(
                     'error_detected',

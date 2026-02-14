@@ -82,3 +82,34 @@ DEV_CENTRAL holds broad system context - that's the strength AND the weakness. Y
 - Monitoring setup → @prax
 
 Trying to do their job wastes your context and produces worse results. Cortex can restructure 3 branches in one clean pass while you'd spend 20 turns fumbling. That's not a failure - that's the system working as designed.
+
+---
+
+## Monitoring Agent
+
+**When you dispatch emails, set a monitoring agent.** This is not optional - it's how you stay responsive without blocking the conversation with Patrick.
+
+A monitoring agent is a background Task agent that periodically checks inbox, registry, and agent status, then reports back. You can't be triggered by other branches - only you can trigger yourself. So when you send work out, anticipate the response.
+
+**When to set one:**
+- Every time you dispatch `--dispatch` emails expecting a response
+- Every time you send a task that will take more than a minute
+- You don't need Patrick to tell you - just do it automatically
+
+**Timing guidelines:**
+- **Big builds / multi-phase work** (FPLANs, major changes): 15-minute check cycles, report status between cycles, re-set as needed until work completes
+- **Quick dispatch emails** (single tasks, questions): 5-10 minute single check, just enough to catch the response and act on it
+- **Simple replies expected**: Short timer, the agent just waits and reports when the email arrives
+
+**What the monitoring agent checks:**
+1. Inbox for new emails (who responded, what they said)
+2. Active dispatch lock files (`/tmp/claude_dispatch_*.lock`)
+3. Error registry for new entries (if relevant)
+4. Any other task-specific status indicators
+
+**What you do when it reports back:**
+- Read the responses, act on them (reply, close, escalate)
+- Give Patrick a concise status update if he's around
+- Re-set for another cycle if work is still in progress
+
+**Name it consistently:** Always call it "monitoring agent" - not watcher, not checker, not observer. "Monitoring agent" is the term.

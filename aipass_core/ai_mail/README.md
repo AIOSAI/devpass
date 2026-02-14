@@ -18,6 +18,9 @@ AI_MAIL provides internal email system for AI branches within AIPass. Core respo
 - Auto-generate per-branch configs (user_config.json in [branch]_json/)
 - Auto-detect calling branch via PWD/CWD for sender identity
 - Update dashboard on delivery (DASHBOARD.local.json)
+- Dispatch auto-execute: spawn Claude agents for `--dispatch` emails
+- Single instance per branch locking (PID-based dispatch lock)
+- Reply chain validation (sender must match dispatched_to)
 - Maintain 100% CLI standards compliance
 - Preserve branch email identities (no impersonation)
 
@@ -62,14 +65,16 @@ apps/
 │   │   └── status.py       # Dispatch log and status
 │   ├── email/              # Email operations
 │   │   ├── create.py       # Create email messages
-│   │   ├── delivery.py     # Deliver to branches
+│   │   ├── delivery.py     # Deliver to branches + dispatch spawning
 │   │   ├── format.py       # Email formatting
 │   │   ├── footer.py       # Auto-footer for outgoing emails
 │   │   ├── header.py       # Email header formatting
 │   │   ├── inbox_cleanup.py # Inbox cleanup operations
+│   │   ├── inbox_lock.py   # Inbox file locking
 │   │   ├── inbox_ops.py    # Inbox operations
+│   │   ├── lock_utils.py   # PID-based dispatch lock per branch
 │   │   ├── purge.py        # Auto-purge sent/deleted when >10 items
-│   │   └── reply.py        # Reply handling
+│   │   └── reply.py        # Reply handling with chain validation
 │   ├── json_utils/         # JSON operations
 │   │   └── json_handler.py # JSON file operations
 │   ├── monitoring/         # System monitoring
@@ -107,7 +112,7 @@ apps/
 ### Handlers (by domain)
 
 **Dispatch**: status
-**Email**: create, delivery, footer, format, header, inbox_cleanup, inbox_ops, purge, reply
+**Email**: create, delivery, footer, format, header, inbox_cleanup, inbox_lock, inbox_ops, lock_utils, purge, reply
 **JSON Utils**: json_handler
 **Monitoring**: data_ops, errors, memory
 **Persistence**: json_ops
@@ -139,7 +144,7 @@ reply <id> "msg"      close <id>
 auto-closes           closes
     └──────────┬──────────┘
                ↓
-        archived to deleted.json
+        archived to deleted/
 ```
 
 ### Basic Commands
@@ -147,6 +152,9 @@ auto-closes           closes
 ```bash
 # Send email
 drone @ai_mail send @recipient "Subject" "Message"
+
+# Send with dispatch (auto-execute at recipient)
+drone @ai_mail send @recipient "Task" "Details" --dispatch
 
 # Broadcast to all branches
 drone @ai_mail send @all "Announcement" "Message"
@@ -177,6 +185,17 @@ drone @ai_mail contacts
 # (marks as opened, does NOT archive)
 drone @ai_mail read <message_id>
 ```
+
+### Dispatch System
+
+The `--dispatch` flag triggers auto-execution at the recipient branch:
+
+- **Single instance lock**: PID-based `.dispatch.lock` prevents concurrent agents per branch
+- **Bounce notification**: Sender gets notified if branch is already busy
+- **DEV_CENTRAL protection**: @dev_central is never auto-dispatched (email delivered, no agent spawned)
+- **Notification throttling**: Max 3 desktop notifications per recipient in 30s window
+- **Self-reply loop detection**: Reply-to self on auto_execute downgrades to regular delivery
+- **Stale lock timeout**: 10 minutes (auto-cleanup of dead locks)
 
 ### Direct Module Access
 
@@ -212,8 +231,9 @@ python3 apps/ai_mail.py dispatch status
 
 ### Mailbox Structure
 - `ai_mail.local/inbox.json` - Incoming messages (new + opened status)
-- `ai_mail.local/sent/` - Sent messages (including replies)
-- `ai_mail.local/deleted/` - Closed/archived messages (individual files)
+- `ai_mail.local/sent/` - Sent messages (individual files, auto-purged at >10)
+- `ai_mail.local/deleted/` - Closed/archived messages (individual files, auto-purged at >10)
+- `ai_mail.local/.dispatch.lock` - PID-based dispatch lock (when agent active)
 
 **Email Schema (v2):**
 ```json
@@ -238,6 +258,8 @@ python3 apps/ai_mail.py dispatch status
 
 ## Standards Compliance
 
+Seed audit score: **88%** (passing)
+
 Following AIPass code standards:
 - 100% CLI integration
 - Proper import patterns
@@ -256,6 +278,21 @@ Following AIPass code standards:
 ---
 
 ## Changelog
+
+**2026-02-10 - Seed Compliance + FPLAN-0310 + BrokenPipeError Fix**
+- delivery.py from 64% to 89% Seed compliance (removed logger calls, cross-handler imports, added json_handler import, fixed naming)
+- Introduced on_delivered callback pattern for post-delivery actions
+- FPLAN-0310: Error message polish, dispatch chain logging, hardened loop detection
+- DEV_CENTRAL auto-dispatch protection, notification rate limiting, self-reply loop detection
+- Removed silent success confirmations (kept failure notifications)
+- Added BrokenPipeError handling (SIGPIPE handler + catches in ai_mail.py and email.py)
+- delivery.py bumped to v2.4.0, lock_utils.py to v1.1.0
+
+**2026-02-09 - Single Instance Per Branch Lock**
+- Created lock_utils.py: PID-based dispatch lock with atomic O_CREAT|O_EXCL
+- Stale lock detection: dead PID check, 10min timeout, corrupted file recovery
+- Bounce notification when branch already has active dispatch agent
+- Agent prompt includes lock file path + cleanup instruction
 
 **2026-02-07 - Archived local_memory_monitor**
 - Archived entire local_memory_monitor subsystem (redundant with Memory Bank auto-rollover)
@@ -293,5 +330,5 @@ Following AIPass code standards:
 
 ---
 
-*Last Updated: 2026-02-07*
+*Last Updated: 2026-02-14*
 *Maintained by: AI_MAIL Branch*
