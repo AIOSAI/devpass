@@ -191,17 +191,17 @@
         "context7",
         "serena"
       ],
-      "lastCost": 0,
-      "lastAPIDuration": 0,
-      "lastToolDuration": 0,
-      "lastDuration": 4757,
-      "lastLinesAdded": 0,
-      "lastLinesRemoved": 0,
-      "lastTotalInputTokens": 0,
-      "lastTotalOutputTokens": 0,
-      "lastTotalCacheCreationInputTokens": 0,
-      "lastTotalCacheReadInputTokens": 0,
-      "lastSessionId": "f40cb185-7a80-4e62-a22d-79b02728c2de",
+      "lastCost": 1.0779772499999998,
+      "lastAPIDuration": 64639,
+      "lastToolDuration": 63,
+      "lastDuration": 1547513,
+      "lastLinesAdded": 1,
+      "lastLinesRemoved": 1,
+      "lastTotalInputTokens": 745,
+      "lastTotalOutputTokens": 1189,
+      "lastTotalCacheCreationInputTokens": 107073,
+      "lastTotalCacheReadInputTokens": 757922,
+      "lastSessionId": "1fc5b098-37de-44f7-8602-9c050ea3ef21",
       "reactVulnerabilityCache": {
         "detected": false,
         "package": null,
@@ -209,17 +209,36 @@
         "version": null,
         "packageManager": null
       },
-      "lastAPIDurationWithoutRetries": 0,
-      "lastModelUsage": {},
+      "lastAPIDurationWithoutRetries": 64629,
+      "lastModelUsage": {
+        "claude-haiku-4-5-20251001": {
+          "inputTokens": 730,
+          "outputTokens": 36,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 0.00091
+        },
+        "claude-opus-4-6": {
+          "inputTokens": 15,
+          "outputTokens": 1153,
+          "cacheReadInputTokens": 757922,
+          "cacheCreationInputTokens": 107073,
+          "webSearchRequests": 0,
+          "costUSD": 1.0770672499999998
+        }
+      },
       "lastSessionMetrics": {
-        "frame_duration_ms_count": 1108,
-        "frame_duration_ms_min": 0.34280199999921024,
-        "frame_duration_ms_max": 95.38753700000234,
-        "frame_duration_ms_avg": 5.586150692237994,
-        "frame_duration_ms_p50": 3.622692500000994,
-        "frame_duration_ms_p95": 7.444041700000865,
-        "frame_duration_ms_p99": 70.94545125000816
-      }
+        "frame_duration_ms_count": 1272,
+        "frame_duration_ms_min": 0.34772099999986494,
+        "frame_duration_ms_max": 50.283196000000316,
+        "frame_duration_ms_avg": 3.767522244496441,
+        "frame_duration_ms_p50": 3.1189139999987674,
+        "frame_duration_ms_p95": 5.750434450001602,
+        "frame_duration_ms_p99": 28.268585599998282
+      },
+      "lastFpsAverage": 0.82,
+      "lastFpsLow1Pct": 35.7
     },
     "/": {
       "allowedTools": [],
@@ -564,7 +583,7 @@
   },
   "clientDataCache": {
     "data": {},
-    "timestamp": 1771121135676
+    "timestamp": 1771121264177
   },
   "hasVisitedPasses": false,
   "passesLastSeenRemaining": 3,

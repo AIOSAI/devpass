@@ -54,7 +54,6 @@ test_large_file.bin
 .tmux.conf
 .var
 .venv
-.vscode
 .wget-hsts
 *.db
 *.keep
@@ -90,3 +89,4 @@ Videos
 !Nexus/config/profile.json
 !pyrightconfig.json
 
+.vscode/artifacts/extensions_backup.txt
