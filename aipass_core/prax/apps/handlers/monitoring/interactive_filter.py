@@ -145,9 +145,9 @@ def should_display_event(event_type: str, branch: str, level: str, state: Filter
     if not state.is_watching(branch):
         return False
 
-    # File and command events always show when watching a branch
+    # File, command, and agent events always show when watching a branch
     # (level filter only applies to log events)
-    if event_type in ['file', 'command']:
+    if event_type in ['file', 'command', 'agent']:
         return True
 
     # Check level filter (for log events only)

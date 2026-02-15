@@ -159,6 +159,9 @@ MONITOR_IGNORE_PATTERNS = [
     "*.7z",
     "*.whl",
 
+    # HuggingFace model cache (sentence-transformers etc.)
+    "huggingface",
+
     # Temporary files (includes Claude Code atomic writes: file.py.tmp.PID.TIMESTAMP)
     "*.tmp",
     "*.temp",

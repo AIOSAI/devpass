@@ -291,6 +291,19 @@ def _file_watcher_worker():
     from watchdog.events import FileSystemEventHandler
     from prax.apps.handlers.config.load import ECOSYSTEM_ROOT
 
+    # Files whose modification indicates a command is running (python3 direct calls)
+    # Maps filename -> command description. Used to emit command separators from file events.
+    COMMAND_INDICATOR_FILES = {
+        'standards_audit_log.json': 'seed audit',
+        'standards_checklist_log.json': 'seed checklist',
+    }
+    # Track last command emitted per file to avoid duplicate separators
+    last_file_command = {}
+    # Track JSONL file positions for incremental reading
+    jsonl_positions = {}
+    # Track last agent action per session to avoid duplicate displays
+    last_agent_action = {}
+
     class MonitoringFileHandler(FileSystemEventHandler):
         """File system event handler that pushes to event queue"""
 
@@ -308,16 +321,138 @@ def _file_watcher_worker():
 
         def on_moved(self, event):
             if not event.is_directory:
-                # Check if moved to Trash (GUI delete)
                 # dest_path can be bytes or str, normalize to str for comparison
                 dest_path_str = event.dest_path.decode() if isinstance(event.dest_path, bytes) else event.dest_path
+                src_path_str = event.src_path.decode() if isinstance(event.src_path, bytes) else event.src_path
                 if 'Trash' in dest_path_str or '.local/share/Trash' in dest_path_str:
-                    self._handle_event('deleted', event.src_path)
+                    # Moved to Trash = deletion
+                    self._handle_event('deleted', src_path_str)
+                elif '.tmp.' in src_path_str or src_path_str.endswith('.tmp'):
+                    # Atomic write: tmp file moved to real file = modification
+                    self._handle_event('modified', dest_path_str)
                 else:
-                    self._handle_event('moved', event.src_path)
+                    self._handle_event('moved', dest_path_str)
+
+        def _parse_agent_activity(self, file_path, branch):
+            """Parse Claude Code session JSONL to show agent actions.
+
+            Returns True if an event was emitted (or deduped), False on failure.
+            """
+            import json as _json
+            try:
+                path_key = str(file_path)
+                current_size = file_path.stat().st_size
+                last_pos = jsonl_positions.get(path_key, 0)
+
+                # File shrunk or new - reset
+                if current_size < last_pos:
+                    last_pos = 0
+
+                if current_size <= last_pos:
+                    return True  # No new data, but not an error
+
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    f.seek(last_pos)
+                    new_data = f.read()
+                    jsonl_positions[path_key] = f.tell()
+
+                # Parse last meaningful line
+                lines = [l for l in new_data.strip().split('\n') if l.strip()]
+                if not lines:
+                    return True  # Empty, not an error
+
+                for line in reversed(lines):
+                    try:
+                        entry = _json.loads(line)
+                    except _json.JSONDecodeError:
+                        continue
+
+                    entry_type = entry.get('type', '')
+                    msg = entry.get('message', {}) if isinstance(entry.get('message'), dict) else {}
+                    content = msg.get('content', [])
+
+                    # Skip noise entries - look for next meaningful one
+                    if entry_type in ('progress', 'system', 'file-history-snapshot', 'queue-operation'):
+                        continue
+
+                    action_text = None
+
+                    if entry_type == 'assistant' and isinstance(content, list):
+                        for item in content:
+                            if not isinstance(item, dict):
+                                continue
+                            item_type = item.get('type', '')
+
+                            if item_type == 'thinking':
+                                action_text = '💭 Thinking'
+                                break
+                            elif item_type == 'tool_use':
+                                tool_name = item.get('name', '')
+                                inp = item.get('input', {})
+                                if tool_name in ('Read', 'Edit', 'Write'):
+                                    fp = inp.get('file_path', '')
+                                    short = fp.split('/')[-1] if '/' in fp else fp
+                                    action_text = f"🔧 {tool_name}: {short}"
+                                elif tool_name == 'Bash':
+                                    desc = inp.get('description', '')
+                                    if not desc:
+                                        cmd = inp.get('command', '')[:50]
+                                        desc = cmd
+                                    action_text = f"⚡ Bash: {desc[:50]}"
+                                elif tool_name in ('Grep', 'Glob'):
+                                    pat = inp.get('pattern', '')[:40]
+                                    action_text = f"🔍 {tool_name}: {pat}"
+                                elif tool_name == 'Task':
+                                    desc = inp.get('description', '')[:40]
+                                    action_text = f"🚀 Agent: {desc}"
+                                else:
+                                    action_text = f"🔧 {tool_name}"
+                                break
+                            elif item_type == 'text':
+                                text = item.get('text', '').strip()[:60]
+                                if text:
+                                    action_text = f"💬 {text}"
+                                break
+
+                    elif entry_type == 'user':
+                        # Skip tool_result entries (noise - every tool call produces one)
+                        # Only show actual user messages (new prompts)
+                        is_tool_result = False
+                        if isinstance(content, list):
+                            for item in content:
+                                if isinstance(item, dict) and item.get('type') == 'tool_result':
+                                    is_tool_result = True
+                                    break
+                        if not is_tool_result:
+                            action_text = '📩 User message'
+
+                    if action_text:
+                        # Dedup: skip if same action for same session
+                        if last_agent_action.get(path_key) == action_text:
+                            return True  # Deduped, not an error
+                        last_agent_action[path_key] = action_text
+
+                        event = MonitoringEvent(
+                            priority=1,
+                            event_type='agent',
+                            branch=branch,
+                            action='activity',
+                            message=action_text,
+                            level='info'
+                        )
+                        if _event_queue:
+                            _event_queue.enqueue(event)
+                        return True
+
+                # All lines were progress/system - that's fine
+                return True
+
+            except Exception as e:
+                logger.info(f"[monitor] JSONL parse error for {file_path.name}: {e}")
+                return False
 
         def _handle_event(self, action, path_str):
-            """Process file event and push to queue"""
+            """Process file event and push to queue."""
             try:
                 file_path = Path(path_str)
 
@@ -328,8 +463,42 @@ def _file_watcher_worker():
                 # Detect branch from path
                 branch = detect_branch_from_path(str(file_path))
 
+                # Claude Code JSONL files: parse agent activity instead of raw modification
+                if file_path.suffix == '.jsonl' and '.claude/projects/' in path_str:
+                    if self._parse_agent_activity(file_path, branch):
+                        return  # Parsed successfully, don't show raw event
+                    # Parsing failed - fall through to show raw file event
+
+                # Check if this file indicates a command (python3 direct calls)
+                if action == 'modified' and file_path.name in COMMAND_INDICATOR_FILES:
+                    cmd = COMMAND_INDICATOR_FILES[file_path.name]
+                    dedup_key = f"{branch}:{cmd}"
+                    if last_file_command.get(file_path.name) != dedup_key:
+                        last_file_command[file_path.name] = dedup_key
+                        cmd_event = MonitoringEvent(
+                            priority=2,
+                            event_type='command',
+                            branch=branch,
+                            action='executed',
+                            message=cmd,
+                            level='info'
+                        )
+                        if _event_queue:
+                            _event_queue.enqueue(cmd_event)
+                    # Still show the file event too (don't return)
+
                 # Get priority
                 priority_level = get_priority(file_path, action)
+
+                # Build display name with context (branch-relative path or short path)
+                display_name = file_path.name
+                # Show parent dir for context when file is deep in a branch
+                parts = file_path.parts
+                # Find branch root and show relative path from there
+                for i, part in enumerate(parts):
+                    if part in ('apps', 'handlers', 'modules', 'docs', 'templates'):
+                        display_name = '/'.join(parts[i:])
+                        break
 
                 # Create event
                 event = MonitoringEvent(
@@ -337,7 +506,7 @@ def _file_watcher_worker():
                     event_type='file',
                     branch=branch,
                     action=action,
-                    message=f"{action.upper()}: {file_path.name}",
+                    message=f"{action.upper()}: {display_name}",
                     level=priority_level if priority_level in ['error', 'warning', 'info'] else 'info'
                 )
 

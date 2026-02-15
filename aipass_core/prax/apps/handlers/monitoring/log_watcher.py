@@ -286,6 +286,34 @@ class LogFileWatcher(FileSystemEventHandler):
             elif "status" in log_line.lower():
                 return {'command': "prax status", 'caller': None, 'target': None}
 
+        # Pattern 8: Backup system operations (direct python3 calls)
+        if "[backup" in log_line.lower():
+            if "snapshot" in log_line.lower() and ("Starting" in log_line or "Running" in log_line or "Complete" in log_line):
+                return {'command': "backup_system snapshot", 'caller': None, 'target': None}
+            elif "versioned" in log_line.lower() and ("Starting" in log_line or "Running" in log_line):
+                return {'command': "backup_system versioned", 'caller': None, 'target': None}
+            elif "sync" in log_line.lower() and ("Starting" in log_line or "Running" in log_line):
+                return {'command': "backup_system sync", 'caller': None, 'target': None}
+
+        # Pattern 9: Memory Bank operations (direct python3 calls)
+        if "[memory_bank]" in log_line.lower() or "memory_bank" in log_line.lower():
+            if "rollover" in log_line.lower() and ("Starting" in log_line or "Processing" in log_line):
+                return {'command': "memory_bank rollover", 'caller': None, 'target': None}
+            elif "search" in log_line.lower() and "query" in log_line.lower():
+                return {'command': "memory_bank search", 'caller': None, 'target': None}
+
+        # Pattern 10: Cortex operations (direct python3 calls)
+        if "[cortex]" in log_line.lower():
+            if "Creating" in log_line and "branch" in log_line.lower():
+                match = re.search(r"Creating\s+(?:branch\s+)?(\w+)", log_line)
+                target = match.group(1).upper() if match else None
+                return {'command': "cortex create branch", 'caller': None, 'target': target}
+
+        # Pattern 11: Trigger operations (direct python3 calls)
+        if "[trigger]" in log_line.lower():
+            if "fired" in log_line.lower() or "triggered" in log_line.lower():
+                return {'command': "trigger fire", 'caller': None, 'target': None}
+
         # Pattern 7: ALL drone command executions - HIGH PRIORITY
         # Format: "Executing command [CALLER:PRAX]: seed.py audit @prax"
         if "Executing" in log_line and "command" in log_line:

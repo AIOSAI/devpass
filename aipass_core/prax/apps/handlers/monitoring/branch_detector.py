@@ -187,7 +187,13 @@ class BranchDetector:
                     self.log_map[path_str] = branch_candidate
                     return branch_candidate
 
-            # Strategy 5: Parse path for known branch names
+            # Strategy 5: Root-level system files
+            home = str(Path.home())
+            if path.parent == Path(home) or path.parent == Path(home) / '.claude':
+                self.log_map[path_str] = 'SYSTEM'
+                return 'SYSTEM'
+
+            # Strategy 6: Parse path for known branch names
             path_parts = path_str.lower().split('/')
             for part in path_parts:
                 branch_upper = part.upper()

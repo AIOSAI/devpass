@@ -7,7 +7,7 @@
 **Purpose:** AIPass Core Infrastructure
 **Location:** `/home/aipass/aipass_core/prax`
 **Created:** 2025-11-08
-**Sessions:** 27
+**Sessions:** 29
 
 ## What PRAX Does
 
@@ -63,7 +63,9 @@ Real-time monitoring console for the autonomous AI workforce. Tracks file change
 - Compound branch name detection (AI_MAIL, BACKUP_SYSTEM, MEMORY_BANK)
 - Claude Code project path → branch name resolution
 - File category tags (memory, dashboard, code, config, docs, data)
+- Agent activity visibility (parses Claude Code session JSONL for tool use, thinking, text)
 - Noise filtering (.claude.json.backup, .tmp atomic writes, .claude/plugins)
+- Direct python3 command detection via file indicators
 - Sub-second latency, handles high-volume streams
 
 **Usage:**
