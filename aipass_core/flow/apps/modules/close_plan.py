@@ -4,16 +4,16 @@
 # META DATA HEADER
 # Name: close_plan.py - PLAN closure module with registry cleanup
 # Date: 2025-11-25
-# Version: 3.1.0
+# Version: 3.3.0
 # Category: flow/modules
 #
 # CHANGELOG (Max 5 entries):
+#   - v3.3.0 (2026-02-14): FIX race condition - close_all spawns ONE background process instead of N
+#   - v3.2.0 (2026-02-14): Auto-confirm by default, step-by-step progress, per-step error handling (Seed standards)
 #   - v3.1.0 (2026-02-14): FIX timeout - summary/archive now truly async via subprocess (was synchronous despite comments)
 #   - v3.0.0 (2026-02-14): DECOUPLE close from archive - close always succeeds, archive is non-blocking
 #   - v2.4.0 (2026-01-30): FIX close_all EOF error - handle non-interactive stdin in bulk close
 #   - v2.3.0 (2025-11-25): RE-ADDED template deletion - empty templates now deleted instead of archived
-#   - v2.2.0 (2025-11-22): Added proper error handling - surface mbank failures instead of hiding them
-#   - v2.1.0 (2025-11-22): CRITICAL FIX - Removed template deletion logic, all plans now archived
 #
 # CODE STANDARDS:
 #   - Seed v3.0 compliant (imports, architecture, error handling)
@@ -120,12 +120,30 @@ def print_introspection():
     console.print()
 
 # =============================================
+# HELPERS
+# =============================================
+
+def _spawn_background_runner():
+    """Spawn post_close_runner.py as a fully detached background process"""
+    bg_runner = FLOW_ROOT / "apps" / "modules" / "post_close_runner.py"
+    subprocess.Popen(
+        [sys.executable, str(bg_runner)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+
+
+# =============================================
 # CLOSE PLAN WORKFLOW
 # =============================================
 
-def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: bool = False) -> bool:
+def close_plan(plan_num: str | None = None, confirm: bool = False, all_plans: bool = False, spawn_background: bool = True) -> bool:
     """
     Orchestrate plan closure workflow (thin orchestrator)
+
+    Auto-confirms by default - running 'close' IS the intent.
+    Use confirm=True (--confirm/--interactive) to explicitly request a prompt.
 
     Delegates all business logic to handlers:
     - Validation: validator handler
@@ -136,8 +154,10 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
 
     Args:
         plan_num: Plan number (e.g., "0001" or "1" or "42") - required if all_plans=False
-        confirm: Whether to ask for confirmation (default True)
+        confirm: Whether to ask for confirmation (default False, auto-confirms)
         all_plans: If True, close all open plans (default False)
+        spawn_background: Whether to spawn background post-processing (default True).
+                          Set False when called from close_all_plans() to avoid race condition.
 
     Returns:
         True if successful, False otherwise
@@ -153,6 +173,8 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
         return False
 
     try:
+        # --- Internal validation (fast, no progress display) ---
+
         # 1. VALIDATE: Normalize plan number (handler)
         plan_key = normalize_plan_number(plan_num)
 
@@ -176,13 +198,14 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
             console.print("[dim]Nothing to do - plan is already archived[/dim]")
             return False
 
-        # 5. TEMPLATE CHECK: Auto-delete empty templates (don't archive)
+        # --- Step 1/5: Template check (may fast-delete) ---
+        console.print(f"[dim][1/5][/dim] Checking template status...")
         try:
             with open(plan_file, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             if is_template_content(content):
-                console.print(f"\n[yellow]FPLAN-{plan_key} is empty template - deleting (not archiving)[/yellow]")
+                console.print(f"[yellow]  FPLAN-{plan_key} is empty template - fast-deleting (not archiving)[/yellow]")
 
                 # Delete the file
                 plan_file.unlink()
@@ -193,60 +216,72 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
                 save_registry(registry)
                 logger.info(f"[{MODULE_NAME}] Removed FPLAN-{plan_key} from registry")
 
-                console.print(f"[green]Empty template deleted - FPLAN-{plan_key} removed from system[/green]\n")
+                console.print(f"[green]  Empty template deleted - FPLAN-{plan_key} removed from system[/green]")
                 return True
 
+        except FileNotFoundError as e:
+            logger.warning(f"[{MODULE_NAME}] Template check - file not found: {e}")
+            console.print(f"[yellow]  Plan file not found, continuing with registry close[/yellow]")
         except Exception as e:
-            logger.warning(f"[{MODULE_NAME}] Failed to check if FPLAN-{plan_key} is template: {e}")
-            console.print(f"[yellow]Warning: Could not check template status, continuing with normal processing[/yellow]")
+            logger.warning(f"[{MODULE_NAME}] Template check failed: {e}")
+            console.print(f"[yellow]  Could not check template status, continuing with normal close[/yellow]")
 
-        # 6. DISPLAY: Show plan info (handler)
+        # DISPLAY: Show plan info header (handler)
         console.print(format_plan_deletion_header(plan_key, plan_info))
 
-        # 7. CONFIRM: Ask user if needed (handler)
+        # CONFIRM: Ask user only if explicitly requested (--confirm/--interactive)
         if confirm:
             if not confirm_plan_deletion(plan_key):
                 console.print(format_deletion_cancelled())
                 logger.info(f"[{MODULE_NAME}] Closure cancelled by user for PLAN{plan_key}")
                 return False
 
-        # 8. MARK AS CLOSED: Update registry status
-        # CRITICAL: Close ALWAYS succeeds from this point. Archive is non-blocking.
-        plan_info['status'] = 'closed'
-        plan_info['closed'] = datetime.now(timezone.utc).isoformat()
-        save_registry(registry)
-        logger.info(f"[{MODULE_NAME}] Marked FPLAN-{plan_key} as closed")
-
-        # 9. BACKGROUND POST-PROCESSING: Summary generation + memory bank archival
-        # Spawned as a background subprocess so close returns immediately.
-        # Plan is already marked closed in registry (step 8), so these are optional.
-        # If the subprocess fails, next close will retry (summaries/mbank check registry).
+        # --- Step 2/5: Mark as closed ---
+        console.print(f"[dim][2/5][/dim] Marking plan as closed...")
         try:
-            bg_runner = FLOW_ROOT / "apps" / "modules" / "post_close_runner.py"
-            subprocess.Popen(
-                [sys.executable, str(bg_runner)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
-            logger.info(f"[{MODULE_NAME}] Spawned background post-processing for FPLAN-{plan_key}")
-            console.print(f"[dim]Summary generation and archival running in background[/dim]")
+            # CRITICAL: Close ALWAYS succeeds from this point. Archive is non-blocking.
+            plan_info['status'] = 'closed'
+            plan_info['closed'] = datetime.now(timezone.utc).isoformat()
+            save_registry(registry)
+            logger.info(f"[{MODULE_NAME}] Marked FPLAN-{plan_key} as closed")
         except Exception as e:
-            logger.warning(f"[{MODULE_NAME}] Failed to spawn background post-processing: {e}")
-            console.print(f"[yellow]WARNING: Background archival failed to start - will retry on next close[/yellow]")
+            logger.error(f"[{MODULE_NAME}] Failed to mark plan as closed: {e}")
+            console.print(f"[red]  Failed to update registry: {e}[/red]")
+            return False
 
-        # 10. UPDATE DASHBOARDS: Sync dashboard files (handlers)
-        dashboard_success = update_dashboard_local()
-        central_success = push_to_plans_central()
+        # --- Step 3/5: Background processing ---
+        if spawn_background:
+            console.print(f"[dim][3/5][/dim] Starting background processing...")
+            try:
+                _spawn_background_runner()
+                logger.info(f"[{MODULE_NAME}] Spawned background post-processing for FPLAN-{plan_key}")
+                console.print(f"[dim]  Summary generation and archival running in background[/dim]")
+            except FileNotFoundError as e:
+                logger.warning(f"[{MODULE_NAME}] Background runner not found: {e}")
+                console.print(f"[yellow]  Background runner not found - will retry on next close[/yellow]")
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Failed to spawn background post-processing: {e}")
+                console.print(f"[yellow]  Background archival failed to start - will retry on next close[/yellow]")
+        else:
+            console.print(f"[dim][3/5][/dim] Background processing deferred (batch mode)")
 
-        # Log dashboard update results (3-tier: modules log, handlers don't)
-        if not dashboard_success:
-            logger.warning(f"[{MODULE_NAME}] Failed to update DASHBOARD.local.json")
-        if not central_success:
-            logger.warning(f"[{MODULE_NAME}] Failed to update PLANS.central.json")
+        # --- Step 4/5: Update dashboards ---
+        console.print(f"[dim][4/5][/dim] Updating dashboards...")
+        try:
+            dashboard_success = update_dashboard_local()
+            central_success = push_to_plans_central()
 
+            # Log dashboard update results (3-tier: modules log, handlers don't)
+            if not dashboard_success:
+                logger.warning(f"[{MODULE_NAME}] Failed to update DASHBOARD.local.json")
+            if not central_success:
+                logger.warning(f"[{MODULE_NAME}] Failed to update PLANS.central.json")
+        except Exception as e:
+            logger.warning(f"[{MODULE_NAME}] Dashboard update error: {e}")
+            console.print(f"[yellow]  Dashboard update failed (non-critical): {e}[/yellow]")
 
-        # 11. DISPLAY: Success message (handler)
+        # --- Step 5/5: Done ---
+        console.print(f"[dim][5/5][/dim] Finalizing...")
         console.print(format_plan_deletion_success(plan_key))
 
         # Fire trigger event for plan closure (optional - trigger module may not be available)
@@ -255,28 +290,28 @@ def close_plan(plan_num: str | None = None, confirm: bool = True, all_plans: boo
             trigger.fire('plan_closed', plan_number=plan_key, location=str(plan_file.parent))
         except ImportError:
             logger.info(f"[{MODULE_NAME}] Trigger module not available, skipping event fire")
+        except Exception as e:
+            logger.warning(f"[{MODULE_NAME}] Trigger fire failed (non-critical): {e}")
 
         return True
 
-    except ValueError:
-        error_msg = f"Invalid plan number: {plan_num}"
-        logger.warning(f"[{MODULE_NAME}] {error_msg}")
+    except ValueError as e:
+        logger.warning(f"[{MODULE_NAME}] Invalid plan number: {plan_num}: {e}")
         console.print(format_plan_error("invalid_number", plan_num))
         return False
 
     except Exception as e:
-        error_msg = f"Error closing plan: {e}"
-        logger.error(f"[{MODULE_NAME}] {error_msg}")
+        logger.error(f"[{MODULE_NAME}] Unexpected error closing plan: {e}")
         console.print(format_plan_error("general", details=str(e)))
         return False
 
 
-def close_all_plans(confirm: bool = True) -> bool:
+def close_all_plans(confirm: bool = False) -> bool:
     """
     Close all open plans in one operation
 
     Args:
-        confirm: Whether to ask for bulk confirmation (default True)
+        confirm: Whether to ask for bulk confirmation (default False, auto-confirms)
 
     Returns:
         True if at least one plan closed successfully, False otherwise
@@ -327,13 +362,23 @@ def close_all_plans(confirm: bool = True) -> bool:
         for plan_num, plan_info in open_plans:
             console.print(f"\n[dim]Closing FPLAN-{plan_num}...[/dim]")
 
-            # Call close_plan with confirm=False (skip individual confirmation)
-            success = close_plan(plan_num=plan_num, confirm=False, all_plans=False)
+            # Call close_plan with spawn_background=False to avoid race condition
+            success = close_plan(plan_num=plan_num, confirm=False, all_plans=False, spawn_background=False)
 
             if success:
                 success_count += 1
             else:
                 failure_count += 1
+
+        # Spawn ONE background process for all closed plans
+        if success_count > 0:
+            try:
+                _spawn_background_runner()
+                logger.info(f"[{MODULE_NAME}] Spawned single background process for {success_count} closed plan(s)")
+                console.print(f"\n[dim]Background processing started for {success_count} plan(s)[/dim]")
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Failed to spawn background post-processing: {e}")
+                console.print(f"\n[yellow]Background processing failed to start - will retry on next close[/yellow]")
 
         # Summary
         console.print("\n" + "═" * 60)
@@ -419,22 +464,24 @@ COMMANDS:
   close --all            Close all open plans
 
 USAGE:
-  python3 close_plan.py close <plan_number> [--yes]
+  python3 close_plan.py close <plan_number>
+  python3 close_plan.py close <plan_number> --confirm
   python3 close_plan.py close --all
   python3 close_plan.py --help
 
 OPTIONS:
-  --yes, -y    Skip confirmation prompt (for single close)
-  --all        Close all open plans
+  --confirm, --interactive   Request confirmation prompt (off by default)
+  --yes, -y                  Backwards compat (redundant, already auto-confirms)
+  --all                      Close all open plans
 
 EXAMPLES:
-  # Close with confirmation
+  # Close plan (auto-confirms)
   python3 close_plan.py close 42
 
-  # Close without confirmation
-  python3 close_plan.py close 42 --yes
+  # Close with interactive confirmation prompt
+  python3 close_plan.py close 42 --confirm
 
-  # Close all open plans (requires confirmation)
+  # Close all open plans (auto-confirms)
   python3 close_plan.py close --all
             """
         )

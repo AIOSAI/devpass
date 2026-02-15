@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: process.py - Memory Bank Processing Handler
 # Date: 2025-11-25
-# Version: 1.4.0
+# Version: 1.5.0
 # Category: flow/handlers/mbank
 #
 # CHANGELOG:
+#   - v1.5.0 (2026-02-15): Fixed template detection - markers matched old template (pre-Dec 2025), all 3 template types covered
 #   - v1.4.0 (2026-02-14): Sequential processing with backoff - stop on 429, delay between API calls
 #   - v1.3.0 (2025-11-25): Restructured config - separated TRL mapping to flow_mbank_registry.json
 #                          Updated get_ai_model() to use custom api_config.json
@@ -225,25 +226,53 @@ def get_closed_plans() -> List[Dict[str, Any]]:
 # =============================================
 
 def is_template_content(content: str) -> bool:
-    """Check if plan content is still unedited template (v2.1)
+    """Check if plan content is still unedited template (v3.0)
+
+    Checks against markers from all template types (default, master, proposal).
+    Template detected if 3+ markers from ANY single template type are found.
 
     Args:
         content: Plan file content
 
     Returns:
-        True if 4+ template markers present (essentially untouched)
+        True if plan is essentially an untouched template
     """
-    template_indicators = [
-        "[What do you want to achieve? Be specific about the end state.]",
-        "[Break down into 3-5 concrete goals. What must be accomplished?]",
-        "[How will you tackle this? Research first? Agents for broad analysis? Direct work?]",
-        "[Document each significant action with outcome]",
-        "[Working notes, discoveries, important context]",
-        "[What defines complete for this specific PLAN?]"
+    # Default template markers (updated Dec 2025 rewrite)
+    default_markers = [
+        "[What do you want to achieve? Specific end state.]",
+        "[How will agents tackle this? What instructions will they need?]",
+        "[List any planning docs, specs, or examples to reference]",
+        "[Working notes, issues encountered, decisions made]",
+        "[What specifically defines complete for this plan?]",
+        "## What Are Flow Plans?",
+        "## Critical: Branch Manager Role",
     ]
 
-    markers_found = sum(1 for indicator in template_indicators if indicator in content)
-    return markers_found >= 4
+    # Master template markers
+    master_markers = [
+        "[What this phase accomplishes]",
+        "[What the agent will build]",
+        "[Files/outputs expected]",
+        "[What specifically defines the project complete?]",
+        "[Patterns discovered that span multiple phases]",
+        "## Master Plan Overview",
+    ]
+
+    # Proposal template markers
+    proposal_markers = [
+        "[Clear description of the idea, feature, improvement, or fix]",
+        "[Why is this valuable? What problem does it solve? What does it enable?]",
+        "[How would I tackle this? High-level steps.]",
+        "[Any other branches, services, or approvals needed?]",
+    ]
+
+    # Check each template type - 3+ markers from any type = template
+    for markers in [default_markers, master_markers, proposal_markers]:
+        found = sum(1 for m in markers if m in content)
+        if found >= 3:
+            return True
+
+    return False
 
 # =============================================
 # CONTENT ANALYSIS

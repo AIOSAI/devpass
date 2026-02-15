@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: generate.py - Plan Summary Generation Handler
 # Date: 2025-11-21
-# Version: 1.1.0
+# Version: 1.2.0
 # Category: flow/handlers/summary
 #
 # CHANGELOG:
+#   - v1.2.0 (2026-02-14): Fix content extraction to handle all template types (master, proposal, default)
 #   - v1.1.0 (2026-02-14): Sequential processing with backoff - delay between API calls, stop on rate limit
 #   - v1.0.0 (2025-11-21): Extracted from archive_temp/flow_plan_summarizer.py
 #
@@ -56,13 +57,31 @@ CONFIG_FILE = FLOW_JSON_DIR / "flow_plan_summarizer_config.json"
 SHARED_API_CONFIG = FLOW_ROOT / "apps" / "handlers" / "json_templates" / "custom" / "api_config.json"
 
 # Template detection markers (matches flow_plan.py auto-delete logic)
+# Covers default, master, and proposal template placeholders
 TEMPLATE_INDICATORS = [
+    # Default template markers
     "[What do you want to achieve? Be specific about the end state.]",
     "[Break down into 3-5 concrete goals. What must be accomplished?]",
     "[How will you tackle this? Research first? Agents for broad analysis? Direct work?]",
     "[Document each significant action with outcome]",
     "[Working notes, discoveries, important context]",
-    "[What defines complete for this specific PLAN?]"
+    "[What defines complete for this specific PLAN?]",
+    # Master plan template markers
+    "[What is the end state when ALL phases complete?]",
+    "[List planning docs, specs, existing code to reference]",
+    "[What defines DONE for the entire project?]",
+    "[What this phase accomplishes]",
+    "[What the agent will build]",
+    "[Patterns discovered that span multiple phases]",
+    "[Significant blockers and how resolved]",
+    "[What specifically defines the project complete?]",
+    # Proposal template markers
+    "[Clear description of the idea, feature, improvement, or fix]",
+    "[Why is this valuable? What problem does it solve? What does it enable?]",
+    "[Any other branches, services, or approvals needed?]",
+    "[How would I tackle this? High-level steps.]",
+    "[What exists now? What's the starting point?]",
+    "[Anything you need clarity on before proceeding?]",
 ]
 
 # =============================================
@@ -213,7 +232,12 @@ def save_summaries(summaries: Dict[str, Any]) -> None:
 
 def extract_content_from_plan(plan_path: Path) -> str:
     """
-    Extract meaningful content from a PLAN file.
+    Extract meaningful content from a PLAN file (any template type).
+
+    Works with all template types (default, master, proposal) by extracting
+    content after the metadata header and filtering out template boilerplate.
+    Instead of looking for specific section names, it identifies user-written
+    content by excluding known template text.
 
     Args:
         plan_path: Path to PLAN file
@@ -223,71 +247,122 @@ def extract_content_from_plan(plan_path: Path) -> str:
     """
     try:
         content = plan_path.read_text(encoding='utf-8')
-
-        # Track sections
-        work_log_section = False
-        work_content = []
-        notes_section = False
-        notes_content = []
-        objectives_section = False
-        objectives_content = []
-
         lines = content.split('\n')
-        for line in lines:
-            # Track which section we're in
-            if "## Work Log" in line:
-                work_log_section = True
-                notes_section = False
-                objectives_section = False
-                continue
-            elif "## Notes" in line:
-                notes_section = True
-                work_log_section = False
-                objectives_section = False
-                continue
-            elif "## Objectives" in line:
-                objectives_section = True
-                work_log_section = False
-                notes_section = False
-                continue
-            elif line.startswith("## "):
-                work_log_section = False
-                notes_section = False
-                objectives_section = False
+
+        # Skip metadata header (everything before first --- separator)
+        content_start = 0
+        for i, line in enumerate(lines):
+            if line.strip() == '---':
+                content_start = i + 1
+                break
+
+        # Sections that are pure template boilerplate (instructions, not user content)
+        # These appear in templates but never contain user-written content
+        boilerplate_sections = {
+            "## What Are Flow Plans?",
+            "## When to Use This vs Master Plan",
+            "## Master Plan vs Default Plan",
+            "## Branch Directory Structure",
+            "## Critical: Branch Manager Role",
+            "## Seek Branch Expertise",
+            "## Notepad",
+            "## Command Reference",
+            "## Agent Preparation (Before Deploying)",
+            "## Agent Instructions Template",
+            "## Execution Philosophy",
+            "## What is a Master Plan?",
+            "## Close Command",
+            "## Ready for Green Light",
+        }
+
+        # Sections that contain user-editable content (these get extracted)
+        # Covers default, master, and proposal templates
+        content_sections = {
+            # Default template
+            "## Planning Phase", "## Execution Log", "## Notes",
+            "## Completion Checklist",
+            # Master plan template
+            "## Project Overview", "## Phase Definitions", "## Phase Tracking",
+            "## Issues Log", "## Master Plan Notes", "## Final Completion Checklist",
+            # Proposal template
+            "## What I Want to Work On", "## Why This Matters", "## What I'd Need",
+            "## My Approach", "## Current State", "## Questions for DEV_CENTRAL",
+            # Legacy section names (backward compatibility)
+            "## Work Log", "## Objectives",
+        }
+
+        # Extract content from user-editable sections
+        in_content_section = False
+        meaningful_lines = []
+
+        for line in lines[content_start:]:
+            stripped = line.strip()
+
+            # Detect section headers
+            if stripped.startswith("## "):
+                if stripped in boilerplate_sections:
+                    in_content_section = False
+                    continue
+                elif stripped in content_sections:
+                    in_content_section = True
+                    continue
+                else:
+                    # Unknown section - assume it's user content (safer than ignoring)
+                    in_content_section = True
+                    continue
+
+            # Skip --- separators
+            if stripped == '---':
+                in_content_section = False
                 continue
 
-            # Collect content from each section
-            if work_log_section and line.strip() and not line.startswith("###"):
-                # Skip "Started PLAN" lines but keep actual work items
-                if "Started PLAN" not in line and "IMPORTANT" not in line and "CONTEXT" not in line:
-                    work_content.append(line.strip())
-            elif notes_section and line.strip():
-                # Check if it's not the template marker
-                if "[Working notes, thoughts, and important information]" not in line:
-                    notes_content.append(line.strip())
-            elif objectives_section and line.strip():
-                # Check if it's not the template marker
-                if "[What we're working on - specific goals and outcomes]" not in line:
-                    objectives_content.append(line.strip())
+            # Only collect from content sections
+            if not in_content_section:
+                continue
 
-        # Check if there's any actual work content
-        has_content = len(work_content) > 0 or len(notes_content) > 0 or len(objectives_content) > 0
+            # Skip empty lines, sub-headers, and template placeholders
+            if not stripped:
+                continue
+            if stripped.startswith("### ") and stripped.endswith(": [Name]"):
+                continue
 
-        # If no actual content in any section, it's a template
-        if not has_content:
+            # Skip template placeholder lines (text inside square brackets)
+            if stripped.startswith("[") and stripped.endswith("]"):
+                continue
+
+            # Skip template indicator lines
+            is_indicator = False
+            for indicator in TEMPLATE_INDICATORS:
+                if indicator in line:
+                    is_indicator = True
+                    break
+            if is_indicator:
+                continue
+
+            # Skip unchecked checkbox-only lines from templates (e.g. "- [ ] Agent deployed")
+            # but keep checked ones (e.g. "- [x] Agent deployed") as they indicate real work
+            if stripped.startswith("- [ ]"):
+                continue
+
+            # Skip boilerplate meta lines
+            if stripped.startswith("**Status:**") and ("Pending" in stripped):
+                continue
+            if stripped.startswith("**Notes:**") and stripped.endswith("[Outcomes, issues, adjustments]"):
+                continue
+
+            # Skip table header/separator rows
+            if stripped.startswith("|") and all(c in "|- " for c in stripped):
+                continue
+
+            # This line has real content
+            meaningful_lines.append(stripped)
+
+        # If no meaningful content found, it's a template
+        if not meaningful_lines:
             return "Empty plan template"
 
-        # Build summary from available content, prioritizing Work Log
-        summary_parts = []
-        if work_content:
-            summary_parts.extend(work_content[:3])  # First 3 work items
-        if objectives_content and len(summary_parts) < 3:
-            summary_parts.extend(objectives_content[:2])  # Add objectives if needed
-        if notes_content and len(summary_parts) < 3:
-            summary_parts.extend(notes_content[:2])  # Add notes if needed
-
         # Return first 500 chars of meaningful content
-        result = " ".join(summary_parts)[:500]
+        result = " ".join(meaningful_lines)[:500]
         return result if result else "Empty plan template"
 
     except Exception as e:

@@ -4,8 +4,8 @@
 **Location:** `/home/aipass/aipass_core/flow`
 **Profile:** Planning, Orchestration & Ambiguity Navigation
 **Created:** 2025-11-13
-**Last Updated:** 2026-02-14
-**Version:** 2.1.0
+**Last Updated:** 2026-02-15
+**Version:** 2.2.0
 
 ## Overview
 
@@ -13,7 +13,7 @@ Flow provides workflow orchestration through numbered FPLAN documents (e.g., FPL
 
 **Format:** `FPLAN-XXXX` (with hyphen, 4-digit zero-padded number)
 
-**Current stats:** 67 total plans (6 open, 61 closed)
+**Current stats:** 72+ total plans (0 open, 72+ closed)
 
 ### What I Do
 - Create, close, restore, and list FPLAN documents
@@ -47,13 +47,14 @@ Thin orchestrator pattern - flow.py auto-discovers modules via importlib, module
 flow/
 ├── apps/
 │   ├── flow.py              # Main orchestrator (auto-discovery)
-│   ├── modules/             # Command modules (6)
+│   ├── modules/             # Command modules (7)
 │   │   ├── create_plan.py
 │   │   ├── close_plan.py
 │   │   ├── list_plans.py
 │   │   ├── restore_plan.py
 │   │   ├── registry_monitor.py
-│   │   └── aggregate_central.py
+│   │   ├── aggregate_central.py
+│   │   └── post_close_runner.py  # Background: AI summaries + archival
 │   ├── handlers/            # Business logic (26 handlers)
 │   │   ├── config/          # Configuration (1)
 │   │   ├── dashboard/       # Dashboard display (2)
@@ -80,7 +81,7 @@ flow/
 ```bash
 drone @flow create . "subject"           # Create plan in current directory
 drone @flow create . "subject" master    # Create master (multi-phase) plan
-drone @flow close <plan_number> --yes    # Close plan with AI summary
+drone @flow close <plan_number>           # Close plan (auto-confirms, AI summary in background)
 drone @flow list                         # List all plans
 drone @flow restore <plan_number>        # Restore a closed plan
 drone @flow registry                     # Run registry health check
@@ -90,8 +91,9 @@ drone @flow aggregate                    # Aggregate plans to central dashboard
 ### Direct Execution
 ```bash
 python3 apps/flow.py create . "Add authentication"
-python3 apps/flow.py close 0042 --yes
-python3 apps/flow.py close FPLAN-0042 --yes  # Both formats accepted
+python3 apps/flow.py close 0042                    # Auto-confirms
+python3 apps/flow.py close FPLAN-0042 --confirm     # With interactive prompt
+python3 apps/flow.py close --all                     # Close all open plans
 python3 apps/flow.py list
 python3 apps/flow.py --help
 ```
@@ -118,8 +120,8 @@ python3 apps/flow.py --help
 ## Status
 
 - **Health:** Healthy
-- **Sessions:** 34
-- **Last Updated:** 2026-02-14
+- **Sessions:** 41
+- **Last Updated:** 2026-02-15
 
 ---
 

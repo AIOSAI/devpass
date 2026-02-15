@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: command_parser.py - Command Argument Parser
 # Date: 2025-11-15
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: flow/handlers/plan
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-14): Auto-confirm by default, add --confirm/--interactive flags
 #   - v0.1.0 (2025-11-15): Initial handler - command argument parsing
 #
 # CODE STANDARDS:
@@ -90,47 +91,61 @@ def parse_close_command_args(args: List[str]) -> Tuple[str | None, bool, bool, s
     """
     Parse arguments for close command
 
+    Auto-confirms by default (running 'close' IS the intent).
+    Use --confirm or --interactive to explicitly request a confirmation prompt.
+    --yes/-y kept for backwards compatibility (now redundant, already auto-confirms).
+
     Args:
         args: Command arguments
 
     Returns:
         Tuple of (plan_num, confirm, all_plans, error_message)
         - plan_num: Plan number from first arg, or None if --all or missing
-        - confirm: False if --yes or -y flag present, True otherwise
+        - confirm: True only if --confirm or --interactive flag present, False otherwise
         - all_plans: True if --all flag present, False otherwise
         - error_message: None if valid, error string if invalid args
 
     Examples:
         >>> parse_close_command_args(["42"])
-        ("42", True, False, None)
+        ("42", False, False, None)
 
         >>> parse_close_command_args(["42", "--yes"])
         ("42", False, False, None)
 
-        >>> parse_close_command_args(["--all"])
-        (None, True, True, None)
+        >>> parse_close_command_args(["42", "--confirm"])
+        ("42", True, False, None)
 
-        >>> parse_close_command_args(["--all", "--yes"])
+        >>> parse_close_command_args(["42", "--interactive"])
+        ("42", True, False, None)
+
+        >>> parse_close_command_args(["--all"])
         (None, False, True, None)
 
+        >>> parse_close_command_args(["--all", "--confirm"])
+        (None, True, True, None)
+
         >>> parse_close_command_args([])
-        (None, True, False, "Plan number or --all required")
+        (None, False, False, "Plan number or --all required")
     """
     # Check for --all flag
     all_plans = '--all' in args
 
-    # Check for --yes/-y flag
-    confirm = '--yes' not in args and '-y' not in args
+    # Default: auto-confirm (confirm=False means no prompt)
+    # --confirm or --interactive explicitly requests a prompt
+    # --yes/-y kept for backwards compat (redundant, already auto-confirms)
+    confirm = '--confirm' in args or '--interactive' in args
 
     # If --all, plan_num is None
     if all_plans:
         return None, confirm, True, None
 
     # Otherwise, need plan number
-    if len(args) < 1 or args[0].startswith('--'):
-        return None, True, False, "Plan number or --all required"
+    # Filter out flag args to find the plan number
+    non_flag_args = [a for a in args if not a.startswith('--') and a not in ('-y',)]
+    if not non_flag_args:
+        return None, False, False, "Plan number or --all required"
 
-    plan_num = args[0]
+    plan_num = non_flag_args[0]
     return plan_num, confirm, False, None
 
 
