@@ -4,10 +4,15 @@
 # META DATA HEADER
 # Name: telegram_response.py - Stop Hook for Telegram Response Delivery
 # Date: 2026-02-12
-# Version: 1.0.0
+# Version: 1.0.5
 # Category: hooks
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.0.5 (2026-02-15): Feature - Prepend @branch identifier to every Telegram response
+#   - v1.0.4 (2026-02-15): Fix - Retry extraction with delays (JSONL flush race), retry sends with backoff
+#   - v1.0.3 (2026-02-15): Fix - Strip whitespace from extracted text (Claude emits \n\n preamble blocks)
+#   - v1.0.2 (2026-02-15): Fix - Capture Telegram error details, don't delete pending on send failure
+#   - v1.0.1 (2026-02-15): Fix - Don't delete pending file on extraction failure (subagent Stop events)
 #   - v1.0.0 (2026-02-12): Initial - Stop hook reads JSONL transcript, sends to Telegram
 #
 # CODE STANDARDS:
@@ -37,7 +42,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.request import urlopen, Request
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 # Logging to file only (hooks must be quiet on stdout/stderr)
 LOG_FILE = Path.home() / "system_logs" / "telegram_hook.log"
@@ -170,7 +175,7 @@ def extract_assistant_response(transcript_path: str) -> str | None:
                 content = message.get("content", [])
                 for block in content:
                     if block.get("type") == "text":
-                        text = block.get("text", "")
+                        text = block.get("text", "").strip()
                         if text:
                             text_parts.append(text)
         except json.JSONDecodeError:
@@ -180,7 +185,8 @@ def extract_assistant_response(transcript_path: str) -> str | None:
         logger.warning("No assistant text found after last user message")
         return None
 
-    return "\n\n".join(text_parts)
+    result = "\n\n".join(text_parts).strip()
+    return result if result else None
 
 
 def chunk_text(text: str, limit: int = TELEGRAM_CHAR_LIMIT) -> list[str]:
@@ -274,6 +280,15 @@ def send_to_telegram(bot_token: str, chat_id: int, text: str, message_id: int | 
                 return True
             logger.error("Telegram API error: %s", result.get("description"))
             return False
+    except HTTPError as e:
+        # Capture Telegram's detailed error response body
+        try:
+            body = json.loads(e.read().decode("utf-8"))
+            description = body.get("description", "unknown")
+            logger.error("Telegram HTTP %d: %s (text_len=%d)", e.code, description, len(text))
+        except Exception:
+            logger.error("Telegram HTTP %d: %s (text_len=%d)", e.code, e.reason, len(text))
+        return False
     except URLError as e:
         logger.error("Failed to send to Telegram: %s", e)
         return False
@@ -364,36 +379,75 @@ def main() -> None:
 
     # Extract assistant response from transcript
     if not transcript_path:
-        # Try to find transcript from Claude's project directory
-        logger.warning("No transcript_path in payload, cannot extract response")
-        pending_file.unlink(missing_ok=True)
+        # No transcript path - may be a subagent or incomplete payload.
+        # Keep pending file for retry by the parent session's Stop event.
+        logger.warning("No transcript_path in payload - keeping pending file for retry")
         return
 
-    response_text = extract_assistant_response(transcript_path)
+    # Extract with retry - the JSONL transcript may not be fully flushed to disk
+    # when the Stop event fires. Claude writes entries sequentially (\n\n preamble
+    # first, then thinking, then real text) and the OS write buffer may not have
+    # committed the final text block yet. Retry with increasing delays.
+    response_text = None
+    for attempt in range(4):  # 0, 1, 2, 3
+        response_text = extract_assistant_response(transcript_path)
+        if response_text:
+            if attempt > 0:
+                logger.info("Transcript text found on attempt %d", attempt + 1)
+            break
+        if attempt < 3:
+            delay = [0.2, 0.5, 1.0][attempt]  # 200ms, 500ms, 1s
+            logger.info("No text yet, waiting %.1fs before retry (attempt %d/4)", delay, attempt + 1)
+            time.sleep(delay)
 
     if not response_text:
-        logger.warning("No assistant response found in transcript")
-        pending_file.unlink(missing_ok=True)
+        # After 4 attempts (~1.7s total wait), still no text. This is likely a
+        # subagent Stop event or context compaction. Keep pending file for retry.
+        logger.warning("No assistant text after 4 attempts - keeping pending file for retry")
         return
+
+    # Prepend @branch identifier so user knows which branch responded
+    try:
+        branch_name = Path.cwd().name
+        response_text = f"@{branch_name}\n\n{response_text}"
+    except Exception:
+        pass  # If CWD resolution fails, send without prefix
 
     # Chunk and send response
     chunks = chunk_text(response_text)
     logger.info("Sending %d chunk(s) to chat %s", len(chunks), chat_id)
 
+    def send_with_retry(token: str, cid: int, msg: str, retries: int = 3) -> bool:
+        """Send with retry and exponential backoff for transient network errors."""
+        for attempt in range(retries):
+            if send_to_telegram(token, cid, msg):
+                return True
+            if attempt < retries - 1:
+                delay = 1.0 * (2 ** attempt)  # 1s, 2s
+                logger.info("Send retry %d/%d after %.0fs", attempt + 2, retries, delay)
+                time.sleep(delay)
+        return False
+
+    all_sent = True
     for i, chunk in enumerate(chunks):
         if i == 0 and processing_message_id:
             # Edit the "Processing..." message with the first chunk
             text = f"[1/{len(chunks)}]\n{chunk}" if len(chunks) > 1 else chunk
             if not edit_telegram_message(bot_token, chat_id, processing_message_id, text):
                 # Fallback: send as new message
-                send_to_telegram(bot_token, chat_id, text)
+                if not send_with_retry(bot_token, chat_id, text):
+                    all_sent = False
         else:
             prefix = f"[{i + 1}/{len(chunks)}]\n" if len(chunks) > 1 else ""
-            send_to_telegram(bot_token, chat_id, prefix + chunk)
+            if not send_with_retry(bot_token, chat_id, prefix + chunk):
+                all_sent = False
 
-    # Clean up pending file after successful delivery
-    pending_file.unlink(missing_ok=True)
-    logger.info("Response delivered and pending file cleaned up")
+    if all_sent:
+        pending_file.unlink(missing_ok=True)
+        logger.info("Response delivered and pending file cleaned up")
+    else:
+        # Keep pending file so next Stop event can retry delivery
+        logger.error("Delivery failed - keeping pending file for retry")
 
 
 if __name__ == "__main__":

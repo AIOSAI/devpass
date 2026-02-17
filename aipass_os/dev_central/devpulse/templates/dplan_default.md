@@ -9,10 +9,22 @@ What we're trying to achieve
 What exists now
 
 ## What Needs Building
-Concrete items to build
+- [ ] Item 1
+- [ ] Item 2
 
 ## Design Decisions
-Key choices and why
+
+| Decision | Options | Leaning | Notes |
+|----------|---------|---------|-------|
+| Example  | A / B   | A       | Why   |
+
+## Ideas
+Captured ideas, brainstorms, future possibilities. Add freely.
+
+## Relationships
+- **Related DPLANs:** None yet
+- **Related FPLANs:** None yet
+- **Owner branches:** Who builds this
 
 ## Status
 - [x] Planning

@@ -4,10 +4,13 @@
 # META DATA HEADER
 # Name: bridge.py - Telegram Bridge Service
 # Date: 2026-02-04
-# Version: 4.2.0
+# Version: 4.5.0
 # Category: api/handlers/telegram
 #
 # CHANGELOG (Max 5 entries):
+#   - v4.5.0 (2026-02-15): Sticky branch routing - @branch switch persists until next explicit @switch
+#   - v4.4.0 (2026-02-15): Add startup health check - fail fast if Telegram API unreachable
+#   - v4.3.0 (2026-02-15): Integrate telegram_standards.py for shared commands
 #   - v4.1.0 (2026-02-13): Add /help command + show chat_id in /status
 #   - v4.0.0 (2026-02-12): tmux persistent sessions - replace spawn-and-capture with tmux injection + Stop hook
 #   - v3.0.0 (2026-02-10): Photo/document/file upload handling (Phase 5 FPLAN-0312)
@@ -75,6 +78,10 @@ from api.apps.handlers.telegram.file_handler import (
     download_telegram_file, detect_file_type, build_file_prompt,
     cleanup_file, MAX_FILE_SIZE
 )
+from api.apps.handlers.telegram.telegram_standards import (
+    STANDARD_COMMANDS, build_welcome_text, build_help_text,
+    build_status_text, build_botfather_commands,
+)
 
 # Response timeout (how long to wait before giving up on Stop hook)
 RESPONSE_TIMEOUT = 120  # seconds
@@ -96,6 +103,30 @@ PENDING_DIR = Path.home() / ".aipass" / "telegram_pending"
 
 # Telegram char limit for chunking
 TELEGRAM_CHAR_LIMIT = 4096
+
+# Bridge-specific commands (beyond the shared standards)
+BRIDGE_CUSTOM_COMMANDS: dict[str, dict[str, str]] = {
+    "switch": {
+        "description": "Switch to a different branch (@branch)",
+        "menu_text": "Switch branch",
+    },
+    "list": {
+        "description": "List all active Telegram sessions",
+        "menu_text": "List sessions",
+    },
+    "end": {
+        "description": "End the session for current branch",
+        "menu_text": "End session",
+    },
+    "branch": {
+        "description": "Show which branch this chat targets",
+        "menu_text": "Current branch",
+    },
+    "url": {
+        "description": "Get Feel Good App URL",
+        "menu_text": "App URL",
+    },
+}
 
 # =============================================
 # LOGGING SETUP
@@ -437,22 +468,31 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     user = update.effective_user
     username = user.username if user else "Unknown"
     user_id = user.id if user else 0
+    chat = update.effective_chat
+    chat_id = chat.id if chat else 0
 
     logger.info("[START] User: @%s (ID: %s)", username, user_id)
 
-    await safe_reply(
-        update.message,
-        "Hello! I'm the AIPass Bridge Bot.\n"
-        "Send me a message and I'll relay it to Claude.\n\n"
-        "Commands:\n"
-        "/new - Start fresh session\n"
-        "/status - Show session info\n"
-        "/switch @branch - Switch target branch\n"
-        "/list - List active sessions\n"
-        "/end - End current session\n"
-        "/branch - Show current branch\n"
-        "/help - Show this message"
+    # Resolve current branch for this chat
+    session_data = get_session(chat_id)
+    branch_name = session_data.get("branch_name", DEFAULT_BRANCH) if session_data else DEFAULT_BRANCH
+
+    text = build_welcome_text(
+        bot_name="AIPass Bridge Bot",
+        branch_name=branch_name,
+        custom_commands=BRIDGE_CUSTOM_COMMANDS,
     )
+    await safe_reply(update.message, text)
+
+
+async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /help command - show available commands."""
+    _ = context
+    if not update.message:
+        return
+
+    text = build_help_text(custom_commands=BRIDGE_CUSTOM_COMMANDS)
+    await safe_reply(update.message, text)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -502,6 +542,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Resolve branch target
     resolved_message, branch_name, target_cwd = resolve_branch_target(message_text)
+
+    # Sticky routing: if no @branch prefix was used, check session store
+    # for a previously selected branch and stay there
+    if branch_name == DEFAULT_BRANCH and not message_text.strip().startswith("@"):
+        session_data = get_session(chat_id)
+        if session_data:
+            stored_branch = session_data.get("branch_name", "")
+            if stored_branch and stored_branch != DEFAULT_BRANCH:
+                # Resolve stored branch path from registry
+                try:
+                    with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
+                        registry = json.load(f)
+                    for entry in registry.get("branches", []):
+                        clean_email = entry.get("email", "").replace("@", "").lower()
+                        if clean_email == stored_branch:
+                            branch_path = Path(entry.get("path", ""))
+                            if branch_path.is_dir():
+                                branch_name = stored_branch
+                                target_cwd = branch_path
+                                logger.info("Sticky routing: chat %s -> @%s", chat_id, branch_name)
+                            break
+                except (FileNotFoundError, json.JSONDecodeError):
+                    pass
 
     # Update session store with current branch for this chat
     save_session(chat_id, branch_name)
@@ -678,7 +741,10 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         _health["errors"] = int(_health.get("errors", 0)) + 1
         await safe_reply(update.message, "Failed to process file. Please try again.")
     finally:
-        if file_path:
+        # Only cleanup on error - successful uploads must persist for Claude to read.
+        # Images/PDFs are referenced by path in the injected prompt.
+        # Stale files in /tmp/telegram_uploads/ are cleaned by the OS.
+        if file_path and not locals().get("success"):
             cleanup_file(file_path)
 
 
@@ -755,7 +821,7 @@ def create_application() -> Optional[Application]:  # type: ignore[type-arg]
 
     # Command handlers
     application.add_handler(CommandHandler("start", handle_start))
-    application.add_handler(CommandHandler("help", handle_start))
+    application.add_handler(CommandHandler("help", handle_help))
     application.add_handler(CommandHandler("new", handle_new))
     application.add_handler(CommandHandler("status", handle_status))
     application.add_handler(CommandHandler("switch", handle_switch))
@@ -822,17 +888,23 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     session_data = get_session(chat_id)
     branch_name = session_data.get("branch_name", DEFAULT_BRANCH) if session_data else DEFAULT_BRANCH
 
-    active = session_exists(branch_name)
-    all_sessions = list_sessions()
+    health = get_health()
+    session_name = f"telegram-{branch_name}"
 
-    info = get_session_info(chat_id)
-    status_text = (
-        f"Chat ID: {chat_id}\n"
-        f"Branch: @{branch_name}\n"
-        f"tmux session: {'Active' if active else 'Inactive'}\n"
-        f"Active sessions: {len(all_sessions)}\n"
-        f"\n{info}"
+    # Standard status fields from telegram_standards
+    status_text = build_status_text(
+        session_name=session_name,
+        branch_name=branch_name,
+        message_count=health.get("messages_received"),
+        chat_id=chat_id,
     )
+
+    # Bridge-specific extras
+    all_sessions = list_sessions()
+    info = get_session_info(chat_id)
+    status_text += f"\nActive sessions: {len(all_sessions)}"
+    if info:
+        status_text += f"\n\n{info}"
 
     await safe_reply(update.message, status_text)
 
@@ -1022,9 +1094,22 @@ def run_polling() -> None:
     """
     Run the bot in long-polling mode with automatic reconnection.
 
-    Main entry point for the bridge service.
+    Main entry point for the bridge service. Performs a startup health
+    check before entering the polling loop - fails fast if Telegram
+    API is unreachable.
     """
     bot_username = get_bot_username()
+
+    # Startup health check - fail fast if we can't reach Telegram
+    logger.info("Starting @%s...", bot_username)
+    if not verify_connection(timeout=15):
+        logger.error("Startup health check FAILED - cannot reach Telegram API. Exiting.")
+        print("ERROR: Cannot connect to Telegram API. Check network and bot token.", file=sys.stderr)
+        sys.exit(1)
+
+    logger.info("Connected! Entering polling loop.")
+    print("Connected to Telegram API successfully.")
+
     retry_delay = 5
     max_retry_delay = 60
 

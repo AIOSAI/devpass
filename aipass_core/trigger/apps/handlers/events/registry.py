@@ -48,6 +48,7 @@ def setup_handlers():
     from .warning_logged import handle_warning_logged
     from .bulletin_created import handle_bulletin_created
     from .memory_threshold_exceeded import handle_memory_threshold_exceeded
+    from .memory_template_updated import handle_memory_template_updated
 
     trigger.on('startup', handle_startup)
     trigger.on('memory_saved', handle_memory_saved)
@@ -60,3 +61,4 @@ def setup_handlers():
     trigger.on('warning_logged', handle_warning_logged)
     trigger.on('bulletin_created', handle_bulletin_created)
     trigger.on('memory_threshold_exceeded', handle_memory_threshold_exceeded)
+    trigger.on('memory_template_updated', handle_memory_template_updated)

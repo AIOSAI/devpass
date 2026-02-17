@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: hook.py - Fragmented Memory Hook Handler
 # Date: 2026-02-04
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: memory_bank/handlers/symbolic
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): v2 schema support in format_fragment_recall/format_multiple_recalls
 #   - v0.1.0 (2026-02-04): Initial version - Fragmented Memory Phase 4
 #
 # CODE STANDARDS:
@@ -32,7 +33,6 @@ Key Functions:
 
 import re
 import time
-from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
@@ -205,7 +205,7 @@ def _detect_mood(content: str) -> str:
             mood_scores[mood] = score
 
     if mood_scores:
-        return max(mood_scores, key=mood_scores.get)
+        return max(mood_scores, key=lambda k: mood_scores[k])
     return 'neutral'
 
 
@@ -314,8 +314,9 @@ def format_fragment_recall(fragment: Dict[str, Any]) -> str:
     """
     Format a fragment as natural recall text
 
-    Creates a "This reminds me of..." style output that feels
-    like associative human memory.
+    Supports both v1 (dimension-based) and v2 (LLM-extracted) fragment schemas.
+    v2 fragments use episodic memory format with type-based prefixes.
+    v1 fragments use the original "This reminds me of..." associative pattern.
 
     Args:
         fragment: Fragment dict with 'content' and 'metadata'
@@ -326,7 +327,65 @@ def format_fragment_recall(fragment: Dict[str, Any]) -> str:
     content = fragment.get('content', '')
     metadata = fragment.get('metadata', {})
 
-    # Extract key details
+    # v2 schema: LLM-extracted fragments with summary/insight/type
+    if metadata.get('schema_version') == 'v2':
+        return _format_v2_recall(content, metadata)
+
+    # v1 schema: dimension-based fragments (original format)
+    return _format_v1_recall(content, metadata)
+
+
+def _format_v2_recall(content: str, metadata: Dict[str, Any]) -> str:
+    """
+    Format a v2 LLM-extracted fragment as episodic memory recall text
+
+    Uses type-based prefixes for natural episodic memory surfacing.
+
+    Args:
+        content: Fragment content text
+        metadata: Fragment metadata with summary, insight, type fields
+
+    Returns:
+        Formatted v2 recall string
+    """
+    summary = metadata.get('summary', content or 'a past experience')
+    insight = metadata.get('insight', '')
+    frag_type = metadata.get('type', '')
+
+    # Type-based opening
+    TYPE_PREFIXES = {
+        'episodic': f"During a session, {summary}",
+        'procedural': f"We learned how to: {summary}",
+        'semantic': f"An important concept: {summary}",
+        'emotional': f"A meaningful moment: {summary}",
+    }
+
+    recall_text = TYPE_PREFIXES.get(frag_type, f"I remember: {summary}")
+
+    # Append insight if available
+    if insight:
+        recall_text = f"{recall_text}. The key insight: {insight}."
+    else:
+        # Ensure trailing period
+        if not recall_text.endswith('.'):
+            recall_text += '.'
+
+    return recall_text
+
+
+def _format_v1_recall(content: str, metadata: Dict[str, Any]) -> str:
+    """
+    Format a v1 dimension-based fragment as associative recall text
+
+    Uses the original "This reminds me of..." pattern with dimension metadata.
+
+    Args:
+        content: Fragment content text
+        metadata: Fragment metadata with emotional_0, technical_0, learnings_0 fields
+
+    Returns:
+        Formatted v1 recall string
+    """
     emotional = metadata.get('emotional_0', '')
     technical = metadata.get('technical_0', '')
     learnings = metadata.get('learnings_0', '')
@@ -372,19 +431,24 @@ def format_multiple_recalls(fragments: List[Dict[str, Any]]) -> str:
     """
     Format multiple fragments for display
 
+    Handles mixed v1 and v2 fragments, adding schema version tags
+    to each recall for clarity.
+
     Args:
-        fragments: List of fragment dicts
+        fragments: List of fragment dicts with 'content' and 'metadata'
 
     Returns:
-        Formatted string with all recalls
+        Formatted string with all recalls separated by dividers
     """
     if not fragments:
         return ""
 
     recalls = []
     for frag in fragments:
+        metadata = frag.get('metadata', {})
+        schema = metadata.get('schema_version', 'v1')
         recall = format_fragment_recall(frag)
-        recalls.append(recall)
+        recalls.append(f"[{schema}] {recall}")
 
     return "\n\n---\n\n".join(recalls)
 

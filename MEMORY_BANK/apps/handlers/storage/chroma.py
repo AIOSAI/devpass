@@ -8,6 +8,8 @@
 # Category: memory_bank/handlers/storage
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): Use shared singleton client, cosine distance,
+#     embedding_function=None on all collection access
 #   - v0.1.0 (2025-11-16): Initial version - Chroma collection management
 #
 # CODE STANDARDS:
@@ -36,16 +38,17 @@ Best Practices Applied:
 """
 
 import sys
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 from datetime import datetime
 
 # Infrastructure setup
 AIPASS_ROOT = Path.home() / "aipass_core"
 sys.path.insert(0, str(AIPASS_ROOT))
+sys.path.insert(0, str(Path.home()))
 
-# No service imports - handlers are pure workers (3-tier architecture)
-# No module imports (handler independence)
+# Shared ChromaDB client (singleton - prevents write contention)
+from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_client
 
 
 # =============================================================================
@@ -70,26 +73,11 @@ class ChromaService:
         Args:
             db_path: Path to Chroma database (default: MEMORY_BANK/.chroma)
         """
-        # Late imports (heavy dependency)
-        import chromadb
-        from chromadb.config import Settings
-
         if db_path is None:
             db_path = Path.home() / "MEMORY_BANK" / ".chroma"
 
-        # Ensure directory exists
-        db_path.mkdir(parents=True, exist_ok=True)
-
-        # Initialize PersistentClient
-        self.client = chromadb.PersistentClient(
-            path=str(db_path),
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=False,
-                is_persistent=True
-            )
-        )
-
+        # Use shared singleton client (prevents write contention)
+        self.client = get_client(db_path)
         self.db_path = db_path
 
 
@@ -133,7 +121,8 @@ class ChromaService:
         # Get or create collection
         collection = self.client.get_or_create_collection(
             name=collection_name,
-            metadata={"branch": branch, "type": memory_type}
+            metadata={"hnsw:space": "cosine", "branch": branch, "type": memory_type},
+            embedding_function=None
         )
 
         # Get existing count for ID generation
@@ -181,7 +170,10 @@ class ChromaService:
         collection_name = self.get_collection_name(branch, memory_type)
 
         try:
-            collection = self.client.get_collection(collection_name)
+            collection = self.client.get_collection(
+                collection_name,
+                embedding_function=None
+            )
             count = collection.count()
 
             return {
@@ -451,7 +443,10 @@ def search_vectors(
 
         for collection_name in collection_names:
             try:
-                collection = service.client.get_collection(collection_name)
+                collection = service.client.get_collection(
+                    collection_name,
+                    embedding_function=None
+                )
 
                 # Query collection
                 results = collection.query(

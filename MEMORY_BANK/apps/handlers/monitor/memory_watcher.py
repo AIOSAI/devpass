@@ -73,32 +73,44 @@ _observer: Optional[Observer] = None
 _startup_check_done = False
 
 
-def _get_rollover_threshold(branch_name: str) -> int:
+def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> int:
     """
-    Get rollover threshold for a branch from config.
+    Get rollover threshold for a memory file.
 
-    Priority: per_branch config > defaults > hardcoded 600
+    Priority: file metadata > per_branch config > defaults > hardcoded 600
 
     Args:
         branch_name: Branch name (uppercase, e.g., 'DEV_CENTRAL')
+        file_path: Optional path to memory file (checks file-level limits first)
 
     Returns:
         Max lines threshold for rollover
     """
     import json
 
+    # 1. Check file-level metadata first (highest priority)
+    if file_path is not None:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                file_limit = data.get('document_metadata', {}).get('limits', {}).get('max_lines')
+                if file_limit is not None:
+                    return file_limit
+        except Exception:
+            pass
+
+    # 2. Check per-branch config override
     config_path = MEMORY_BANK_ROOT / "memory_bank_json" / "memory_bank.config.json"
 
     try:
         with open(config_path) as f:
             config = json.load(f)
 
-        # Check per-branch override first
         branch_limits = config.get('rollover', {}).get('per_branch', {}).get(branch_name, {})
         if 'max_lines' in branch_limits:
             return branch_limits['max_lines']
 
-        # Fall back to defaults
+        # 3. Fall back to defaults
         default_limit = config.get('rollover', {}).get('defaults', {}).get('max_lines')
         if default_limit is not None:
             return default_limit
@@ -106,7 +118,7 @@ def _get_rollover_threshold(branch_name: str) -> int:
     except Exception:
         pass
 
-    # Final fallback
+    # 4. Final fallback
     return 600
 
 
@@ -154,9 +166,6 @@ def check_and_rollover() -> Dict[str, Any]:
         # Extract branch name from path (last component, uppercase)
         branch_name = branch.name.upper()
 
-        # Get threshold for this branch (may differ per-branch)
-        threshold = _get_rollover_threshold(branch_name)
-
         # Find memory files in this branch (skip DASHBOARD files - no rollover metadata)
         for pattern in ['*.local.json', '*.observations.json']:
             for memory_file in branch.glob(pattern):
@@ -164,6 +173,9 @@ def check_and_rollover() -> Dict[str, Any]:
                     continue
 
                 results['files_checked'] += 1
+
+                # Get threshold per file (file metadata > branch config > default)
+                threshold = _get_rollover_threshold(branch_name, memory_file)
 
                 try:
                     line_count = len(memory_file.read_text(encoding='utf-8').splitlines())

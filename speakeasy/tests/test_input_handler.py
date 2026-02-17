@@ -65,10 +65,11 @@ class TestTypeText:
 class TestPasteText:
     """Tests for paste_text function."""
 
+    @patch('handlers.input_handler._find_binary', return_value='xclip')
     @patch('handlers.input_handler.subprocess.Popen')
     @patch('handlers.input_handler.keyboard.Controller')
     @patch('handlers.input_handler.time.sleep')
-    def test_pastes_text_successfully(self, mock_sleep, mock_controller_cls, mock_popen):
+    def test_pastes_text_successfully(self, mock_sleep, mock_controller_cls, mock_popen, mock_find):
         """Test successful text paste via clipboard."""
         # Mock xclip process - use MagicMock for context manager support
         mock_process = MagicMock()
@@ -102,8 +103,9 @@ class TestPasteText:
         # Should return early without calling xclip
         mock_popen.assert_not_called()
 
+    @patch('handlers.input_handler._find_binary', return_value='xclip')
     @patch('handlers.input_handler.subprocess.Popen')
-    def test_raises_on_xclip_failure(self, mock_popen):
+    def test_raises_on_xclip_failure(self, mock_popen, mock_find):
         """Test raises RuntimeError when xclip fails."""
         mock_process = MagicMock()
         mock_process.returncode = 1
@@ -113,9 +115,11 @@ class TestPasteText:
         with pytest.raises(RuntimeError, match="xclip failed"):
             paste_text("hello")
 
+    @patch('handlers.input_handler._find_binary', return_value='xclip')
+    @patch('handlers.input_handler.time.sleep')
     @patch('handlers.input_handler.subprocess.Popen')
-    def test_raises_on_timeout(self, mock_popen):
-        """Test raises RuntimeError on timeout."""
+    def test_raises_on_timeout(self, mock_popen, mock_sleep, mock_find):
+        """Test raises RuntimeError on timeout after retries."""
         mock_process = MagicMock()
         mock_process.communicate.side_effect = subprocess.TimeoutExpired("xclip", 2)
         mock_popen.return_value = mock_process
@@ -123,10 +127,13 @@ class TestPasteText:
         with pytest.raises(RuntimeError, match="timed out"):
             paste_text("hello")
 
-    @patch('handlers.input_handler.subprocess.Popen')
-    def test_raises_on_xclip_not_found(self, mock_popen):
+        # Should have retried 3 times
+        assert mock_popen.call_count == 3
+
+    @patch('handlers.input_handler._find_binary')
+    def test_raises_on_xclip_not_found(self, mock_find):
         """Test raises RuntimeError when xclip not installed."""
-        mock_popen.side_effect = FileNotFoundError()
+        mock_find.side_effect = FileNotFoundError("xclip not found. Install with: sudo apt-get install xclip")
 
         with pytest.raises(RuntimeError, match="xclip not found"):
             paste_text("hello")
@@ -197,8 +204,9 @@ class TestTypeWithPynput:
 class TestTypeWithXdotool:
     """Tests for _type_with_xdotool function."""
 
+    @patch('handlers.input_handler._find_binary', return_value='xdotool')
     @patch('handlers.input_handler.subprocess.run')
-    def test_calls_xdotool_correctly(self, mock_run):
+    def test_calls_xdotool_correctly(self, mock_run, mock_find):
         """Test calls xdotool with correct parameters."""
         mock_result = Mock()
         mock_result.returncode = 0
@@ -238,10 +246,10 @@ class TestTypeWithXdotool:
         with pytest.raises(RuntimeError, match="xdotool failed"):
             _type_with_xdotool("test", key_delay=0.01)
 
-    @patch('handlers.input_handler.subprocess.run')
-    def test_raises_on_xdotool_not_found(self, mock_run):
+    @patch('handlers.input_handler._find_binary')
+    def test_raises_on_xdotool_not_found(self, mock_find):
         """Test raises RuntimeError when xdotool not installed."""
-        mock_run.side_effect = FileNotFoundError()
+        mock_find.side_effect = FileNotFoundError("xdotool not found. Install with: sudo apt-get install xdotool")
 
         with pytest.raises(RuntimeError, match="xdotool not found"):
             _type_with_xdotool("test", key_delay=0.01)

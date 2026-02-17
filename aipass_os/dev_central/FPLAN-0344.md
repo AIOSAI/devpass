@@ -1,7 +1,7 @@
-# FPLAN-0314 - Speakeasy Voice-to-Text Rebuild (MASTER PLAN)
+# FPLAN-0344 - Telegram Bot Standards - Shared base commands for all bots (MASTER PLAN)
 
-**Created**: 2026-02-11
-**Branch**: /home/aipass/speakeasy
+**Created**: 2026-02-15
+**Branch**: /home/aipass/aipass_os/dev_central
 **Status**: Active
 **Type**: Master Plan (Multi-Phase)
 
@@ -104,7 +104,7 @@ Update it as you work - lightweight, not formal. Patrick checks it when he wants
 
 ```bash
 # Create it at plan start
-echo "# Notepad - FPLAN-0314" > notepad.md
+echo "# Notepad - FPLAN-0344" > notepad.md
 ```
 
 ---
@@ -156,19 +156,21 @@ Master Plans are for **complex multi-phase projects**. You define all phases upf
 ## Project Overview
 
 ### Goal
-Complete voice-to-text system rebuilt to AIPass standards. Press hotkey, speak, text appears in any application. Runs 100% locally with OpenAI Whisper (faster-whisper). Full 3-layer architecture with modules, handlers, tests, and Seed compliance.
+All Telegram bots share standard commands from one file. Change `telegram_standards.py` → all bots update. Each bot can add custom commands on top. Assistant/test bots stop being copy-paste clones.
 
 ### Reference Documentation
-- Old codebase: `/home/aipass/speakeasy(disabled)/whisper-writer/` (WhisperWriter by savbell, GPL)
-- Example branches: drone, ai_mail, trigger (3-layer architecture patterns)
-- Seed standards: 13 checks (architecture, cli, diagnostics, documentation, encapsulation, error_handling, handlers, imports, json_structure, modules, naming, testing, trigger)
+- Bridge bot: `/home/aipass/aipass_core/api/apps/handlers/telegram/bridge.py`
+- Assistant bot: `/home/aipass/aipass_os/dev_central/assistant/apps/handlers/telegram/assistant_chat.py`
+- Test bot: `/home/aipass/aipass_os/dev_central/test/apps/handlers/telegram/test_chat.py`
+- Stop hook: `/home/aipass/.claude/hooks/telegram_response.py`
+- Configs: `/home/aipass/.aipass/*_bot_config.json`
 
 ### Success Criteria
-- Seed audit score 80%+
-- Hotkey triggers recording, Whisper transcribes, text appears at cursor
-- All core features: VAD, continuous mode, cursor lock, system tray
-- Tests in tests/ directory
-- Clean 3-layer architecture
+1. `/start`, `/help`, `/new`, `/status` work in ALL bot chats
+2. One shared file (`telegram_standards.py`) defines standard commands
+3. Bridge retains its custom commands (`/switch`, `/list`, `/end`, `/branch`, `/url`)
+4. Assistant/test use shared `direct_chat.py` instead of copy-paste
+5. Adding a new standard command to `telegram_standards.py` automatically appears in all bots
 
 ---
 
@@ -200,35 +202,43 @@ branch/
 
 Define ALL phases before starting work:
 
-### Phase 1: Foundation & Seed Compliance
-**Goal:** Fix json_handler.py paths, achieve 100% Seed compliance, set up requirements.txt, build entry point
-**Agent Task:** Fix json_handler.py to use Speakeasy paths. Update speakeasy.py entry point. Create proper requirements.txt. Ensure all __init__.py files correct.
-**Deliverables:** Fixed json_handler.py, updated speakeasy.py, requirements.txt, 100% Seed on existing files
+### Phase 1: Build telegram_standards.py
+**Goal:** Create the shared standards file that defines standard commands, help text, response templates, and a command registry pattern
+**Agent Task:** Build `/home/aipass/aipass_core/api/apps/handlers/telegram/telegram_standards.py` with:
+- Standard command definitions (name, description, handler logic for /start, /help, /new, /status)
+- Response templates (welcome message, status format, error formats, processing message)
+- Help text auto-builder (combines standard + custom commands into /help output)
+- stdlib-only implementations (must work in both async python-telegram-bot AND sync urllib bots)
+- BotFather command menu builder (generates setMyCommands payload)
+**Deliverables:** `telegram_standards.py`
 
-### Phase 2: Audio Engine
-**Goal:** Build audio capture, WebRTC VAD, and faster-whisper transcription as handlers
-**Agent Task:** Create audio_handler.py (sounddevice capture, WebRTC VAD), transcription_handler.py (faster-whisper integration), audio_module.py (orchestrates recording → transcription pipeline)
-**Deliverables:** apps/handlers/audio_handler.py, apps/handlers/transcription_handler.py, apps/modules/audio_module.py
+### Phase 2: Build direct_chat.py (replaces assistant/test copy-paste)
+**Goal:** Create a single config-driven direct chat handler that replaces both assistant_chat.py and test_chat.py
+**Agent Task:** Build `/home/aipass/aipass_core/api/apps/handlers/telegram/direct_chat.py` that:
+- Takes config params (branch_name, session_name, config_path, work_dir, log_dir)
+- Imports and registers standard commands from telegram_standards.py
+- Accepts optional custom_commands dict for bot-specific commands
+- Handles the full polling loop, tmux injection, pending file coordination
+- Replaces ~500 lines of duplicated code with one reusable module
+**Deliverables:** `direct_chat.py`
 
-### Phase 3: Hotkey & Text Input
-**Goal:** Build hotkey detection and text injection system
-**Agent Task:** Create hotkey_handler.py (pynput/evdev listener), input_handler.py (text injection via pynput), input_module.py (orchestrates hotkey → record → type pipeline)
-**Deliverables:** apps/handlers/hotkey_handler.py, apps/handlers/input_handler.py, apps/modules/input_module.py
+### Phase 3: Update bridge.py to use standards
+**Goal:** Refactor bridge.py to import standard commands from telegram_standards.py instead of hardcoding them
+**Agent Task:** Modify `/home/aipass/aipass_core/api/apps/handlers/telegram/bridge.py` to:
+- Import standard command handlers from telegram_standards.py
+- Keep bridge-specific commands (/switch, /list, /end, /branch, /url) as custom additions
+- Use shared response templates and help text builder
+- Ensure /help auto-includes both standard and bridge-specific commands
+**Deliverables:** Updated `bridge.py`
 
-### Phase 4: UI & Desktop Integration
-**Goal:** Build PyQt5 overlay, system tray, cursor lock
-**Agent Task:** Create ui_handler.py (PyQt5 status window, system tray), cursor_lock_handler.py (xdotool cursor locking), ui_module.py (orchestrates UI state)
-**Deliverables:** apps/handlers/ui_handler.py, apps/handlers/cursor_lock_handler.py, apps/modules/ui_module.py
-
-### Phase 5: Configuration & Service
-**Goal:** Build config system and systemd service
-**Agent Task:** Create config_handler.py (YAML config loading, schema validation), service files (systemd user unit), CLI interface in speakeasy.py (start/stop/status commands)
-**Deliverables:** apps/handlers/config_handler.py, tools/speakeasy.service, updated speakeasy.py with CLI
-
-### Phase 6: Testing, Integration & Polish
-**Goal:** Full integration testing, Seed audit, documentation
-**Agent Task:** Create test files for all modules/handlers. Integration test for full pipeline. Update README.md. Final Seed audit. GPL attribution for WhisperWriter.
-**Deliverables:** tests/*.py, updated README.md, docs/architecture.md, Seed audit 80%+
+### Phase 4: Create thin launchers + integration test
+**Goal:** Replace assistant_chat.py and test_chat.py with thin launchers that use direct_chat.py, and verify all bots respond to standard commands
+**Agent Task:**
+- Create new `/home/aipass/aipass_os/dev_central/assistant/apps/handlers/telegram/assistant_chat.py` as thin launcher (~20 lines, imports direct_chat and passes config)
+- Create new `/home/aipass/aipass_os/dev_central/test/apps/handlers/telegram/test_chat.py` as thin launcher
+- Archive old files first
+- Create integration test that verifies standard commands are registered for each bot type
+**Deliverables:** Updated launchers, archived originals, test script
 
 ---
 
@@ -323,7 +333,7 @@ Seed audits are helpful but not infallible.
 If something causes production to STOP (critical blocker), **immediately email DEV_CENTRAL**:
 
 ```bash
-drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0314" "Phase X halted. Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
+drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0344" "Phase X halted. Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
 ```
 
 **Never leave a branch stopped without reporting.** DEV_CENTRAL needs visibility into all work.
@@ -410,53 +420,21 @@ WHEN COMPLETE:
 
 ## Phase Tracking
 
-### Phase 1: Foundation & Seed Compliance
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [x] Seed checklist passed (95% → fixed print() → expect higher)
+### Phase 1: Build telegram_standards.py
 - **Status:** Complete
-- **Notes:** Fixed json_handler.py paths (SEED→SPEAKEASY), created requirements.txt, removed unused imports, removed print() statement. Seed audit: 95%
+- **Notes:** Built shared standards file with STANDARD_COMMANDS registry, text builders, parse_command(), handle_standard_command(). Stdlib only.
 
-### Phase 2: Audio Engine
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [ ] Seed checklist passed (deferred to Phase 6)
+### Phase 2: Build direct_chat.py
 - **Status:** Complete
-- **Notes:** Created audio_handler.py (195 lines), transcription_handler.py (165 lines), audio_module.py (223 lines). All imports verified. faster-whisper installed. WebRTC VAD + sounddevice capture working.
+- **Notes:** Config-driven replacement for duplicated assistant/test bots. Integrates standard commands. All existing behavior preserved.
 
-### Phase 3: Hotkey & Text Input
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [ ] Seed checklist passed (deferred to Phase 6)
+### Phase 3: Update bridge.py
 - **Status:** Complete
-- **Notes:** Created hotkey_handler.py (5.3K), input_handler.py (4.3K), cursor_lock_handler.py (5.4K), input_module.py (6.5K). All module API tests passed. Handler guard working correctly.
+- **Notes:** Bridge now imports from telegram_standards. Added BRIDGE_CUSTOM_COMMANDS dict. /start and /help use shared builders. /help is now separate handler from /start. Bumped to v4.3.0.
 
-### Phase 4: UI & Desktop Integration
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [ ] Seed checklist passed (deferred to Phase 6)
+### Phase 4: Thin launchers + module layer
 - **Status:** Complete
-- **Notes:** Created ui_handler.py (315 lines - tray icon, status window, notifications, sound playback), ui_module.py (278 lines - UI state orchestration). Fixed logger extra={"args": args} key conflict. PyQt5 Qt attribute Pyright warnings are expected false positives.
-
-### Phase 5: Configuration & Service
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [ ] Seed checklist passed (deferred to Phase 6)
-- **Status:** Complete
-- **Notes:** Created config_handler.py (263 lines - YAML config load/save/validate/merge), config_module.py (292 lines - config orchestration with CLI), config.yaml (30 lines - default config), tools/speakeasy.service (systemd unit). Updated speakeasy.py with start/stop/status commands. Fixed PyQt6→PyQt5 import.
-
-### Phase 6: Testing, Integration & Polish
-- [x] Agent deployed
-- [x] Agent completed
-- [x] Output reviewed
-- [x] Seed checklist passed (99%)
-- **Status:** Complete
-- **Notes:** Created 9 test files (197 passed, 4 skipped). Updated README.md with architecture/features/usage. Created docs/architecture.md. Added LICENSE (GPL-3.0) with WhisperWriter attribution. Refactored all 3 modules to thin orchestration (Modules 100%). Final Seed: 99%.
+- **Notes:** Created telegram_chat.py module (public API). Assistant/test are now ~48 line thin launchers importing from module layer. Old files archived. Cross-branch handler guard handled via module re-export pattern.
 
 ---
 
@@ -495,18 +473,18 @@ Track issues here as you encounter them. Don't fix during build - log and contin
 
 ### Before Closing Master Plan
 
-- [x] All phases complete
-- [x] All sub-plans closed
-- [x] Issues Log reviewed - High/Med issues addressed
-- [x] Full branch audit: `drone @seed audit @branch` (99%)
-- [x] Branch memories updated:
-  - [x] `BRANCH.local.json` - full session log
+- [ ] All phases complete
+- [ ] All sub-plans closed
+- [ ] Issues Log reviewed - High/Med issues addressed
+- [ ] Full branch audit: `drone @seed audit @branch`
+- [ ] Branch memories updated:
+  - [ ] `BRANCH.local.json` - full session log
   - [ ] `BRANCH.observations.json` - patterns learned
-- [x] README.md updated (status, architecture, API - if build changed capabilities)
-- [x] Artifacts reviewed (DEV_CENTRAL manages cleanup)
+- [ ] README.md updated (status, architecture, API - if build changed capabilities)
+- [ ] Artifacts reviewed (DEV_CENTRAL manages cleanup)
 - [ ] Final email to DEV_CENTRAL:
   ```bash
-  drone @ai_mail send @dev_central "FPLAN-0314 MASTER COMPLETE" "Full build summary: phases completed, deliverables, remaining issues (if any)"
+  drone @ai_mail send @dev_central "FPLAN-0344 MASTER COMPLETE" "Full build summary: phases completed, deliverables, remaining issues (if any)"
   ```
 
 **Completion Order:** Memories → README → Email (README before email - don't report complete with stale docs)
@@ -522,5 +500,5 @@ Track issues here as you encounter them. Don't fix during build - log and contin
 
 When ALL phases complete and checklist done:
 ```bash
-drone @flow close FPLAN-0314
+drone @flow close FPLAN-0344
 ```

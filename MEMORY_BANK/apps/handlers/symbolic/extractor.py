@@ -4,134 +4,77 @@
 # META DATA HEADER
 # Name: extractor.py - Symbolic Memory Extractor Handler
 # Date: 2026-02-04
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: memory_bank/handlers/symbolic
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): Phase 2 - LLM-based extraction via OpenRouter (FPLAN-0341)
 #   - v0.1.0 (2026-02-04): Initial version - ported from symbolic_memory.py
 #
 # CODE STANDARDS:
-#   - Handler independence: No module imports
+#   - Handler independence: No module imports (OpenRouter lazy-imported)
 #   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <300 lines target
+#   - File size: <400 lines target
 # =============================================
 
 """
 Symbolic Memory Extractor Handler
 
-Extracts symbolic dimensions from conversations for fragmented memory storage.
-Ported from symbolic_memory.py as part of Fragmented Memory Phase 1.
-
-Key Functions:
-    - extract_technical_flow() - problem/debug/breakthrough patterns
-    - extract_emotional_journey() - frustration/excitement arcs
-    - extract_collaboration_patterns() - user_directed/balanced dynamics
-    - extract_key_learnings() - discoveries, insights
-    - extract_context_triggers() - keywords that should surface this memory
-    - extract_symbolic_dimensions() - calls all extractors
-    - analyze_conversation() - main entry point for full analysis
+v1 (regex): extract_technical_flow, extract_emotional_journey,
+    extract_collaboration_patterns, extract_key_learnings,
+    extract_context_triggers, extract_symbolic_dimensions, analyze_conversation
+v2 (LLM):  extract_fragments_llm, analyze_conversation_llm
 """
 
+import json
 import re
+import sys
 from collections import Counter
 from datetime import datetime
-from typing import Dict, List, Any
-
+from typing import Dict, List, Any, Optional
 
 # =============================================================================
-# TECHNICAL FLOW EXTRACTION
+# v1 REGEX EXTRACTION (fallback)
 # =============================================================================
 
 def extract_technical_flow(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Analyze technical patterns from conversation
-
-    Detects problem/debug/breakthrough patterns by analyzing
-    message content for technical indicators.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with 'success', 'patterns' list, and analysis details
-    """
+    """Detect problem/debug/breakthrough patterns via keyword matching."""
     if not chat_history:
-        return {
-            'success': True,
-            'patterns': ['no_conversation'],
-            'details': {}
-        }
-
+        return {'success': True, 'patterns': ['no_conversation'], 'details': {}}
     patterns = []
-    technical_indicators = {
+    indicators = {
         'problems': ['error', 'bug', 'issue', 'problem', 'broken', 'fail', 'wrong'],
         'debugging': ['debug', 'trace', 'check', 'test', 'try', 'attempt'],
         'solutions': ['fix', 'solve', 'work', 'success', 'breakthrough', 'got it'],
         'struggle': ['stuck', 'confused', 'difficult', 'hard', 'frustrating'],
         'learning': ['understand', 'learn', 'realize', 'discover', 'insight']
     }
-
-    category_counts = {cat: 0 for cat in technical_indicators}
-
-    for message in chat_history:
-        content = (message.get('content') or '').lower()
-        role = message.get('role', '')
-
-        for category, keywords in technical_indicators.items():
-            if any(keyword in content for keyword in keywords):
-                patterns.append(f'{category}_{role}')
-                category_counts[category] += 1
-
-    pattern_string = ' '.join(patterns)
-
-    # Detect flow type
-    if 'problems' in pattern_string and 'solutions' in pattern_string:
-        if 'struggle' in pattern_string:
-            flow_type = ['problem_struggle_breakthrough']
-        else:
-            flow_type = ['problem_solution_flow']
-    elif 'debugging' in pattern_string:
-        flow_type = ['debugging_session']
-    elif 'learning' in pattern_string:
-        flow_type = ['learning_conversation']
+    cat_counts = {cat: 0 for cat in indicators}
+    for msg in chat_history:
+        content = (msg.get('content') or '').lower()
+        role = msg.get('role', '')
+        for cat, kws in indicators.items():
+            if any(kw in content for kw in kws):
+                patterns.append(f'{cat}_{role}')
+                cat_counts[cat] += 1
+    ps = ' '.join(patterns)
+    if 'problems' in ps and 'solutions' in ps:
+        flow = ['problem_struggle_breakthrough'] if 'struggle' in ps else ['problem_solution_flow']
+    elif 'debugging' in ps:
+        flow = ['debugging_session']
+    elif 'learning' in ps:
+        flow = ['learning_conversation']
     else:
-        flow_type = ['general_technical']
+        flow = ['general_technical']
+    return {'success': True, 'patterns': flow,
+            'details': {'category_counts': cat_counts, 'raw_patterns': patterns[:10]}}
 
-    return {
-        'success': True,
-        'patterns': flow_type,
-        'details': {
-            'category_counts': category_counts,
-            'raw_patterns': patterns[:10]  # Limit for brevity
-        }
-    }
-
-
-# =============================================================================
-# EMOTIONAL JOURNEY EXTRACTION
-# =============================================================================
 
 def extract_emotional_journey(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Detect emotional arc from conversation tone and patterns
-
-    Analyzes emotional progression through the conversation
-    to identify frustration-to-breakthrough or curiosity-to-excitement arcs.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with 'success', 'arc' list, and emotion timeline
-    """
+    """Detect emotional arc via tone markers."""
     if not chat_history:
-        return {
-            'success': True,
-            'arc': ['neutral'],
-            'details': {}
-        }
-
-    emotional_markers = {
+        return {'success': True, 'arc': ['neutral'], 'details': {}}
+    markers = {
         'frustration': ['frustrated', 'annoying', 'difficult', 'stuck', 'ugh', 'damn'],
         'excitement': ['cool', 'awesome', 'great', 'amazing', 'perfect', 'brilliant'],
         'confidence': ['sure', 'certain', 'definitely', 'absolutely', 'know'],
@@ -139,302 +82,128 @@ def extract_emotional_journey(chat_history: List[Dict[str, Any]]) -> Dict[str, A
         'breakthrough': ['got it', 'understand', 'works', 'success', 'finally'],
         'curiosity': ['wonder', 'curious', 'interesting', 'what if', 'how']
     }
-
-    emotion_timeline = []
-
-    for message in chat_history:
-        content = (message.get('content') or '').lower()
-        role = message.get('role', '')
-
-        message_emotions = []
-        for emotion, markers in emotional_markers.items():
-            if any(marker in content for marker in markers):
-                message_emotions.append(emotion)
-
-        if message_emotions:
-            emotion_timeline.append((role, message_emotions))
-
-    if not emotion_timeline:
-        return {
-            'success': True,
-            'arc': ['neutral_tone'],
-            'details': {'timeline': []}
-        }
-
-    all_emotions = [emotion for _, emotions in emotion_timeline for emotion in emotions]
-
-    # Determine emotional arc
-    if 'frustration' in all_emotions and 'breakthrough' in all_emotions:
+    timeline = []
+    for msg in chat_history:
+        content = (msg.get('content') or '').lower()
+        role = msg.get('role', '')
+        emos = [e for e, ms in markers.items() if any(m in content for m in ms)]
+        if emos:
+            timeline.append((role, emos))
+    if not timeline:
+        return {'success': True, 'arc': ['neutral_tone'], 'details': {'timeline': []}}
+    all_emos = [e for _, es in timeline for e in es]
+    if 'frustration' in all_emos and 'breakthrough' in all_emos:
         arc = ['frustration_to_breakthrough']
-    elif 'curiosity' in all_emotions and 'excitement' in all_emotions:
+    elif 'curiosity' in all_emos and 'excitement' in all_emos:
         arc = ['curiosity_to_excitement']
-    elif 'uncertainty' in all_emotions and 'confidence' in all_emotions:
+    elif 'uncertainty' in all_emos and 'confidence' in all_emos:
         arc = ['uncertainty_to_confidence']
     else:
-        emotion_counts = Counter(all_emotions)
-        arc = [emotion for emotion, _ in emotion_counts.most_common(2)]
+        arc = [e for e, _ in Counter(all_emos).most_common(2)]
+    return {'success': True, 'arc': arc,
+            'details': {'timeline': timeline[:10], 'emotion_counts': dict(Counter(all_emos))}}
 
-    return {
-        'success': True,
-        'arc': arc,
-        'details': {
-            'timeline': emotion_timeline[:10],
-            'emotion_counts': dict(Counter(all_emotions))
-        }
-    }
-
-
-# =============================================================================
-# COLLABORATION PATTERNS EXTRACTION
-# =============================================================================
 
 def extract_collaboration_patterns(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Identify relationship dynamics and interaction patterns
-
-    Analyzes message lengths, question patterns, and coaching/teaching
-    indicators to determine collaboration style.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with 'success', 'patterns' list, and interaction metrics
-    """
+    """Identify interaction dynamics (user-directed, balanced, teaching, etc.)."""
     if not chat_history:
-        return {
-            'success': True,
-            'patterns': ['no_interaction'],
-            'details': {}
-        }
-
-    user_messages = [msg for msg in chat_history if msg.get('role') == 'user']
-    assistant_messages = [msg for msg in chat_history if msg.get('role') == 'assistant']
-
-    if not user_messages or not assistant_messages:
-        return {
-            'success': True,
-            'patterns': ['one_sided_conversation'],
-            'details': {}
-        }
-
+        return {'success': True, 'patterns': ['no_interaction'], 'details': {}}
+    u_msgs = [m for m in chat_history if m.get('role') == 'user']
+    a_msgs = [m for m in chat_history if m.get('role') == 'assistant']
+    if not u_msgs or not a_msgs:
+        return {'success': True, 'patterns': ['one_sided_conversation'], 'details': {}}
     patterns = []
-
-    avg_user_length = sum(len(msg.get('content', '')) for msg in user_messages) / len(user_messages)
-    avg_assistant_length = sum(len(msg.get('content', '')) for msg in assistant_messages) / len(assistant_messages)
-
-    if avg_user_length > avg_assistant_length * 1.5:
+    avg_u = sum(len(m.get('content', '')) for m in u_msgs) / len(u_msgs)
+    avg_a = sum(len(m.get('content', '')) for m in a_msgs) / len(a_msgs)
+    if avg_u > avg_a * 1.5:
         patterns.append('user_directed')
-    elif avg_assistant_length > avg_user_length * 1.5:
+    elif avg_a > avg_u * 1.5:
         patterns.append('assistant_detailed')
     else:
         patterns.append('balanced_exchange')
-
-    user_questions = sum(1 for msg in user_messages if '?' in msg.get('content', ''))
-    if user_questions > len(user_messages) * 0.6:
+    u_qs = sum(1 for m in u_msgs if '?' in m.get('content', ''))
+    if u_qs > len(u_msgs) * 0.6:
         patterns.append('question_heavy')
-
-    coaching_indicators = ['try', "let's", 'what if', 'how about', 'consider']
-    teaching_indicators = ['explain', 'show', 'understand', 'learn', 'because']
-
-    user_content = ' '.join(msg.get('content', '').lower() for msg in user_messages)
-    assistant_content = ' '.join(msg.get('content', '').lower() for msg in assistant_messages)
-
-    if any(indicator in user_content for indicator in coaching_indicators):
+    uc = ' '.join(m.get('content', '').lower() for m in u_msgs)
+    ac = ' '.join(m.get('content', '').lower() for m in a_msgs)
+    if any(i in uc for i in ['try', "let's", 'what if', 'how about', 'consider']):
         patterns.append('user_coaching')
-    if any(indicator in assistant_content for indicator in teaching_indicators):
+    if any(i in ac for i in ['explain', 'show', 'understand', 'learn', 'because']):
         patterns.append('assistant_teaching')
-
-    build_indicators = ["let's build", 'we can', 'together', 'collaborate']
-    if any(indicator in user_content + assistant_content for indicator in build_indicators):
+    if any(i in uc + ac for i in ["let's build", 'we can', 'together', 'collaborate']):
         patterns.append('collaborative_building')
+    return {'success': True, 'patterns': patterns or ['standard_interaction'],
+            'details': {'avg_user_length': int(avg_u), 'avg_assistant_length': int(avg_a),
+                        'user_questions': u_qs, 'total_user_messages': len(u_msgs)}}
 
-    return {
-        'success': True,
-        'patterns': patterns if patterns else ['standard_interaction'],
-        'details': {
-            'avg_user_length': int(avg_user_length),
-            'avg_assistant_length': int(avg_assistant_length),
-            'user_questions': user_questions,
-            'total_user_messages': len(user_messages)
-        }
-    }
-
-
-# =============================================================================
-# KEY LEARNINGS EXTRACTION
-# =============================================================================
 
 def extract_key_learnings(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Extract core insights and lessons from conversation
-
-    Identifies discovery, problem-solving, understanding, and
-    improvement patterns in the conversation content.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with 'success', 'insights' list, and detected categories
-    """
+    """Extract insight categories (discovery, problem_solving, etc.)."""
     if not chat_history:
-        return {
-            'success': True,
-            'insights': ['no_insights'],
-            'details': {}
-        }
-
+        return {'success': True, 'insights': ['no_insights'], 'details': {}}
     insights = []
-
-    learning_patterns = {
-        'discovery': ['discovered', 'found out', 'realized', 'learned'],
-        'problem_solving': ['solution', 'approach', 'method', 'way to'],
-        'understanding': ['understand', 'makes sense', 'clear', 'see'],
-        'improvement': ['better', 'improve', 'optimize', 'enhance'],
-        'mistakes': ['wrong', 'mistake', 'error', 'incorrect']
-    }
-
-    all_content = ' '.join((msg.get('content') or '').lower() for msg in chat_history)
-
-    for category, indicators in learning_patterns.items():
-        if any(indicator in all_content for indicator in indicators):
-            insights.append(category)
-
-    # Domain-specific insights
-    if 'module' in all_content and 'toggle' in all_content:
+    lp = {'discovery': ['discovered', 'found out', 'realized', 'learned'],
+          'problem_solving': ['solution', 'approach', 'method', 'way to'],
+          'understanding': ['understand', 'makes sense', 'clear', 'see'],
+          'improvement': ['better', 'improve', 'optimize', 'enhance'],
+          'mistakes': ['wrong', 'mistake', 'error', 'incorrect']}
+    ac = ' '.join((m.get('content') or '').lower() for m in chat_history)
+    for cat, inds in lp.items():
+        if any(i in ac for i in inds):
+            insights.append(cat)
+    if 'module' in ac and 'toggle' in ac:
         insights.append('module_system_learning')
-    if 'memory' in all_content and 'compression' in all_content:
+    if 'memory' in ac and 'compression' in ac:
         insights.append('memory_system_learning')
-    if 'debug' in all_content and 'fix' in all_content:
+    if 'debug' in ac and 'fix' in ac:
         insights.append('debugging_skills')
+    return {'success': True, 'insights': insights or ['general_conversation'],
+            'details': {'content_length': len(ac)}}
 
-    return {
-        'success': True,
-        'insights': insights if insights else ['general_conversation'],
-        'details': {
-            'content_length': len(all_content)
-        }
-    }
-
-
-# =============================================================================
-# CONTEXT TRIGGERS EXTRACTION
-# =============================================================================
 
 def extract_context_triggers(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Extract keywords that should trigger this memory in future conversations
-
-    Identifies significant technical terms and concepts that appear
-    frequently in the conversation.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with 'success', 'triggers' list, and term frequencies
-    """
+    """Extract keyword triggers for future memory recall."""
     if not chat_history:
-        return {
-            'success': True,
-            'triggers': [],
-            'details': {}
-        }
+        return {'success': True, 'triggers': [], 'details': {}}
+    ac = ' '.join((m.get('content') or '') for m in chat_history).lower()
+    pat = (r'\b(?:module|system|debug|memory|compression|vector|symbolic|cortex|'
+           r'registry|toggle|profile|chat|context|api|token|embedding|storage|'
+           r'json|function|method|class|import|file|script|error|fix|solution|'
+           r'breakthrough|pattern|analysis|extraction|conversation|interaction|'
+           r'collaboration|learning|insight|discovery|handler|branch|rollover)\b')
+    terms = re.findall(pat, ac)
+    tc = Counter(terms)
+    triggers = [t for t, c in tc.most_common(10) if c > 1]
+    return {'success': True, 'triggers': triggers,
+            'details': {'term_counts': dict(tc.most_common(15))}}
 
-    all_content = ' '.join((msg.get('content') or '') for msg in chat_history).lower()
-
-    technical_pattern = (
-        r'\b(?:module|system|debug|memory|compression|vector|symbolic|cortex|'
-        r'registry|toggle|profile|chat|context|api|token|embedding|storage|'
-        r'json|function|method|class|import|file|script|error|fix|solution|'
-        r'breakthrough|pattern|analysis|extraction|conversation|interaction|'
-        r'collaboration|learning|insight|discovery|handler|branch|rollover)\b'
-    )
-
-    technical_terms = re.findall(technical_pattern, all_content)
-    term_counts = Counter(technical_terms)
-
-    triggers = [term for term, count in term_counts.most_common(10) if count > 1]
-
-    return {
-        'success': True,
-        'triggers': triggers,
-        'details': {
-            'term_counts': dict(term_counts.most_common(15))
-        }
-    }
-
-
-# =============================================================================
-# MAIN EXTRACTION FUNCTIONS
-# =============================================================================
 
 def extract_symbolic_dimensions(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Extract all symbolic dimensions from conversation
-
-    Calls all individual extractors and combines results into
-    a unified symbolic representation.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with all extracted dimensions and metadata
-    """
-    technical = extract_technical_flow(chat_history)
-    emotional = extract_emotional_journey(chat_history)
-    collaboration = extract_collaboration_patterns(chat_history)
-    learnings = extract_key_learnings(chat_history)
-    triggers = extract_context_triggers(chat_history)
-
+    """Run all v1 extractors and combine into unified dimensions dict."""
+    tech = extract_technical_flow(chat_history)
+    emo = extract_emotional_journey(chat_history)
+    collab = extract_collaboration_patterns(chat_history)
+    learn = extract_key_learnings(chat_history)
+    trig = extract_context_triggers(chat_history)
     return {
         'success': True,
         'dimensions': {
-            'technical': technical.get('patterns', []),
-            'emotional': emotional.get('arc', []),
-            'collaboration': collaboration.get('patterns', []),
-            'learnings': learnings.get('insights', []),
-            'triggers': triggers.get('triggers', [])
-        },
+            'technical': tech.get('patterns', []), 'emotional': emo.get('arc', []),
+            'collaboration': collab.get('patterns', []),
+            'learnings': learn.get('insights', []), 'triggers': trig.get('triggers', [])},
         'details': {
-            'technical': technical.get('details', {}),
-            'emotional': emotional.get('details', {}),
-            'collaboration': collaboration.get('details', {}),
-            'learnings': learnings.get('details', {}),
-            'triggers': triggers.get('details', {})
-        }
-    }
+            'technical': tech.get('details', {}), 'emotional': emo.get('details', {}),
+            'collaboration': collab.get('details', {}),
+            'learnings': learn.get('details', {}), 'triggers': trig.get('details', {})}}
 
 
 def analyze_conversation(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Main entry point for conversation analysis
-
-    Extracts symbolic dimensions and adds conversation metadata
-    for complete fragmented memory representation.
-
-    Args:
-        chat_history: List of message dicts with 'role' and 'content' keys
-
-    Returns:
-        Dict with full analysis including dimensions and metadata
-    """
+    """v1 entry point: symbolic dimensions + conversation metadata."""
     if not chat_history:
-        return {
-            'success': True,
-            'message_count': 0,
-            'dimensions': {},
-            'metadata': {}
-        }
-
-    dimensions = extract_symbolic_dimensions(chat_history)
-
-    total_chars = sum(len(msg.get('content') or '') for msg in chat_history)
-    total_words = sum(len((msg.get('content') or '').split()) for msg in chat_history)
-
-    # Analyze conversation depth
+        return {'success': True, 'message_count': 0, 'dimensions': {}, 'metadata': {}}
+    dims = extract_symbolic_dimensions(chat_history)
+    total_chars = sum(len(m.get('content') or '') for m in chat_history)
+    total_words = sum(len((m.get('content') or '').split()) for m in chat_history)
     if total_words > 2000 and len(chat_history) > 20:
         depth = 'deep_extended'
     elif total_words > 1000 and len(chat_history) > 10:
@@ -443,16 +212,217 @@ def analyze_conversation(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
         depth = 'moderate'
     else:
         depth = 'light'
-
     return {
-        'success': True,
-        'message_count': len(chat_history),
-        'dimensions': dimensions.get('dimensions', {}),
+        'success': True, 'message_count': len(chat_history),
+        'dimensions': dims.get('dimensions', {}),
+        'metadata': {'timestamp': datetime.now().isoformat(), 'total_chars': total_chars,
+                     'total_words': total_words, 'depth': depth},
+        'details': dims.get('details', {})}
+
+
+# =============================================================================
+# v2 LLM EXTRACTION (OpenRouter / Llama 3.3 70B)
+# =============================================================================
+
+LLM_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+CHUNK_THRESHOLD = 25   # messages before chunking
+CHUNK_SIZE = 20        # messages per chunk
+CHUNK_OVERLAP = 5      # overlap between chunks
+
+EXTRACTION_SYSTEM_PROMPT = (
+    "You are a memory extraction system for an AI collaboration platform.\n"
+    "Extract genuinely memorable fragments from human-AI conversations.\n"
+    "Only extract noteworthy moments: breakthroughs, insights, decisions, "
+    "frustrations overcome, or technical discoveries.\n\n"
+    "Return a JSON array of fragment objects with this schema:\n"
+    '{"summary":"One sentence of what happened",'
+    '"insight":"Key takeaway or lesson",'
+    '"type":"episodic|procedural|semantic|emotional",'
+    '"triggers":["kw1","kw2","kw3"],'
+    '"emotional_tone":"neutral|frustrated|excited|curious|confident",'
+    '"technical_domain":"optional domain tag"}\n\n'
+    "Types: episodic=specific event, procedural=how-to, "
+    "semantic=concept/fact, emotional=significant feeling\n\n"
+    "Rules:\n"
+    "- 1-5 fragments based on richness. Mundane chat = empty array []\n"
+    "- triggers: 2-5 keywords for future recall\n"
+    "- summary: complete sentence, not a label\n"
+    "- insight: capture WHY it matters\n\n"
+    "Example 1:\n"
+    "user: ChromaDB returns empty results even though I added documents\n"
+    "assistant: Are you using the same embedding function for add and query?\n"
+    "user: I was using default for add but sentence-transformers for query\n"
+    "assistant: That's the issue. Embedding spaces don't match.\n"
+    "user: Fixed it! That was a 2-hour bug.\n"
+    'Output: [{"summary":"Discovered ChromaDB requires same embedding function '
+    'for add and query","insight":"Mismatched embedding functions produce empty '
+    'results silently - verify embedding consistency","type":"procedural",'
+    '"triggers":["chromadb","embeddings","empty results"],'
+    '"emotional_tone":"excited","technical_domain":"chromadb"}]\n\n'
+    "Example 2:\n"
+    "user: Branches need broadcast, not just point-to-point mail\n"
+    "assistant: A pub/sub pattern - branches subscribe to topics\n"
+    "user: And The Commons for human-readable versions\n"
+    "assistant: Clean separation - machine events via pub/sub, human context via Commons\n"
+    'Output: [{"summary":"Designed dual-channel architecture: pub/sub for machine '
+    'events, Commons for human context","insight":"Branch communication needs both '
+    'structured events and natural-language channels","type":"semantic",'
+    '"triggers":["pub/sub","commons","broadcast","architecture"],'
+    '"emotional_tone":"curious","technical_domain":"memory_systems"}]\n\n'
+    "Extract fragments from the following conversation. Return ONLY the JSON array."
+)
+
+
+def _format_conversation_for_prompt(messages: List[Dict[str, Any]]) -> str:
+    """Format conversation messages into readable text for the LLM prompt."""
+    lines = []
+    for msg in messages:
+        role = msg.get('role', 'unknown')
+        content = (msg.get('content') or '').strip()
+        if content:
+            if len(content) > 1500:
+                content = content[:1500] + "... [truncated]"
+            lines.append(f"{role}: {content}")
+    return '\n'.join(lines)
+
+
+def _chunk_messages(messages: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    """Split long conversations into overlapping chunks for LLM processing."""
+    if len(messages) <= CHUNK_THRESHOLD:
+        return [messages]
+    chunks = []
+    start = 0
+    while start < len(messages):
+        end = min(start + CHUNK_SIZE, len(messages))
+        chunks.append(messages[start:end])
+        next_start = start + CHUNK_SIZE - CHUNK_OVERLAP
+        remaining = len(messages) - next_start
+        if 0 < remaining < CHUNK_OVERLAP:
+            chunks[-1] = messages[start:len(messages)]
+            break
+        start = next_start
+    return chunks
+
+
+def _parse_llm_json(raw_text: str) -> Optional[List[Dict[str, Any]]]:
+    """Parse JSON array from LLM response, stripping markdown fences if needed."""
+    if not raw_text or not raw_text.strip():
+        return None
+    text = raw_text.strip()
+    # Attempt 1: Direct parse
+    try:
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+    except (json.JSONDecodeError, ValueError):
+        pass
+    # Attempt 2: Strip markdown fences
+    match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', text, re.DOTALL)
+    if match:
+        try:
+            result = json.loads(match.group(1).strip())
+            if isinstance(result, list):
+                return result
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return None
+
+
+def _validate_fragment(fragment: Any) -> bool:
+    """Check fragment dict has required fields with valid enum values."""
+    if not isinstance(fragment, dict):
+        return False
+    required = {'summary', 'insight', 'type', 'triggers', 'emotional_tone'}
+    if not required.issubset(fragment.keys()):
+        return False
+    if fragment.get('type') not in {'episodic', 'procedural', 'semantic', 'emotional'}:
+        return False
+    if fragment.get('emotional_tone') not in {'neutral', 'frustrated', 'excited', 'curious', 'confident'}:
+        return False
+    if not isinstance(fragment.get('triggers'), list):
+        return False
+    return True
+
+
+def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Extract memory fragments via OpenRouter LLM (Llama 3.3 70B).
+    Chunks long conversations. Returns status dict with 'fragments' list.
+    """
+    empty = {'success': True, 'fragments': [], 'chunk_count': 0, 'error': None}
+    if not chat_history:
+        return empty
+
+    # Lazy import to avoid errors when API module isn't available
+    try:
+        from pathlib import Path
+        aipass_root = str(Path.home() / "aipass_core")
+        if aipass_root not in sys.path:
+            sys.path.insert(0, aipass_root)
+        from api.apps.handlers.openrouter.client import (
+            get_cached_client, make_api_request, extract_response)
+        from api.apps.handlers.auth.keys import get_api_key
+    except ImportError as e:
+        return {'success': False, 'fragments': [], 'chunk_count': 0,
+                'error': f"OpenRouter API not available: {e}"}
+
+    api_key = get_api_key("openrouter")
+    if not api_key:
+        return {'success': False, 'fragments': [], 'chunk_count': 0,
+                'error': "No OpenRouter API key configured"}
+    client = get_cached_client(api_key)
+    if not client:
+        return {'success': False, 'fragments': [], 'chunk_count': 0,
+                'error': "Failed to create OpenRouter client"}
+
+    chunks = _chunk_messages(chat_history)
+    all_fragments = []
+    for chunk in chunks:
+        conv_text = _format_conversation_for_prompt(chunk)
+        if not conv_text.strip():
+            continue
+        messages = [
+            {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+            {"role": "user", "content": conv_text}
+        ]
+        response = make_api_request(client, messages, LLM_MODEL,
+                                    temperature=0.3, max_tokens=2000)
+        if not response:
+            continue
+        data = extract_response(response)
+        if not data or not data.get('content'):
+            continue
+        parsed = _parse_llm_json(data['content'])
+        if parsed is None:
+            continue
+        for frag in parsed:
+            if _validate_fragment(frag):
+                frag.setdefault('technical_domain', '')
+                all_fragments.append(frag)
+
+    return {'success': True, 'fragments': all_fragments,
+            'chunk_count': len(chunks), 'error': None}
+
+
+def analyze_conversation_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Full analysis: LLM fragments + regex metadata merged.
+    Returns status dict with 'fragments', 'metadata', 'message_count'.
+    """
+    if not chat_history:
+        return {'success': True, 'fragments': [], 'metadata': {},
+                'message_count': 0, 'error': None}
+    llm = extract_fragments_llm(chat_history)
+    reg = analyze_conversation(chat_history)
+    return {
+        'success': llm.get('success', False),
+        'fragments': llm.get('fragments', []),
         'metadata': {
-            'timestamp': datetime.now().isoformat(),
-            'total_chars': total_chars,
-            'total_words': total_words,
-            'depth': depth
-        },
-        'details': dimensions.get('details', {})
-    }
+            'timestamp': reg.get('metadata', {}).get('timestamp', datetime.now().isoformat()),
+            'total_chars': reg.get('metadata', {}).get('total_chars', 0),
+            'total_words': reg.get('metadata', {}).get('total_words', 0),
+            'depth': reg.get('metadata', {}).get('depth', 'unknown'),
+            'dimensions': reg.get('dimensions', {}),
+            'chunk_count': llm.get('chunk_count', 0)},
+        'message_count': reg.get('message_count', len(chat_history)),
+        'error': llm.get('error')}

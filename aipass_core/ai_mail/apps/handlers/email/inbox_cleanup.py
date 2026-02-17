@@ -8,6 +8,7 @@
 # Category: ai_mail/handlers/email
 #
 # CHANGELOG (Max 5 entries):
+#   - v3.2.0 (2026-02-14): Add skip_post_ops param to mark_as_closed_and_archive for batch close perf
 #   - v3.1.0 (2026-02-09): Add fcntl.flock inbox.json locking to prevent concurrent write corruption
 #   - v3.0.0 (2026-02-04): Migrate to deleted/ directory (individual files like sent/)
 #   - v2.1.0 (2026-02-04): Add auto-purge trigger after archiving to deleted
@@ -388,7 +389,7 @@ def mark_as_opened(branch_path: Path, message_id: str) -> Tuple[bool, str, Optio
         return False, f"Failed to mark as opened: {e}", None
 
 
-def mark_as_closed_and_archive(branch_path: Path, message_id: str) -> Tuple[bool, str]:
+def mark_as_closed_and_archive(branch_path: Path, message_id: str, skip_post_ops: bool = False) -> Tuple[bool, str]:
     """
     Mark an email as closed and archive to deleted/ folder.
 
@@ -397,6 +398,7 @@ def mark_as_closed_and_archive(branch_path: Path, message_id: str) -> Tuple[bool
     Args:
         branch_path: Path to branch directory
         message_id: ID of message to close and archive
+        skip_post_ops: If True, skip dashboard update and purge (caller handles them)
 
     Returns:
         Tuple of (success: bool, message: str)
@@ -451,11 +453,12 @@ def mark_as_closed_and_archive(branch_path: Path, message_id: str) -> Tuple[bool
         # Save to deleted/ folder (new pattern)
         _save_to_deleted_folder(mailbox_path, message_to_archive)
 
-        # Update dashboard
-        _update_dashboard(branch_path, new_count, opened_count, inbox_data["total_messages"])
+        if not skip_post_ops:
+            # Update dashboard
+            _update_dashboard(branch_path, new_count, opened_count, inbox_data["total_messages"])
 
-        # Trigger auto-purge of deleted folder
-        _trigger_deleted_purge(branch_path)
+            # Trigger auto-purge of deleted folder
+            _trigger_deleted_purge(branch_path)
 
         return True, f"Message {message_id} closed and archived"
 

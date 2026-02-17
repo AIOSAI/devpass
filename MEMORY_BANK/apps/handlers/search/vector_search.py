@@ -1,4 +1,4 @@
-#!/home/aipass/.venv/bin/python3
+#!/home/aipass/MEMORY_BANK/.venv/bin/python3
 
 # ===================AIPASS====================
 # META DATA HEADER
@@ -8,6 +8,8 @@
 # Category: memory_bank/handlers/search
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): Use shared singleton client, embedding_function=None
+#     on all collection access
 #   - v0.1.0 (2025-11-27): Initial version - ChromaDB semantic search
 #
 # CODE STANDARDS:
@@ -41,9 +43,10 @@ from pathlib import Path
 # Infrastructure setup
 AIPASS_ROOT = Path.home() / "aipass_core"
 sys.path.insert(0, str(AIPASS_ROOT))
+sys.path.insert(0, str(Path.home()))
 
-# No service imports - handlers are pure workers (3-tier architecture)
-# No module imports (handler independence)
+# Shared ChromaDB client (singleton - prevents write contention)
+from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_client
 
 
 # =============================================================================
@@ -142,23 +145,11 @@ class SearchService:
         Args:
             db_path: Path to ChromaDB database (default: MEMORY_BANK/.chroma)
         """
-        # Late imports
-        import chromadb
-        from chromadb.config import Settings
-
         if db_path is None:
             db_path = Path.home() / "MEMORY_BANK" / ".chroma"
 
-        # Initialize PersistentClient
-        self.client = chromadb.PersistentClient(
-            path=str(db_path),
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=False,
-                is_persistent=True
-            )
-        )
-
+        # Use shared singleton client (prevents write contention)
+        self.client = get_client(db_path)
         self.db_path = db_path
 
 
@@ -182,7 +173,10 @@ class SearchService:
             Dict with query results
         """
         try:
-            collection = self.client.get_collection(collection_name)
+            collection = self.client.get_collection(
+                collection_name,
+                embedding_function=None
+            )
         except Exception as e:
             return {
                 "collection": collection_name,

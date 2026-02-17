@@ -4,10 +4,12 @@
 # META DATA HEADER
 # Name: chroma_client.py - Shared ChromaDB Client Handler
 # Date: 2026-02-04
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: memory_bank/handlers/symbolic
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): Canonical singleton client for all ChromaDB access,
+#     added get_client() alias, embedding_function=None, cosine distance metadata
 #   - v0.1.0 (2026-02-04): Initial version - shared singleton ChromaDB client
 #
 # CODE STANDARDS:
@@ -16,14 +18,19 @@
 # =============================================
 
 """
-Shared ChromaDB Client Handler
+Shared ChromaDB Client Handler - THE canonical singleton for all of Memory Bank
 
-Provides a singleton ChromaDB client to avoid "already exists with different settings"
-errors when multiple handlers need to access the same database.
+Provides a singleton ChromaDB PersistentClient per database path to prevent
+write contention from multiple competing PersistentClient instances against
+the same .chroma/ directory.
+
+ALL handlers that need ChromaDB access MUST import from here:
+    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_client
 
 Key Functions:
-    - get_chroma_client() - get shared ChromaDB PersistentClient
-    - get_collection() - get or create a collection
+    - get_client(db_path) - get singleton PersistentClient (preferred)
+    - get_chroma_client(db_path) - alias for get_client (backward compat)
+    - get_collection() - get or create a collection with correct settings
 """
 
 import sys
@@ -42,23 +49,25 @@ sys.path.insert(0, str(Path.home()))
 
 DEFAULT_DB_PATH = Path.home() / "MEMORY_BANK" / ".chroma"
 
-# Singleton client cache
-_chroma_clients: Dict[str, Any] = {}
+# Singleton client cache - keyed by resolved path string
+_clients: Dict[str, Any] = {}
 
 
 # =============================================================================
 # CLIENT MANAGEMENT
 # =============================================================================
 
-def get_chroma_client(db_path: Path | None = None):
+def get_client(db_path: Path | str | None = None):
     """
-    Get or create a shared ChromaDB client (singleton per path)
+    Get or create a shared ChromaDB PersistentClient (singleton per path)
 
-    Avoids "already exists with different settings" errors by reusing clients
-    or falling back to existing instances.
+    This is THE canonical way to get a ChromaDB client in Memory Bank.
+    All handlers must use this function instead of creating their own
+    PersistentClient instances to avoid write contention on .chroma/.
 
     Args:
         db_path: Optional path to ChromaDB (default: MEMORY_BANK/.chroma)
+                 Accepts Path or str.
 
     Returns:
         ChromaDB PersistentClient instance
@@ -68,17 +77,32 @@ def get_chroma_client(db_path: Path | None = None):
     if db_path is None:
         db_path = DEFAULT_DB_PATH
 
-    path_str = str(db_path)
+    if isinstance(db_path, str):
+        db_path = Path(db_path)
 
-    if path_str not in _chroma_clients:
+    # Resolve to absolute path for consistent cache keys
+    path_str = str(db_path.resolve())
+
+    if path_str not in _clients:
         db_path.mkdir(parents=True, exist_ok=True)
         # Use simple PersistentClient without Settings to avoid pydantic compatibility issues
-        _chroma_clients[path_str] = chromadb.PersistentClient(path=path_str)
+        _clients[path_str] = chromadb.PersistentClient(path=path_str)
 
-    return _chroma_clients[path_str]
+    return _clients[path_str]
 
 
-def get_collection(collection_name: str, db_path: Path | None = None, create: bool = True):
+# Backward-compatible alias
+def get_chroma_client(db_path: Path | str | None = None):
+    """Alias for get_client() - backward compatibility"""
+    return get_client(db_path)
+
+
+def get_collection(
+    collection_name: str,
+    db_path: Path | None = None,
+    create: bool = True,
+    metadata: Dict[str, Any] | None = None
+):
     """
     Get a collection from the shared ChromaDB client
 
@@ -86,20 +110,29 @@ def get_collection(collection_name: str, db_path: Path | None = None, create: bo
         collection_name: Name of the collection
         db_path: Optional path to ChromaDB
         create: If True, create collection if it doesn't exist
+        metadata: Optional collection metadata (default adds cosine distance)
 
     Returns:
         Dict with 'success', 'collection' or 'error'
     """
     try:
-        client = get_chroma_client(db_path)
+        client = get_client(db_path)
 
         if create:
+            # Default metadata includes cosine distance for similarity search
+            if metadata is None:
+                metadata = {"hnsw:space": "cosine"}
+
             collection = client.get_or_create_collection(
                 name=collection_name,
-                metadata={"type": "symbolic_fragment"}
+                metadata=metadata,
+                embedding_function=None
             )
         else:
-            collection = client.get_collection(collection_name)
+            collection = client.get_collection(
+                collection_name,
+                embedding_function=None
+            )
 
         return {
             'success': True,

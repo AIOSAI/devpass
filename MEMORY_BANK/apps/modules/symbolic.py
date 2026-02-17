@@ -4,10 +4,12 @@
 # META DATA HEADER
 # Name: symbolic.py - Symbolic Memory Orchestration Module
 # Date: 2026-02-04
-# Version: 0.1.0
+# Version: 0.3.0
 # Category: memory_bank/modules
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.3.0 (2026-02-15): v2 schema display in CLI, extract command, v2 demo/hook-test (FPLAN-0341 P4)
+#   - v0.2.0 (2026-02-15): Add LLM dedup pipeline extract_and_store_llm (FPLAN-0341 P3)
 #   - v0.1.0 (2026-02-04): Initial version - Fragmented Memory Phase 1
 #
 # CODE STANDARDS:
@@ -44,6 +46,7 @@ from MEMORY_BANK.apps.handlers.symbolic import extractor
 from MEMORY_BANK.apps.handlers.symbolic import storage
 from MEMORY_BANK.apps.handlers.symbolic import retriever
 from MEMORY_BANK.apps.handlers.symbolic import hook
+from MEMORY_BANK.apps.handlers.symbolic import deduplicator
 
 
 # =============================================================================
@@ -220,6 +223,194 @@ def flatten_dimensions(fragment: Dict[str, Any]) -> Dict[str, Any]:
         Dict with 'success', 'metadata' containing flattened metadata
     """
     return storage.flatten_dimensions(fragment)
+
+
+# =============================================================================
+# v2 LLM PIPELINE - Extract, Deduplicate, Store
+# =============================================================================
+
+def store_llm_fragment(
+    fragment: Dict[str, Any],
+    source_branch: str | None = None,
+    db_path: Path | None = None
+) -> Dict[str, Any]:
+    """
+    Store a single LLM-extracted fragment in ChromaDB
+
+    Args:
+        fragment: LLM-extracted fragment dict (summary/insight/type/triggers/etc.)
+        source_branch: Optional branch name for filtering
+        db_path: Optional ChromaDB path
+
+    Returns:
+        Dict with 'success', 'fragment_id', 'collection', 'total_fragments'
+    """
+    return storage.store_llm_fragment(fragment, source_branch, db_path)
+
+
+def store_llm_fragments_batch(
+    fragments: List[Dict[str, Any]],
+    source_branch: str | None = None,
+    db_path: Path | None = None
+) -> Dict[str, Any]:
+    """
+    Store multiple LLM-extracted fragments in ChromaDB in batch
+
+    Args:
+        fragments: List of LLM-extracted fragment dicts
+        source_branch: Optional branch name for filtering
+        db_path: Optional ChromaDB path
+
+    Returns:
+        Dict with 'success', 'stored' count, 'collection', 'total_fragments'
+    """
+    return storage.store_llm_fragments_batch(fragments, source_branch, db_path)
+
+
+def deduplicate_fragment(
+    new_fragment: Dict[str, Any],
+    existing_fragments: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Compare a new LLM-extracted fragment against existing ones via AUDN pattern
+
+    Args:
+        new_fragment: New LLM-extracted fragment dict
+        existing_fragments: List of similar existing fragments from ChromaDB
+
+    Returns:
+        Dict with 'success', 'action' (ADD|UPDATE|DELETE|NOOP),
+        'fragment', 'reason'
+    """
+    return deduplicator.deduplicate_fragment(new_fragment, existing_fragments)
+
+
+def extract_and_store_llm(
+    chat_history: List[Dict[str, Any]],
+    source_branch: str | None = None,
+    db_path: Path | None = None
+) -> Dict[str, Any]:
+    """
+    End-to-end pipeline: extract LLM fragments, deduplicate, and store
+
+    Steps:
+    1. Extract fragments from chat via LLM (extractor.extract_fragments_llm)
+    2. For each fragment, find similar existing fragments in ChromaDB
+    3. Deduplicate via LLM (deduplicator.deduplicate_fragment)
+    4. Store based on AUDN action (ADD/UPDATE stored, DELETE noted, NOOP skipped)
+
+    Args:
+        chat_history: List of message dicts with 'role' and 'content' keys
+        source_branch: Optional branch name for filtering
+        db_path: Optional ChromaDB path
+
+    Returns:
+        Dict with 'success', 'processed', 'added', 'updated', 'skipped', 'errors'
+    """
+    # Step 1: Extract fragments via LLM
+    logger.info("[symbolic] Starting LLM extract-and-store pipeline")
+    extract_result = extractor.extract_fragments_llm(chat_history)
+
+    if not extract_result.get('success'):
+        error_msg = extract_result.get('error', 'Unknown extraction error')
+        logger.error(f"[symbolic] LLM extraction failed: {error_msg}")
+        return {
+            'success': False,
+            'processed': 0,
+            'added': 0,
+            'updated': 0,
+            'skipped': 0,
+            'errors': [error_msg]
+        }
+
+    fragments = extract_result.get('fragments', [])
+    if not fragments:
+        logger.info("[symbolic] No fragments extracted from conversation")
+        return {
+            'success': True,
+            'processed': 0,
+            'added': 0,
+            'updated': 0,
+            'skipped': 0,
+            'errors': []
+        }
+
+    logger.info(f"[symbolic] Extracted {len(fragments)} fragments, starting dedup")
+
+    added = 0
+    updated = 0
+    skipped = 0
+    errors: List[str] = []
+
+    # Step 2-4: Deduplicate and store each fragment
+    for frag in fragments:
+        try:
+            # Find similar existing fragments via vector search
+            search_query = frag.get('summary', '')
+            similar_result = retriever.search_by_vector(
+                search_query, n_results=5, db_path=db_path
+            )
+
+            existing = []
+            if similar_result.get('success'):
+                existing = similar_result.get('results', [])
+
+            # Deduplicate
+            dedup_result = deduplicator.deduplicate_fragment(frag, existing)
+            action = dedup_result.get('action', 'ADD')
+            deduped_frag = dedup_result.get('fragment', frag)
+
+            if action == 'ADD':
+                store_result = storage.store_llm_fragment(
+                    deduped_frag, source_branch, db_path
+                )
+                if store_result.get('success'):
+                    added += 1
+                else:
+                    errors.append(
+                        f"ADD store failed: {store_result.get('error', 'Unknown')}"
+                    )
+
+            elif action == 'UPDATE':
+                store_result = storage.store_llm_fragment(
+                    deduped_frag, source_branch, db_path
+                )
+                if store_result.get('success'):
+                    updated += 1
+                else:
+                    errors.append(
+                        f"UPDATE store failed: {store_result.get('error', 'Unknown')}"
+                    )
+
+            elif action == 'DELETE':
+                # Note deletion but don't actually delete in this phase
+                skipped += 1
+                logger.info(
+                    f"[symbolic] DELETE noted for {dedup_result.get('delete_id', '?')}: "
+                    f"{dedup_result.get('reason', 'no reason')}"
+                )
+
+            else:  # NOOP
+                skipped += 1
+
+        except Exception as e:
+            errors.append(f"Fragment processing error: {e}")
+
+    total_processed = added + updated + skipped
+    logger.info(
+        f"[symbolic] Pipeline complete: {total_processed} processed, "
+        f"{added} added, {updated} updated, {skipped} skipped, "
+        f"{len(errors)} errors"
+    )
+
+    return {
+        'success': True,
+        'processed': total_processed,
+        'added': added,
+        'updated': updated,
+        'skipped': skipped,
+        'errors': errors
+    }
 
 
 # =============================================================================
@@ -436,7 +627,8 @@ def handle_command(command: str, args: List[str]) -> bool:
     Handle symbolic memory commands
 
     Commands supported:
-    - analyze <file>: Analyze a JSON conversation file
+    - analyze <file>: Analyze a JSON conversation file (v1 pipeline)
+    - extract <file>: Extract and store fragments via LLM (v2 pipeline)
     - fragments <query>: Search symbolic fragments
     - hook-test <text>: Test hook with sample conversation
     - demo: Run a demonstration analysis
@@ -465,6 +657,14 @@ def handle_command(command: str, args: List[str]) -> bool:
         analyze_file(args[0])
         return True
 
+    if command == 'extract':
+        if not args:
+            console.print("[red]Error:[/red] File path required")
+            console.print("Usage: symbolic extract <conversation.json>")
+            return True
+        extract_file(args[0], source_branch=args[1] if len(args) > 1 else None)
+        return True
+
     if command == 'fragments':
         search_fragments_cli(args)
         return True
@@ -485,9 +685,10 @@ def print_help() -> None:
     console.print("  python3 symbolic.py <command> [args]")
     console.print()
     console.print("[bold]COMMANDS:[/bold]")
-    console.print("  [cyan]demo[/cyan]               Run demonstration analysis")
-    console.print("  [cyan]analyze <file>[/cyan]     Analyze a conversation JSON file")
-    console.print("  [cyan]fragments <query>[/cyan]  Search symbolic fragments")
+    console.print("  [cyan]demo[/cyan]               Run demonstration analysis (v1 + v2 mock)")
+    console.print("  [cyan]analyze <file>[/cyan]     Analyze a conversation JSON file (v1 pipeline)")
+    console.print("  [cyan]extract <file>[/cyan]     Extract fragments via LLM and store (v2 pipeline)")
+    console.print("  [cyan]fragments <query>[/cyan]  Search symbolic fragments (v1 + v2)")
     console.print("  [cyan]hook-test <text>[/cyan]   Test hook with sample conversation text")
     console.print("  [cyan]help[/cyan]               Show this help message")
     console.print()
@@ -510,8 +711,14 @@ def print_help() -> None:
     console.print("  # Run demo analysis")
     console.print("  [dim]python3 symbolic.py demo[/dim]")
     console.print()
-    console.print("  # Analyze conversation file")
+    console.print("  # Analyze conversation file (v1 dimensions)")
     console.print("  [dim]python3 symbolic.py analyze chat_history.json[/dim]")
+    console.print()
+    console.print("  # Extract and store via LLM (v2 pipeline)")
+    console.print("  [dim]python3 symbolic.py extract chat_history.json[/dim]")
+    console.print()
+    console.print("  # Extract with source branch tag")
+    console.print("  [dim]python3 symbolic.py extract chat_history.json memory_bank[/dim]")
     console.print()
     console.print("  # Search fragments by query")
     console.print("  [dim]python3 symbolic.py fragments \"debugging frustration\"[/dim]")
@@ -576,6 +783,58 @@ def run_demo() -> None:
         console.print()
     else:
         console.print(f"[red]✗[/red] Analysis failed: {result.get('error', 'Unknown error')}")
+
+    # v2 LLM Extraction mock preview
+    console.print()
+    header("v2 LLM Extraction (mock - requires API)")
+    console.print()
+
+    mock_fragments = [
+        {
+            "summary": "User was stuck on a code error for a while, then solved it with assistant's step-by-step debugging guidance",
+            "insight": "Step-by-step debugging with explanation is more effective than just providing the fix",
+            "type": "episodic",
+            "triggers": ["error", "debug", "stuck", "breakthrough"],
+            "emotional_tone": "excited",
+            "technical_domain": "debugging"
+        },
+        {
+            "summary": "Collaborative pattern where assistant explains reasoning before giving solutions leads to better understanding",
+            "insight": "Teaching approach builds deeper knowledge than direct answers",
+            "type": "procedural",
+            "triggers": ["explain", "step by step", "understanding"],
+            "emotional_tone": "focused",
+            "technical_domain": "collaboration"
+        }
+    ]
+
+    for i, frag in enumerate(mock_fragments, 1):
+        console.print(f"  [bold cyan]Fragment {i}:[/bold cyan]")
+        console.print(f"    [yellow]Type:[/yellow]       {frag['type']}")
+        console.print(f"    [yellow]Summary:[/yellow]    {frag['summary']}")
+        console.print(f"    [yellow]Insight:[/yellow]    {frag['insight']}")
+        console.print(f"    [yellow]Tone:[/yellow]       {frag['emotional_tone']}")
+        console.print(f"    [yellow]Domain:[/yellow]     {frag['technical_domain']}")
+        console.print(f"    [yellow]Triggers:[/yellow]   {', '.join(frag['triggers'])}")
+
+        # Show how format_fragment_recall would render this
+        mock_stored = {
+            'content': frag['summary'],
+            'metadata': {
+                'schema_version': 'v2',
+                'summary': frag['summary'],
+                'insight': frag['insight'],
+                'type': frag['type'],
+                'emotional_tone': frag['emotional_tone'],
+                'technical_domain': frag['technical_domain'],
+            }
+        }
+        recall = format_fragment_recall(mock_stored)
+        console.print(f"    [green]Recall:[/green]     {recall}")
+        console.print()
+
+    console.print("[dim]Note: Run 'symbolic extract <file>' to use the real LLM pipeline[/dim]")
+    console.print()
 
 
 def search_fragments_cli(args: List[str]) -> None:
@@ -671,31 +930,58 @@ def search_fragments_cli(args: List[str]) -> None:
         metadata = frag.get('metadata', {})
         relevance = frag.get('relevance_score', frag.get('similarity', 0))
         sources = frag.get('_sources', ['unknown'])
+        tier = frag.get('relevance_tier', '')
 
         # Build metadata display
         meta_lines = []
         if metadata.get('timestamp'):
             meta_lines.append(f"Time: {metadata['timestamp']}")
-        if metadata.get('depth'):
-            meta_lines.append(f"Depth: {metadata['depth']}")
         if metadata.get('source_branch'):
             meta_lines.append(f"Branch: {metadata['source_branch']}")
 
-        # Show dimensions
-        dim_parts = []
-        for key in ['technical_0', 'emotional_0', 'collaboration_0', 'learnings_0']:
-            if key in metadata:
-                dim_parts.append(f"{key.replace('_0', '')}: {metadata[key]}")
-        if dim_parts:
-            meta_lines.append(f"Dims: {', '.join(dim_parts)}")
+        # Schema-aware metadata display
+        if metadata.get('schema_version') == 'v2':
+            # v2 fragment: show summary, insight, type, tone, domain
+            if metadata.get('type'):
+                meta_lines.append(f"Type: {metadata['type']}")
+            if metadata.get('emotional_tone'):
+                meta_lines.append(f"Tone: {metadata['emotional_tone']}")
+            if metadata.get('technical_domain'):
+                meta_lines.append(f"Domain: {metadata['technical_domain']}")
 
-        meta_text = " | ".join(meta_lines) if meta_lines else ""
+            meta_text = " | ".join(meta_lines) if meta_lines else ""
 
-        panel_title = f"Result {i} - Relevance: {relevance:.2%} (via {', '.join(sources)})"
+            # Build rich content for v2
+            panel_content = ""
+            if metadata.get('summary'):
+                panel_content += f"[bold]Summary:[/bold] {metadata['summary']}\n"
+            if metadata.get('insight'):
+                panel_content += f"[bold]Insight:[/bold] {metadata['insight']}\n"
+            if content and content != metadata.get('summary', ''):
+                panel_content += f"\n> {content}\n"
+            if meta_text:
+                panel_content += f"\n[dim]{meta_text}[/dim]"
+        else:
+            # v1 fragment: show dimensions
+            if metadata.get('depth'):
+                meta_lines.append(f"Depth: {metadata['depth']}")
 
-        panel_content = content
-        if meta_text:
-            panel_content += f"\n\n[dim]{meta_text}[/dim]"
+            dim_parts = []
+            for key in ['technical_0', 'emotional_0', 'collaboration_0', 'learnings_0']:
+                if key in metadata:
+                    dim_parts.append(f"{key.replace('_0', '')}: {metadata[key]}")
+            if dim_parts:
+                meta_lines.append(f"Dims: {', '.join(dim_parts)}")
+
+            meta_text = " | ".join(meta_lines) if meta_lines else ""
+
+            panel_content = content
+            if meta_text:
+                panel_content += f"\n\n[dim]{meta_text}[/dim]"
+
+        schema_tag = f"v2" if metadata.get('schema_version') == 'v2' else "v1"
+        tier_tag = f" [{tier}]" if tier else ""
+        panel_title = f"Result {i} ({schema_tag}) - Relevance: {relevance:.2%}{tier_tag} (via {', '.join(sources)})"
 
         console.print(Panel(
             panel_content,
@@ -813,6 +1099,23 @@ def run_hook_test(args: List[str]) -> None:
 
     console.print()
 
+    # v2 Format Preview - show how found fragments would look with v2 formatting
+    console.print("[bold]Step 5: v2 Format Preview[/bold]")
+    if frag_result.get('success') and frag_result.get('fragments'):
+        for i, frag in enumerate(frag_result['fragments'], 1):
+            frag_metadata = frag.get('metadata', {})
+            if frag_metadata.get('schema_version') == 'v2':
+                recall_preview = format_fragment_recall(frag)
+                console.print(f"  [green]Fragment {i} (v2):[/green] {recall_preview}")
+            else:
+                # Show what it would look like if it were v2
+                console.print(f"  [dim]Fragment {i} (v1 - no v2 metadata)[/dim]")
+                recall_preview = format_fragment_recall(frag)
+                console.print(f"    [dim]Current format:[/dim] {recall_preview[:100]}...")
+    else:
+        console.print("  [dim]No fragments found to preview[/dim]")
+    console.print()
+
     # Show session state
     console.print("[bold]Session State:[/bold]")
     state = get_hook_session_state()
@@ -869,6 +1172,69 @@ def analyze_file(file_path: str) -> None:
         console.print()
     else:
         console.print(f"[red]✗[/red] Analysis failed: {result.get('error', 'Unknown error')}")
+
+
+def extract_file(file_path: str, source_branch: str | None = None) -> None:
+    """
+    Extract and store v2 LLM fragments from a conversation JSON file
+
+    Reads a JSON conversation file and runs the full v2 pipeline:
+    extract via LLM, deduplicate via AUDN, and store in ChromaDB.
+
+    Args:
+        file_path: Path to JSON conversation file
+        source_branch: Optional branch name tag for stored fragments
+    """
+    from MEMORY_BANK.apps.handlers.json import json_handler
+
+    path = Path(file_path)
+    if not path.exists():
+        console.print(f"[red]Error:[/red] File not found: {file_path}")
+        return
+
+    read_result = json_handler.read_memory_file(path)
+    if not read_result.get('success'):
+        console.print(f"[red]Error:[/red] {read_result.get('error', 'Failed to read JSON')}")
+        return
+
+    chat_history = read_result.get('data')
+
+    if not isinstance(chat_history, list):
+        console.print("[red]Error:[/red] Expected JSON array of messages")
+        return
+
+    console.print()
+    header(f"v2 LLM Extract: {path.name}")
+    console.print()
+
+    console.print(f"[cyan]Messages:[/cyan] {len(chat_history)}")
+    if source_branch:
+        console.print(f"[cyan]Branch:[/cyan] {source_branch}")
+    console.print()
+
+    console.print("[dim]Running LLM extraction pipeline...[/dim]")
+    logger.info(f"[symbolic] extract_file: {path.name} ({len(chat_history)} messages)")
+
+    result = extract_and_store_llm(chat_history, source_branch=source_branch)
+
+    if result.get('success'):
+        console.print("[green]Pipeline complete[/green]")
+        console.print()
+        console.print(f"  [cyan]Processed:[/cyan]  {result.get('processed', 0)}")
+        console.print(f"  [green]Added:[/green]      {result.get('added', 0)}")
+        console.print(f"  [yellow]Updated:[/yellow]    {result.get('updated', 0)}")
+        console.print(f"  [dim]Skipped:[/dim]    {result.get('skipped', 0)}")
+
+        if result.get('errors'):
+            console.print()
+            console.print(f"  [red]Errors ({len(result['errors'])}):[/red]")
+            for err in result['errors']:
+                console.print(f"    - {err}")
+    else:
+        console.print(f"[red]Pipeline failed:[/red] {result.get('errors', ['Unknown error'])}")
+
+    console.print()
+    logger.info(f"[symbolic] extract_file complete: {result}")
 
 
 # =============================================================================

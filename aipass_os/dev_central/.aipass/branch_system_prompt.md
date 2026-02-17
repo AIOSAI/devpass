@@ -29,6 +29,15 @@ ai_mail send @branch "Subject" "Task description" --auto-execute
 ```
 NEVER use `cd /path && claude -p` - subprocess inherits parent PWD, not shell cd target.
 
+**Dev Planning (DPLANs):** Ideas, designs, future work that can sit until ready for execution.
+```
+drone @devpulse plan create "topic name"              # New DPLAN
+drone @devpulse plan create "topic" --dir trigger     # In subdirectory
+drone @devpulse plan list                             # All DPLANs with status
+drone @devpulse plan status                           # Counts by status
+```
+Files: `dev_planning/DPLAN-XXX_topic_YYYY-MM-DD.md`. When ready to build, send to Flow as FPLAN.
+
 **Workflow reference:** `dev_planning/workflow/claude_p_workflow.md`
 
 **You orchestrate, agents execute.**

@@ -8,6 +8,7 @@
 # Category: speakeasy/handlers
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.3.1 (2026-02-14): Added retry logic for xclip clipboard operations (3 attempts)
 #   - v1.3.0 (2026-02-12): Fixed xclip timeout: process cleanup, DISPLAY check, timeout 2s→5s
 #   - v1.2.0 (2026-02-11): Fixed xclip/xdotool PATH resolution for restricted environments
 #   - v1.1.0 (2026-02-11): Added inject_text_smart for module orchestration
@@ -68,60 +69,75 @@ def type_text(text: str, method: str = "pynput", key_delay: float = 0.005) -> No
         raise ValueError(f"Unsupported typing method: {method}")
 
 
-def paste_text(text: str) -> None:
+def paste_text(text: str, max_retries: int = 3) -> None:
     """
     Copy text to clipboard and paste using Ctrl+V.
 
     This is faster than character-by-character typing for large texts.
-    Uses xclip for clipboard management.
+    Uses xclip for clipboard management. Retries on timeout to handle
+    transient X11 clipboard contention.
 
     Args:
         text: Text to paste
+        max_retries: Number of attempts before giving up (default: 3)
 
     Raises:
-        RuntimeError: If clipboard operations fail
+        RuntimeError: If clipboard operations fail after all retries
     """
     if not text:
         return
 
+    # Fail fast if no X display is available (xclip will hang otherwise)
+    if not os.environ.get('DISPLAY'):
+        raise RuntimeError("No DISPLAY set - cannot access X clipboard")
+
     try:
-        # Fail fast if no X display is available (xclip will hang otherwise)
-        if not os.environ.get('DISPLAY'):
-            raise RuntimeError("No DISPLAY set - cannot access X clipboard")
-
-        # Copy to clipboard using xclip (resolve full path for restricted environments)
         xclip_bin = _find_binary('xclip')
-        process = subprocess.Popen(
-            [xclip_bin, '-selection', 'clipboard'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        _, stderr = process.communicate(input=text.encode('utf-8'), timeout=5)
-
-        if process.returncode != 0:
-            raise RuntimeError(f"xclip failed: {stderr.decode('utf-8')}")
-
-        # Small delay to ensure clipboard is ready
-        time.sleep(0.05)
-
-        # Paste using Ctrl+V
-        controller = keyboard.Controller()
-        with controller.pressed(keyboard.Key.ctrl):
-            controller.press('v')
-            controller.release('v')
-
-        # Small delay after paste
-        time.sleep(0.05)
-
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
-        raise RuntimeError("xclip operation timed out")
     except FileNotFoundError as e:
         raise RuntimeError(str(e))
-    except Exception as e:
-        raise RuntimeError(f"Paste operation failed: {str(e)}")
+
+    last_error = None
+
+    for attempt in range(max_retries):
+        process = None
+        try:
+            process = subprocess.Popen(
+                [xclip_bin, '-selection', 'clipboard'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            _, stderr = process.communicate(input=text.encode('utf-8'), timeout=5)
+
+            if process.returncode != 0:
+                raise RuntimeError(f"xclip failed: {stderr.decode('utf-8')}")
+
+            # Small delay to ensure clipboard is ready
+            time.sleep(0.05)
+
+            # Paste using Ctrl+V
+            controller = keyboard.Controller()
+            with controller.pressed(keyboard.Key.ctrl):
+                controller.press('v')
+                controller.release('v')
+
+            # Small delay after paste
+            time.sleep(0.05)
+            return  # Success
+
+        except subprocess.TimeoutExpired:
+            if process is not None:
+                process.kill()
+                process.wait()
+            last_error = "xclip operation timed out"
+            if attempt < max_retries - 1:
+                time.sleep(0.3 * (attempt + 1))
+        except FileNotFoundError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(f"Paste operation failed: {str(e)}")
+
+    raise RuntimeError(f"{last_error} (after {max_retries} attempts)")
 
 
 def _type_with_pynput(text: str, key_delay: float) -> None:

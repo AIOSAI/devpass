@@ -8,10 +8,11 @@
 # Category: ai_mail/modules
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-16): Group send support - multiple @recipients parsed correctly with --dispatch
+#   - v1.9.0 (2026-02-14): Batch close perf fix - defer dashboard/purge to single call after loop
 #   - v1.8.0 (2026-02-08): Fix dispatch_target identity mismatch - use registry lookup instead of folder name
 #   - v1.7.0 (2026-02-08): Add error auto-dispatch to @drone on send failures
 #   - v1.6.0 (2026-02-04): Fix from_branch path lookup - use registry instead of hardcoded AIPASS_ROOT
-#   - v1.5.0 (2026-02-02): Fix dispatched_to path normalization - always use email format
 #   - v1.4.0 (2026-01-31): Add dispatched_to tracking for reply chain validation
 #
 # CODE STANDARDS:
@@ -289,31 +290,60 @@ def handle_send(args: List[str]) -> bool:
             console.print("❌ --reply-to requires a branch address (e.g., --reply-to @dev_central)")
             return False
 
-    # Direct send mode: send @recipient "subject" "message"
-    if len(args) >= 3:
-        to_branch = args[0]
-        subject = args[1]
-        message = args[2]
+    # Separate recipients (@-prefixed) from subject/message
+    recipients = []
+    rest = []
+    for a in args:
+        if a.startswith('@') and not rest:
+            recipients.append(a)
+        elif a.startswith('/') and not rest:
+            # Path-based recipient (e.g., /home/aipass/...)
+            recipients.append(a)
+        else:
+            rest.append(a)
 
-        # Track dispatch target for reply chain validation
-        # Normalize to email format - if path given, look up real email from registry
-        dispatch_target = None
-        if auto_execute:
-            if to_branch.startswith('/') or to_branch.startswith('~'):
-                # Path given - look up actual branch email from registry
+    # Direct send mode: send @recipient(s) "subject" "message"
+    if recipients and len(rest) >= 2:
+        subject = rest[0]
+        message = rest[1]
+
+        def _resolve_dispatch_target(branch: str) -> str | None:
+            """Resolve dispatch target for a single recipient"""
+            if not auto_execute:
+                return None
+            if branch.startswith('/') or branch.startswith('~'):
                 from ai_mail.apps.handlers.users.branch_detection import get_branch_info_from_registry
-                branch_info = get_branch_info_from_registry(Path(to_branch))
+                branch_info = get_branch_info_from_registry(Path(branch))
                 if branch_info:
-                    dispatch_target = branch_info.get("email", f"@{Path(to_branch).name.lower()}")
-                else:
-                    dispatch_target = f"@{Path(to_branch).name.lower()}"
-            else:
-                dispatch_target = to_branch
-        return send_email_direct(to_branch, subject, message, auto_execute=auto_execute, reply_to=reply_to, dispatched_to=dispatch_target)
+                    return branch_info.get("email", f"@{Path(branch).name.lower()}")
+                return f"@{Path(branch).name.lower()}"
+            return branch
+
+        # Single recipient - original behavior
+        if len(recipients) == 1:
+            dispatch_target = _resolve_dispatch_target(recipients[0])
+            return send_email_direct(recipients[0], subject, message, auto_execute=auto_execute, reply_to=reply_to, dispatched_to=dispatch_target)
+
+        # Multiple recipients - send to each
+        console.print(f"\n📨 Group send to {len(recipients)} recipients...")
+        success_count = 0
+        for recipient in recipients:
+            dispatch_target = _resolve_dispatch_target(recipient)
+            success = send_email_direct(recipient, subject, message, auto_execute=auto_execute, reply_to=reply_to, dispatched_to=dispatch_target)
+            if success:
+                success_count += 1
+        console.print(f"\n📊 Group send complete: {success_count}/{len(recipients)} delivered")
+        return success_count > 0
 
     # Interactive send mode
-    else:
+    elif not recipients and not rest:
         return send_email_interactive()
+
+    # Bad args - not enough info
+    else:
+        console.print("❌ Usage: send @recipient [subject] [message]")
+        console.print("   Multiple: send @branch1 @branch2 \"Subject\" \"Message\"")
+        return False
 
 
 def send_email_interactive() -> bool:
@@ -733,10 +763,12 @@ def handle_close(args: List[str]) -> bool:
             return success
 
         # Handle one or more message IDs
+        # When closing multiple, defer dashboard/purge to single call after loop
+        batch_mode = len(args) > 1
         closed_count = 0
         failed_count = 0
         for message_id in args:
-            success, message = mark_as_closed_and_archive(branch_path, message_id)
+            success, message = mark_as_closed_and_archive(branch_path, message_id, skip_post_ops=batch_mode)
             if success:
                 console.print(f"✅ {message}")
                 log_operation("email_closed", {"message_id": message_id})
@@ -745,7 +777,27 @@ def handle_close(args: List[str]) -> bool:
                 console.print(f"❌ {message}")
                 failed_count += 1
 
-        if len(args) > 1:
+        # Run dashboard update + purge once after batch close
+        if batch_mode and closed_count > 0:
+            try:
+                inbox_data = load_inbox(branch_path / "ai_mail.local" / "inbox.json")
+                messages = inbox_data.get("messages", [])
+                new_count = sum(
+                    1 for m in messages
+                    if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
+                )
+                opened_count = sum(1 for m in messages if m.get("status") == "opened")
+                _update_dashboard_section(branch_path, 'ai_mail', {'new': new_count, 'opened': opened_count, 'total': len(messages)})
+                update_central()
+            except Exception:
+                pass
+            try:
+                from ai_mail.apps.handlers.email.purge import purge_deleted_folder
+                purge_deleted_folder(branch_path / "ai_mail.local")
+            except Exception:
+                pass
+
+        if batch_mode:
             console.print(f"\n📊 Closed {closed_count}, failed {failed_count}")
 
         return failed_count == 0

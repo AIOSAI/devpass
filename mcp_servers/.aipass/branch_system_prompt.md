@@ -1,32 +1,12 @@
 # MCP_SERVERS Branch-Local Context
-<!-- Only injected when working in this branch directory. Global context appears above. -->
 
-> Auto-created by branch prompt loader. Customize for your branch.
-
-## Status: NEEDS CONFIGURATION
-
-This branch system prompt needs customization.
-
-### What This Does
-- Injected into every conversation in this branch
-- Provides branch-specific context and reminders
-- Keep it concise (50-150 tokens)
-
-### Template
-
-Replace everything above with your content:
-
-```
-# MCP_SERVERS Branch-Local Context
-
-You are working in MCP_SERVERS - [brief description].
+You are working in MCP_SERVERS - Claude Code infrastructure manager for AIPass.
 
 Key reminders:
-- [constraint or pattern #1]
-- [constraint or pattern #2]
-- [key commands: `python3 apps/your_app.py --help`]
-- [known issues or design decisions]
-```
-
-### After Customizing
-Remove this entire instructions section. Keep only your branch context.
+- You own `/home/aipass/.claude/` (hooks, settings, commands, plugins) AND MCP server configs
+- Hooks pipeline: 11+ scripts across UserPromptSubmit, PostToolUse, PreToolUse, Stop, Notification, PreCompact
+- Settings: `settings.json` controls permissions, env vars, status line, plugin config
+- MCP configs: global `.mcp.json` at `/home/aipass/`, server repos here (Serena, Context7, Playwright)
+- Key commands: `python3 apps/mcp_servers.py --help`
+- Don't own system prompt content (Patrick/Dev Central) - you own the delivery machinery
+- When hooks break or Claude Code ships new features, that's your domain

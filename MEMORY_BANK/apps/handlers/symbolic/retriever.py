@@ -4,10 +4,13 @@
 # META DATA HEADER
 # Name: retriever.py - Symbolic Fragment Retrieval Handler
 # Date: 2026-02-04
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: memory_bank/handlers/symbolic
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-15): Add relevance_tier labels to query/get results (FPLAN-0341 P4)
+#   - v0.1.1 (2026-02-15): Fix: embedding_function=None on all get_collection(),
+#     cosine similarity formula, use shared chroma_client singleton
 #   - v0.1.0 (2026-02-04): Initial version - Fragmented Memory Phase 3
 #
 # CODE STANDARDS:
@@ -108,7 +111,10 @@ def search_by_vector(
 
         # Get collection
         try:
-            collection = client.get_collection(COLLECTION_NAME)
+            collection = client.get_collection(
+                COLLECTION_NAME,
+                embedding_function=None
+            )
         except Exception:
             return {
                 'success': True,
@@ -173,7 +179,10 @@ def search_by_dimensions(
 
         # Get collection
         try:
-            collection = client.get_collection(COLLECTION_NAME)
+            collection = client.get_collection(
+                COLLECTION_NAME,
+                embedding_function=None
+            )
         except Exception:
             return {
                 'success': True,
@@ -252,7 +261,10 @@ def search_by_triggers(
 
         # Get collection
         try:
-            collection = client.get_collection(COLLECTION_NAME)
+            collection = client.get_collection(
+                COLLECTION_NAME,
+                embedding_function=None
+            )
         except Exception:
             return {
                 'success': True,
@@ -418,6 +430,7 @@ def _format_query_results(results: Dict) -> List[Dict[str, Any]]:
     Format ChromaDB query() results into standard fragment format
 
     query() returns: {'ids': [[...]], 'documents': [[...]], 'metadatas': [[...]], 'distances': [[...]]}
+    Adds relevance_tier based on similarity score thresholds.
     """
     formatted = []
 
@@ -432,11 +445,14 @@ def _format_query_results(results: Dict) -> List[Dict[str, Any]]:
             'distance': results['distances'][0][i] if results.get('distances') else None
         }
 
-        # Calculate similarity score (L2 distance: 0=identical, ~2=very different)
+        # Calculate similarity score (cosine distance: 0=identical, 2=opposite)
         if frag['distance'] is not None:
-            frag['similarity'] = max(0, 1 - (frag['distance'] / 2))
+            frag['similarity'] = max(0, 1 - frag['distance'])
         else:
             frag['similarity'] = 0
+
+        # Assign relevance tier
+        frag['relevance_tier'] = _compute_relevance_tier(frag['similarity'])
 
         formatted.append(frag)
 
@@ -448,6 +464,7 @@ def _format_get_results(results: Dict) -> List[Dict[str, Any]]:
     Format ChromaDB get() results into standard fragment format
 
     get() returns: {'ids': [...], 'documents': [...], 'metadatas': [...]}
+    Adds relevance_tier based on default similarity score.
     """
     formatted = []
 
@@ -455,16 +472,43 @@ def _format_get_results(results: Dict) -> List[Dict[str, Any]]:
         return formatted
 
     for i, doc in enumerate(results['documents']):
+        similarity = 0.5  # Default score for filter-only results
         frag = {
             'id': results['ids'][i] if results.get('ids') else None,
             'content': doc,
             'metadata': results['metadatas'][i] if results.get('metadatas') else {},
             'distance': None,
-            'similarity': 0.5  # Default score for filter-only results
+            'similarity': similarity,
+            'relevance_tier': _compute_relevance_tier(similarity)
         }
         formatted.append(frag)
 
     return formatted
+
+
+def _compute_relevance_tier(similarity: float) -> str:
+    """
+    Compute a human-readable relevance tier from a similarity score
+
+    Tiers:
+        - strong: similarity >= 0.65
+        - moderate: similarity >= 0.45
+        - serendipity: similarity >= 0.30
+        - weak: below 0.30
+
+    Args:
+        similarity: Float similarity score between 0 and 1
+
+    Returns:
+        Relevance tier string
+    """
+    if similarity >= 0.65:
+        return 'strong'
+    if similarity >= 0.45:
+        return 'moderate'
+    if similarity >= 0.30:
+        return 'serendipity'
+    return 'weak'
 
 
 def _merge_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -495,7 +539,7 @@ def _merge_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return list(merged.values())
 
 
-def _rank_results(results: List[Dict[str, Any]], methods_used: List[str]) -> List[Dict[str, Any]]:
+def _rank_results(results: List[Dict[str, Any]], _methods_used: List[str]) -> List[Dict[str, Any]]:
     """
     Rank merged results by combined relevance
 

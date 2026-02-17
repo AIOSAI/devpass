@@ -90,6 +90,10 @@ def main():
     if not branch_root:
         return
 
+    # VERA has her own full identity injector - skip here
+    if branch_root == AIPASS_ROOT / "aipass_business" / "hq" / "vera":
+        return
+
     id_file = find_id_file(branch_root)
     if not id_file or not id_file.exists():
         return

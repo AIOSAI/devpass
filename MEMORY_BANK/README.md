@@ -24,7 +24,8 @@ apps/
 ├── modules/
 │   ├── rollover.py         # Rollover orchestration
 │   ├── search.py           # Search orchestration
-│   └── symbolic.py         # Fragmented memory orchestration
+│   ├── symbolic.py         # Fragmented memory orchestration
+│   └── templates.py        # Living template management (push/diff/status)
 ├── handlers/
 │   ├── archive/            # Code archive indexing
 │   ├── intake/             # Memory pool + plans processing
@@ -36,9 +37,15 @@ apps/
 │   ├── search/             # Vector search subprocess
 │   ├── storage/            # ChromaDB persistence
 │   ├── symbolic/           # Fragmented memory (extractors, retrieval, hooks)
+│   ├── templates/          # Living template push + diff handlers
 │   ├── tracking/           # Line counting and metadata
 │   └── vector/             # Embedding operations
 ├── tests/                  # Unit tests (symbolic extractors, storage, retrieval)
+
+templates/                      # Living memory file templates (single source of truth)
+├── LOCAL.template.json         # .local.json template (schema v2.0.0)
+├── OBSERVATIONS.template.json  # .observations.json template (schema v2.0.0)
+└── .template_version.json      # Version tracking + push history
 
 memory_pool/                # Drop files here for auto-vectorization
 ├── .archive/               # Archived files (beyond keep_recent limit)
@@ -73,7 +80,8 @@ memory_bank_json/
 - **handlers/schema/** - JSON normalization utilities
 - **handlers/search/** - Vector similarity search via subprocess
 - **handlers/storage/** - ChromaDB persistence layer
-- **handlers/symbolic/** - Fragmented memory: 5 extractors, storage, retrieval, hook surfacing
+- **handlers/symbolic/** - Fragmented memory: LLM extraction (v2) + regex fallback (v1), AUDN deduplication, storage, retrieval, hook surfacing
+- **handlers/templates/** - Living template push (structural updates to all branches) and diff (audit changes)
 - **handlers/tracking/** - Line counting and metadata sync
 - **handlers/vector/** - Embedding operations (all-MiniLM-L6-v2)
 
@@ -94,7 +102,7 @@ memory_bank_json/
 | `dev_central_recently_completed` | DEV_CENTRAL pruned completions | 7 |
 | `cortex_local` | CORTEX branch memories | 6 |
 | `cortex_observations` | CORTEX observation memories | 6 |
-| `symbolic_fragments` | Fragmented memory | 3 |
+| `symbolic_fragments` | Fragmented memory (cosine) | 0 (fresh) |
 | **Total** | **15 collections** | **~4,180** |
 
 ### Storage Architecture
@@ -137,6 +145,12 @@ drone @memory_bank --help
 
 # System status
 drone @memory_bank status
+
+# Template management
+drone @memory_bank push-templates            # Push template updates to all branches
+drone @memory_bank push-templates --dry-run  # Preview changes without writing
+drone @memory_bank diff-templates            # Show template differences per branch
+drone @memory_bank template-status           # Show template version and push status
 ```
 
 ### Direct (use Memory Bank's .venv Python)
@@ -180,29 +194,29 @@ Edit `memory_bank_json/memory_bank.config.json`:
 
 ## Fragmented Memory
 
-**Fragmented Memory** enables random relevant memories to surface during conversation without explicit queries - like human associative memory.
+**Fragmented Memory** enables relevant memories to surface during conversation without explicit queries - like human associative memory.
 
-### Symbolic Dimensions
-Conversations are analyzed across 5 symbolic dimensions:
-- **Technical Flow** - problem/debug/breakthrough patterns
-- **Emotional Journey** - frustration/excitement arcs
-- **Collaboration** - user_directed/balanced dynamics
-- **Key Learnings** - discoveries, insights
-- **Context Triggers** - keywords that should surface this memory
+### Extraction Pipeline
+- **v2 (LLM)** - OpenRouter-based extraction via Llama 3.3 70B. Produces structured fragments with summary, insight, type, triggers, emotional tone, and technical domain.
+- **v1 (Regex)** - Fallback extraction across 5 symbolic dimensions (technical flow, emotional journey, collaboration, key learnings, context triggers).
+- **AUDN Deduplication** - LLM compares new fragments against existing similar ones: Add (new), Update (merge), Delete (obsolete), Noop (duplicate).
 
 ### Usage
 ```bash
-# Demo analysis
+# Demo analysis (v1 + v2 mock)
 python3 apps/modules/symbolic.py demo
 
-# Analyze conversation file
-python3 apps/modules/symbolic.py analyze chat.json
+# Extract fragments from conversation file (v2 LLM pipeline)
+python3 apps/modules/symbolic.py extract chat.json
 
-# Search fragments
+# Search fragments (schema-aware display)
 python3 apps/modules/symbolic.py fragments "debugging"
 
 # Test hook surfacing
 python3 apps/modules/symbolic.py hook-test "I'm stuck on this error"
+
+# Analyze conversation (v1 regex)
+python3 apps/modules/symbolic.py analyze chat.json
 ```
 
 ### Configuration
@@ -210,12 +224,29 @@ Edit `apps/json_templates/custom/fragmented_memory_config.json`:
 ```json
 {
   "enabled": true,
-  "threshold": 0.3,
-  "max_fragments_per_session": 3,
-  "min_messages_between": 10,
-  "cooldown_seconds": 300
+  "threshold": 0.15,
+  "max_fragments_per_session": 10,
+  "min_messages_between": 3,
+  "cooldown_seconds": 60
 }
 ```
+
+## Living Templates
+
+Memory Bank owns the canonical templates for `.local.json` and `.observations.json` files (schema v2.0.0). When templates evolve, changes push to ALL branches system-wide.
+
+**What gets pushed (structural only):**
+- `document_metadata` (version, schema, tags, limits, status fields)
+- `notes`, `guidelines` (observations files)
+- Deprecated section removal (`allowed_emojis`, `max_word_count`, etc.)
+- Missing section additions (`rollover_history`, `key_learnings`)
+
+**What is NEVER touched (content):**
+- `sessions` array, `observations` array, `key_learnings` entries
+- `active_tasks` entries, `narrative` (if customized)
+- Per-branch `max_lines` overrides preserved
+
+**Auto-propagation:** `trigger.fire('memory_template_updated')` triggers system-wide push via Trigger event bus.
 
 ## Technical Details
 - **Embedding**: all-MiniLM-L6-v2 (384 dimensions)
@@ -225,6 +256,6 @@ Edit `apps/json_templates/custom/fragmented_memory_config.json`:
 
 ---
 
-**Branch**: MEMORY_BANK | **Created**: 2025-11-08 | **Last Updated**: 2026-02-14
+**Branch**: MEMORY_BANK | **Created**: 2025-11-08 | **Last Updated**: 2026-02-15
 
 *The memory never forgets - it just transforms.*

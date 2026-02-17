@@ -69,7 +69,8 @@ dev_central/
 ├── dev.local.md              # Shared dev notes (issues, ideas)
 │
 ├── Sub-branches
-│   ├── assistant/            # Workflow coordinator (dispatch, monitoring, aggregation)
+│   ├── assistant/            # Workflow coordinator + Telegram chat (@aipass_assistant_bot)
+│   ├── test/                 # Testing + Telegram chat (@aipass_test_bot)
 │   ├── devpulse/             # Human notes, dashboard updates, dev tracking
 │   ├── git_repo/             # Git operations and repo management
 │   └── permissions/          # ACL/permission management (skeleton)
@@ -101,10 +102,17 @@ Memory files auto-roll to Memory Bank (ChromaDB vectors) when they exceed limits
 All sub-branches follow 3-layer architecture (`apps/ → modules/ → handlers/`):
 
 ### ASSISTANT
-Workflow coordinator - dispatches tasks, monitors responses, handles correction loops.
+Workflow coordinator + Telegram chat bridge.
 - Entry: `apps/assistant.py`
-- Commands: `drone @assistant update` (status digest)
-- Pattern: Tasks sent with `--reply-to @assistant` route back for validation
+- Commands: `drone @assistant update` (status digest), `drone @assistant schedule create|list|delete|run-due`
+- Scheduling: Cron-based at `:15/:45` (wake-up reports), `*/30` (heartbeat)
+- Telegram: 2-way chat via `assistant_chat.py` (polling + tmux + Stop hook). Supports text, photos, documents.
+- Bot: `@aipass_assistant_bot` (Patrick's direct line)
+
+### TEST
+System testing and debugging via Telegram.
+- Telegram: 2-way chat via `test_chat.py` (same pattern as assistant)
+- Bot: `@aipass_test_bot`
 
 ### DEVPULSE
 Human and AI shared dev notes, dashboard updates, dev tracking.
@@ -161,4 +169,4 @@ When something needs building, dispatch it to the branch that owns that domain.
 
 ---
 
-*Last Updated: 2026-02-14*
+*Last Updated: 2026-02-15*

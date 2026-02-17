@@ -128,6 +128,10 @@ def print_help():
     table.add_row("check", "Check which files need rollover (dry run)")
     table.add_row("watch", "Start memory watcher (auto-rollover on changes)")
     table.add_row("sync-lines", "Update line count metadata for all branches")
+    table.add_row("push-templates", "Push template updates to all branches")
+    table.add_row("push-templates --dry-run", "Preview template changes without writing")
+    table.add_row("diff-templates", "Show template differences per branch")
+    table.add_row("template-status", "Show template version and push status")
     table.add_row("symbolic demo", "Run fragmented memory demonstration")
     table.add_row("symbolic fragments <q>", "Search symbolic fragments")
 
@@ -174,7 +178,7 @@ def print_help():
     console.print("─" * 70)
     console.print()
 
-    console.print("Commands: search, rollover, status, check, watch, sync-lines, symbolic")
+    console.print("Commands: search, rollover, status, check, watch, sync-lines, push-templates, diff-templates, template-status, symbolic")
     console.print()
 
 

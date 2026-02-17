@@ -283,7 +283,7 @@ def main():
     if route_command(command, remaining_args, modules):
         return 0
     else:
-        logger.error(f"Unknown command: {command}")
+        logger.warning(f"Unknown command: {command}")
         console.print()
         console.print(f"[red]ERROR: Unknown command: {command}[/red]")
         console.print()

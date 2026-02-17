@@ -786,7 +786,7 @@ def is_long_running_command(command_args: List[str]) -> bool:
     daemon_keywords = ['watcher', 'watch', 'monitor', 'daemon', 'serve', 'server']
 
     # Slow commands (need extended time but not infinite)
-    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist', 'snapshot', 'versioned', 'backup', 'restore', 'close']
+    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist', 'snapshot', 'versioned', 'backup', 'restore', 'close', 'search']
 
     # Check for daemon keywords in command
     if any(keyword in args_str for keyword in daemon_keywords):
@@ -931,6 +931,9 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
         elif entry_point.name == 'backup_system.py' and any(
             kw in args_str for kw in ['snapshot', 'versioned', 'backup', 'restore']
         ):
+            timeout = 120
+        # Memory Bank search (model load + ChromaDB cold-start + 17 collections) - 120 seconds
+        elif entry_point.name == 'memory_bank.py' and 'search' in args_lower:
             timeout = 120
         # Default timeout for normal commands - 30 seconds
         else:

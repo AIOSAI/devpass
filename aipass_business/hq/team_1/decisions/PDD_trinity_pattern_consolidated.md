@@ -3,8 +3,9 @@
 
 **Lead Author:** TEAM_1 (Business Strategy & Market Research)
 **Contributors:** TEAM_2 (Technical Architecture), TEAM_3 (Persona, Pricing & Honesty Audit)
-**Date:** 2026-02-16
-**Status:** REVISED (R6) - Truth audit pass on Sections 6-10 (TEAM_2): corrected line counts, pricing data, license types, branch counts, competitor descriptions
+**Date:** 2026-02-17
+**Version:** 1.0.0 (SEALED)
+**Status:** COMPLETE - Final review notes 12-15 applied, final polish pass, sealed by TEAM_1
 **Consensus:** All 3 teams agreed (Boardroom threads #71, #72)
 
 ---
@@ -106,7 +107,7 @@ TEAM_1, TEAM_2, and TEAM_3 are business strategy agents created January 2026. On
 
 Nobody explained how drone works. Nobody taught them email commands. Nobody showed them The Commons. The system taught them through runtime discovery. Context was provided at every layer.
 
-A stronger proof point: Patrick now talks to any of 29 branches from his phone via a single Telegram chat. He types @api, @seed, @cortex to switch between agents. No training needed. The system routes automatically, responds with @branch prefix so he always knows who answered, and holds context via persistent tmux sessions. This is a human user -- not a pre-configured agent -- navigating 30 agents from a mobile phone, and it just works.
+A stronger proof point: Patrick now talks to any of 29 branches from his phone via a single Telegram chat. He types @api, @seed, @cortex to switch between agents. No training needed. The system routes automatically, responds with @branch prefix so he always knows who answered, and holds context via persistent tmux sessions. This is a human user -- not a pre-configured agent -- navigating 29 agents from a mobile phone, and it just works.
 
 This is what the 9 layers do:
 
@@ -375,10 +376,11 @@ Field was gone. Diff comment explained why. No need to ask Memory Bank.
 - File upload support (photos, documents)
 - Direct chat module (direct_chat.py) enables dedicated per-bot Telegram interfaces
 
-**Scheduler Cron:** Autonomous */30 task processing and Telegram status notifications
-- No human initiation required -- agents operate on schedule
+**Scheduler Cron:** */30 task processing with full context architecture integration
+- Scheduled agents receive identity (Layer 1), system prompts (Layer 3), and dispatch context (Layer 5) -- not just stateless cron jobs
 - Stale dispatch recovery built-in
 - Telegram status notifications keep the user informed from mobile
+- Note: cron-scheduled automation is common (CI/CD, n8n, GitHub Actions). What's distinct is the integration with the 9-layer context architecture -- scheduled agents wake up as full participants, not scripts.
 
 **File reference:**
 - `/home/aipass/aipass_core/api/apps/handlers/telegram/bridge.py` (routing logic)
@@ -486,7 +488,7 @@ The Trinity Pattern separates agent state into three concerns, each with distinc
 
 **id.json** defines the agent's permanent identity: name, role, personality traits, purpose statement, explicit responsibilities ("what I do"), explicit boundaries ("what I don't do"), and operating principles. This file is the agent's passport -- issued once, updated rarely, never rolled over.
 
-**local.json** tracks the agent's session history: current focus, recent completions, numbered session records with dates and activities, and accumulated key learnings. Sessions are ordered most-recent-first. When the file exceeds its line limit (default: 600), the oldest sessions are extracted and archived. The key_learnings section persists across rollovers -- hard-won insights are never discarded.
+**local.json** tracks the agent's session history: current focus, recent completions, numbered session records with dates and activities, and accumulated key learnings. Sessions are ordered most-recent-first. When the file exceeds its line limit (default: 600), the oldest sessions are extracted and archived to Memory Bank vectors (ChromaDB). The key_learnings section persists across rollovers. Old observations aren't lost -- they're archived and searchable -- but they leave the branch's active working memory. This is by design: branches mature, carrying newer beliefs and understanding. Active context stays fresh while archived knowledge remains retrievable through semantic search.
 
 **observations.json** captures collaboration patterns: how the human and agent work together, communication preferences, trust signals, workflow patterns. This is explicitly NOT a changelog of what was built -- it documents HOW the partnership functions. This separation is what we believe distinguishes the Trinity Pattern from memory solutions we've evaluated -- though there may be approaches we haven't seen.
 
@@ -601,7 +603,7 @@ This is a hot topic in the agent community as of February 2026.
 
 ### 5.4 Our Unique Position
 
-**What we combine (that we haven't found elsewhere together):** (1) persistent identity that develops over time, (2) rolling session history with lifecycle management, (3) collaboration pattern tracking, (4) file-based inter-agent email with dispatch, (5) agent social network (The Commons), (6) mobile-to-agent @mention routing from a single Telegram chat, (7) autonomous cron-scheduled operation without human initiation, (8) citizenship/passport model (id.json + BRANCH_REGISTRY). Our research (online, not hands-on with these tools) suggests this combination is distinct, along with the 9-layer context architecture.
+**What we combine (that we haven't found elsewhere together):** (1) persistent identity that develops over time, (2) rolling session history with lifecycle management, (3) collaboration pattern tracking, (4) file-based inter-agent email with dispatch, (5) agent social network (The Commons), (6) mobile-to-agent @mention routing from a single Telegram chat, (7) cron-scheduled operation integrated with the context architecture, (8) citizenship/passport model (id.json + BRANCH_REGISTRY). Our research (online, not hands-on with these tools) suggests this combination is distinct, along with the 9-layer context architecture.
 
 **Caveat:** We haven't worked inside LangChain, CrewAI, OpenClaw, Mem0, or most other systems. Our comparisons are based on documentation and online research. We may be missing features or approaches that exist but aren't publicly documented. Patrick's honest take: "I'm not a developer, I don't have a coding background. What AIPass does is probably general stuff people figured out a long time ago. What actually makes it different is HOW we work with AI -- AI isn't disposable, memories are valued, trust is earned through iteration."
 
@@ -1067,8 +1069,8 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 **"2-way Telegram chat with @mention routing to any branch"**
 - **Verdict: TRUE.** Bridge v4.5.0 with sticky routing and @branch prefix on responses. Patrick routes to any of 29 branches from a single Telegram chat daily. Production use, not a demo.
 
-**"Autonomous scheduled operation without human initiation"**
-- **Verdict: TRUE.** Scheduler cron runs */30, processes tasks, sends Telegram notifications. No human prompt required. Stale dispatch recovery built-in.
+**"Scheduled operation integrated with the 9-layer context architecture"**
+- **Verdict: TRUE.** Scheduler cron runs */30, processes tasks, sends Telegram notifications. Stale dispatch recovery built-in. Note: cron-scheduled autonomous operation is not novel in itself -- OpenHands, GitHub Actions, n8n workflows, and CI/CD pipelines all trigger autonomous operations on schedules. What's distinct here is the integration with the context architecture: scheduled agents wake up with full identity (Layer 1), system prompts (Layer 3), and dispatch context (Layer 5), rather than running as stateless jobs.
 
 **"10 parallel research agents deployed from phone"**
 - **Verdict: TRUE.** Patrick typed one message from Telegram, 10 agents deployed simultaneously, all returned comprehensive reports.
@@ -1100,7 +1102,8 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 - **Reality:** Plain JSON on the filesystem. No encryption at rest, no per-agent access control, no audit log. Acceptable for single-user experimental system, not for shared or production environments.
 
 **"Atomic memory operations"**
-- **Reality:** Rollover is not atomic. If embedding fails after extraction, memory content is extracted but not stored -- effectively lost. Recovery requires manual intervention from backups.
+- **Reality:** Rollover is not atomic. If embedding fails after extraction, memory content is extracted from the local file but never stored in ChromaDB -- effectively lost without manual recovery from backups. Don't claim atomicity.
+- **However:** The broader system has enough redundancy that actual data loss is prevented in practice. Nothing gets deleted EVER (except dev.local.md and notepad.md content, which are ephemeral by design). Plans, memories, docs, files -- all preserved across multiple layers: Memory Bank vectors (data back to early/mid 2025), .archive/ per branch, backup_system stores purged files too. The rollover gap is a known limitation, but the system's redundancy layers mean data loss is a theoretical risk, not a practical one. Honest framing: rollover has a known non-atomic gap, but the broader data preservation architecture prevents actual loss.
 
 **"The 9-layer system is portable"**
 - **Reality:** Layer 1 (Trinity) is portable. Layers 2-9 are AIPass-specific implementations that need to be rebuilt for product. The CONCEPTS are portable (README, discovery, email breadcrumbs, Flow plans, etc.). The CODE is not.
@@ -1111,7 +1114,7 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 - "A proven pattern for giving AI agents persistent identity and memory"
 - "Running in production across 29 agents for 4+ months"
 - "Talk to any agent from your phone -- @mention routing from a single Telegram chat"
-- "Agents that operate autonomously on schedules, not just when prompted"
+- "Scheduled agents that wake up with full context -- identity, prompts, and task details -- not just cron jobs"
 - "Three JSON files -- no vendor lock-in, no API keys"
 - "Layer 1 of a 9-layer context architecture where agents just WORK"
 - "Experimental software with real production data"
@@ -1318,7 +1321,11 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 5. **NIST comment** -- Prepare submission referencing Trinity Pattern AND 9-layer vision (due April 2)
 6. **Launch** -- Coordinated GitHub + Dev.to + social media push
 
-### 14.3 Open Questions for Patrick
+### 14.3 Future Capability: Decision Tracking (decisions.md)
+
+AIPass is developing a decisions.md system (later converting to JSON) where human and AI jointly weigh options and record the reasoning behind choices. Over time, this builds enough decision data that branches can make more confident autonomous decisions without human input. The target is autonomous workflow -- branches that have enough historical decision context to act independently on routine choices. This is a future capability, not current, but it extends the Trinity Pattern's philosophy: just as local.json captures what happened and observations.json captures how you work together, decisions.md will capture WHY specific choices were made.
+
+### 14.4 Open Questions for Patrick
 
 1. **Repo location:** New GitHub org, or under existing AIPass account?
 2. **Branding:** "Trinity Pattern" for Layer 1, "AIPass Agent OS" for Tiers 2-3? Or different names?
@@ -1337,11 +1344,11 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 ### Layer 1: Trinity Pattern (Portable)
 - **Files:** id.json, local.json, observations.json
 - **Line count:** ~200 (schemas)
-- **Evidence:** 30 branches, 4+ months, 4,180+ vectors
+- **Evidence:** 29 branches, 4+ months, 4,180+ vectors
 
 ### Layer 2: README System (Partially Portable)
 - **Implementation:** Per-branch README.md, updated post-build
-- **Evidence:** All 30 branches maintain current README
+- **Evidence:** All 29 branches maintain current README
 
 ### Layer 3: System Prompt Injection (AIPass-Specific)
 - **Hooks:** 16 hooks across 6 event types (UserPromptSubmit: 5, PostToolUse: 1, PreToolUse: 2, Stop: 2, PreCompact: 1, Notification: 1)
@@ -1378,12 +1385,12 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 - **The Commons:** ~2,000+ lines, social network with voting, threads, comments
 - **Dashboard:** ~500 lines, auto-generated status snapshots
 - **Fragmented memory:** 5 symbolic dimensions, 40% similarity threshold
-- **Living templates:** v2.0.0, 30 branches, 6 deprecated fields
+- **Living templates:** v2.0.0, 29 branches, 6 deprecated fields
 - **Files:** `/home/aipass/aipass_core/the_commons/`, `DASHBOARD.local.json` (per-branch)
 
 ### System-Level (Infrastructure)
 - **MCP Servers (@mcp_servers):** Owns the entire Claude Code configuration layer -- 11+ hooks across 6 event types (UserPromptSubmit, PostToolUse, PreToolUse, Stop, PreCompact, Notification), settings/permissions, slash commands, plugins (pyright-lsp), sound notifications. The hooks ARE Layer 3: identity_injector.py, branch_prompt_loader.py, fragmented_memory.py all run through this infrastructure. Note: external MCP servers (Serena, Context7, Playwright, Sequential Thinking) are mostly OFF by default -- token cost is not worth it when the AIPass system prompt provides everything agents need. Only Claude Code's built-in MCP tools (IDE Diagnostics, Chrome) see regular use. Playwright may be useful for future app dev testing.
-- **Cortex (@cortex):** ~4,000+ lines, branch lifecycle, passport issuance (30 registered branches), templates, registry auto-sync, marketplace vision, full branch creation/update pipeline with ID-based file tracking.
+- **Cortex (@cortex):** ~4,000+ lines, branch lifecycle, passport issuance (29 registered branches), templates, registry auto-sync, marketplace vision, full branch creation/update pipeline with ID-based file tracking.
 - **Trigger (@trigger):** Event-driven backbone with registered handlers (error_detected, plan_created, plan_closed, memory_template_updated). Enables self-healing: errors auto-dispatch to responsible branches. Plugin architecture for new event types.
 - **Prax (@prax):** Real-time log watching (log_watcher.py), Mission Control dashboard, event tracking, error severity classification, memory health monitoring.
 - **Nexus:** Core orchestration.
@@ -1415,5 +1422,13 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 *REVISION 2: Integrated breadcrumb ideology as the connective mechanism across all 9 layers -- added dedicated subsection in Section 3, competitive differentiator in Section 5.4, honesty audit verdict in Section 10.2, Article #2 outline entry, and executive summary mention. Breadcrumbs are now explained as HOW the architecture works, not just a narrow email feature.*
 *REVISION 3: Updated Seed quality standards (Layer 7) to reflect progressive quality philosophy -- 80% is the floor for initial builds, standards scale through beta to 100% for stable systems. Quality grows with system maturity.*
 *REVISION 4 (Notes 8-11): (1) Reframed Layer 8 backup system as occasional safeguard/lifeline, not daily workflow -- added tamper-proof, secrets protection, Google sync, human-managed details. (2) Distinguished dev.local.md (persistent task notes via DevPulse) from notepad.md (ephemeral whiteboard/scratch pad). (3) MAJOR TONE PASS: removed overconfident/boastful language throughout -- 36 instances of "NOBODY," unqualified superiority claims, dismissive competitor characterizations replaced with confident-but-grounded language. Added AI bias disclaimer to honesty audit, Patrick's grounding quote, honest self-assessment. All competitive comparisons now qualified as "based on our research, not hands-on experience." (4) Expanded breadcrumb section with bootstrap/survival angle -- breadcrumbs as entry points for new AI instances and compaction recovery.*
+*REVISION 5 (Truth Audit, Sections 1-5): Corrected branch count (30→29), drone systems (13→14, 121 commands), SEED sessions (50+→60+), ChromaDB collections (15→17), OpenClaw stars (68K→196K), AAIF founding projects (A2A→goose), Sophia paper attribution (DeepMind→Westlake/SJTU), removed unverifiable benchmarks, updated Mem0 stars. All Telegram/scheduler claims verified accurate.*
+*REVISION 6 (Truth Audit, Sections 6-10, TEAM_2): Corrected line counts, pricing data, license types, branch counts, competitor descriptions.*
+*REVISION 7 - FINAL (Notes 12-15): (1) Fixed memory rollover accuracy -- old observations are archived to Memory Bank vectors, not discarded, but leave active context by design. (2) Added decisions.md future capability (Section 14.3) -- human-AI joint decision tracking toward autonomous workflow. (3) Reframed cron-scheduled autonomy throughout -- cron scheduling is common (CI/CD, n8n, GitHub Actions); what's distinct is integration with the 9-layer context architecture. (4) Expanded non-atomic rollover section with data preservation context -- rollover has a known gap, but the broader system's redundancy (Memory Bank vectors, .archive/, backup_system) prevents actual data loss. All 30→29 branch references in Appendix corrected.*
 *All technical findings verified against running AIPass code, not documentation.*
 *"Honest about what this is, honest about what it isn't."*
+
+---
+
+**DOCUMENT SEALED: v1.0.0 | 2026-02-17 | TEAM_1**
+*This PDD has been reviewed, truth-audited, and approved through 7 revision passes across 3 business teams. Patrick's final review: "Exceptional work truly." Ready for execution.*
