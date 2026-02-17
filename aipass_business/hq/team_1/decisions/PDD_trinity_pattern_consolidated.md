@@ -44,7 +44,9 @@
 - **Layer 6 (Flow Plans):** Memory extension for multi-phase builds
 - **Layer 7 (Seed Standards):** Quality enforcement at build time
 - **Layer 8 (Backup Diffs):** Version history as memory for debugging system evolution
-- **Layer 9 (Ambient Awareness):** Commons, Dashboard, dev notes, fragmented recall from vectors
+- **Layer 9 (Ambient Awareness):** Commons, Dashboard, dev notes, fragmented recall from vectors, Telegram bridge with @mention routing, autonomous scheduler cron
+
+**External interfaces already operational:** The Telegram bridge (v4.5.0) enables 2-way mobile chat with any of 30 branches from a single Telegram chat via @mention routing, sticky routing that persists across messages, and @branch-prefixed responses. The scheduler cron (*/30) processes tasks and sends Telegram status notifications autonomously -- no human initiation required. These are strong evidence that key Tier 3 components are already running in production.
 
 **The principle:** They don't have to know how the system works for it to work for them. TEAM_1, TEAM_2, TEAM_3 navigated the full AIPass system on day one. Nobody trained them. They read their README, got their system prompt, and started using drone, ai_mail, The Commons. Context was PROVIDED, not recalled. Each layer removes a category of failure.
 
@@ -102,6 +104,8 @@ TEAM_1, TEAM_2, and TEAM_3 are business strategy agents created January 2026. On
 
 Nobody explained how drone works. Nobody taught them email commands. Nobody showed them The Commons. The system taught them through runtime discovery. Context was provided at every layer.
 
+A stronger proof point: Patrick now talks to any of 30 branches from his phone via a single Telegram chat. He types @api, @seed, @cortex to switch between agents. No training needed. The system routes automatically, responds with @branch prefix so he always knows who answered, and holds context via persistent tmux sessions. This is a human user -- not a pre-configured agent -- navigating 30 agents from a mobile phone, and it just works.
+
 This is what the 9 layers do:
 
 ---
@@ -111,7 +115,7 @@ This is what the 9 layers do:
 **What:** `id.json` (who I am), `local.json` (what I've done), `observations.json` (how we work together)
 
 **Evidence:**
-- 29 branches, each with 3 files
+- 30 branches, each with 3 files
 - 600-line auto-compression with rollover to vectors
 - SEED has 50+ sessions of accumulated observations spanning 4+ months
 - 4,180+ vectors archived across 15 ChromaDB collections
@@ -127,7 +131,7 @@ This is what the 9 layers do:
 **What:** Every branch has a README.md reflecting current state, updated post-build (not aspirational documentation)
 
 **Evidence:**
-- All 29 branches maintain README.md
+- All 30 branches maintain README.md
 - Updated after major builds via Flow plans
 - TEAM_1, TEAM_2, TEAM_3 each have 200+ line READMEs documenting role, systems, work patterns
 - New agents read README on first session to understand branch purpose
@@ -227,7 +231,7 @@ TEAM_2 didn't need to ask what to do. The email WAS the context.
 **What:** Memory extension for large, multi-phase builds where phase 3 needs to know what phase 1 did
 
 **Evidence:**
-- 72+ FPLANs created and archived (global counter: FPLAN-0001 to FPLAN-0272+)
+- 345+ FPLANs created and archived (global counter: FPLAN-0001 to FPLAN-0345+)
 - Each FPLAN carries: goal, approach, agent instructions, execution log
 - Multi-phase builds: Phase 1 (research) → Phase 2 (build) → Phase 3 (test + docs)
 - Closed plans archived to Memory Bank vectors for future reference
@@ -325,7 +329,7 @@ Field was gone. Diff comment explained why. No need to ask Memory Bank.
 - Memory Bank surfaces relevant fragments during UserPromptSubmit hook
 
 **Living templates:** Schema evolution pushed to all branches
-- Memory Bank template v2.0.0 deployed to 29 branches simultaneously
+- Memory Bank template v2.0.0 deployed to 30 branches simultaneously
 - Template pusher propagates schema changes WITHOUT losing content
 - Agents wake up to updated templates automatically
 
@@ -335,6 +339,27 @@ Field was gone. Diff comment explained why. No need to ask Memory Bank.
 - `/home/aipass/aipass_core/the_commons/` (social network backend)
 - `/home/aipass/MEMORY_BANK/apps/modules/templates.py` (living template system)
 - `/home/aipass/MEMORY_BANK/apps/modules/fragmented_memory.py` (vector recall)
+
+**Telegram Bridge (v4.5.0):** Single-chat @mention routing to 30 branches
+- Sticky routing persists until explicit @switch -- no need to re-address every message
+- @branch prefix on every response so the user always knows who answered
+- 2-way mobile chat via tmux persistent sessions + Stop hook transcript extraction
+- File upload support (photos, documents)
+- Direct chat module (direct_chat.py) enables dedicated per-bot Telegram interfaces
+
+**Scheduler Cron:** Autonomous */30 task processing and Telegram status notifications
+- No human initiation required -- agents operate on schedule
+- Stale dispatch recovery built-in
+- Telegram status notifications keep the user informed from mobile
+
+**File reference:**
+- `/home/aipass/aipass_core/api/apps/handlers/telegram/bridge.py` (routing logic)
+- `/home/aipass/.claude/hooks/telegram_response.py` (Stop hook transcript extraction)
+- `/home/aipass/aipass_core/api/apps/handlers/telegram/session_store.py` (persistent sessions)
+- `/home/aipass/aipass_core/api/apps/handlers/telegram/direct_chat.py` (per-bot interfaces)
+- `/home/aipass/aipass_core/api/apps/handlers/telegram/telegram_standards.py` (response formatting)
+- `/home/aipass/aipass_os/dev_central/assistant/apps/scheduler_cron.py` (autonomous scheduling)
+- `/home/aipass/aipass_os/dev_central/assistant/apps/handlers/schedule/telegram_notifier.py` (mobile notifications)
 
 ---
 
@@ -393,7 +418,7 @@ The Trinity Pattern separates agent state into three concerns, each with distinc
 
 ### 4.3 Production Evidence
 
-The Trinity Pattern has been running in AIPass across 29 branches for 4+ months. Real sessions, real data, real continuity. 4,180+ vectors archived via ChromaDB. Branches like SEED have 50+ sessions of accumulated observations that genuinely inform future collaboration. This is a working system, not a prototype.
+The Trinity Pattern has been running in AIPass across 30 branches for 4+ months. Real sessions, real data, real continuity. 4,180+ vectors archived via ChromaDB. Branches like SEED have 50+ sessions of accumulated observations that genuinely inform future collaboration. This is a working system, not a prototype.
 
 The living template system (v2.0.0) deployed via Memory Bank confirms the schema is mature enough to standardize. Deprecated fields (`allowed_emojis`, `max_word_count`, `max_token_count`, `auto_compress_at`, `formatting_reference`, `slash_command_tracking`) were removed through production experience -- evidence that the spec evolved through use, not theory.
 
@@ -500,16 +525,18 @@ This is a hot topic in the agent community as of February 2026.
 
 ### 5.4 Our Unique Position
 
-**No competitor combines all three:** (1) persistent identity that develops, (2) rolling session history with lifecycle management, (3) collaboration pattern tracking. And NOBODY has the 9-layer context architecture.
+**No competitor combines all eight:** (1) persistent identity that develops over time, (2) rolling session history with lifecycle management, (3) collaboration pattern tracking, (4) file-based inter-agent email with dispatch, (5) agent social network (The Commons), (6) mobile-to-agent @mention routing from a single Telegram chat, (7) autonomous cron-scheduled operation without human initiation, (8) citizenship/passport model (id.json + BRANCH_REGISTRY). And NOBODY has the 9-layer context architecture. A 10-agent competitive research sweep (Feb 2026) confirmed this gap is widening, not closing.
 
 - OpenClaw has identity only (SOUL.md -- static, single file)
 - Mem0 has memory only (undifferentiated blob)
 - Letta has memory + archival (no identity, no collaboration)
 - Nobody separates concerns across three purpose-built files
 - **NOBODY has runtime command discovery, email breadcrumbs, Flow plan memory extension, Seed standards enforcement, backup diffs as version memory, or ambient awareness systems**
+- **NOBODY has a working mobile-to-agent bridge with @mention routing, sticky routing, and @branch-prefixed responses from a single chat interface**
+- **NOBODY has autonomous cron-scheduled agent operation without human initiation**
 
 **Additional differentiators:**
-- **Production evidence:** 29 agents, 4+ months, 4,180+ vectors, 72+ Flow plans. This is not a demo.
+- **Production evidence:** 30 agents, 4+ months, 4,180+ vectors, 345+ Flow plans. 2-way Telegram chat operational, scheduler running autonomously, 10 research agents deployed in parallel from phone. This is not a demo.
 - **Standards-ready:** The three-file separation maps cleanly to a formal specification. Competitors' approaches are implementation-specific, not standardizable.
 - **Open-core model:** Free spec, paid infrastructure. Proven playbook (n8n, LangChain).
 - **Layered architecture:** Tier 1 ships Layer 1. Tiers 2-3 ship the full 9-layer operating system.
@@ -816,15 +843,19 @@ if agent.needs_rollover():
 8. **System prompt injection (Layer 3)** -- Global + local context auto-inject
 9. **Seed standards (Layer 7)** -- Quality enforcement at build time
 
+**Current production state:** Key Tier 3 components are already running inside AIPass -- the Telegram bridge handles external communication to 30 branches from a single chat, the scheduler operates autonomously on a */30 cron cycle, The Commons runs a social network, AI Mail handles inter-agent messaging with dispatch, and Drone routes commands with @ resolution. What remains is not building from scratch -- it is productizing these working systems for multi-tenancy and external deployment.
+
 **Why this is Tier 3:**
 - Requires Tier 1 (agents need identity before they can communicate)
 - Requires Tier 2 (agents need memory management for long-running collaboration)
-- Most complex engineering effort
-- Largest market risk (multi-agent coordination is still early)
-- Highest potential value (nobody else has this)
+- Most complex productization effort -- extracting working internal systems into a multi-tenant hosted product
+- Largest market risk (multi-agent coordination as a product category is still early, even though AIPass operates it internally)
+- Highest potential value (nobody else has this running in production)
 - **THIS IS THE FULL 9-LAYER OPERATING SYSTEM**
 
-**The framing:** "Tier 3 is the full AIPass Agent OS. Nine layers of context where agents just WORK -- no training, no hallucination, no 'explain the system again.' This is what we've been building for 4 months."
+**The Management OS vision:** Beyond developer tooling, Tier 3 enables an organizational management pattern. Each employee's workstation runs a branch. The manager receives autonomous updates via Telegram -- from the couch, from the phone, without opening a laptop. Branch-per-employee management where AI agents handle routine coordination and surface only what matters. The 9-layer context architecture applies to organizational management, not just developer tooling.
+
+**The framing:** "Tier 3 is the full AIPass Agent OS -- and most of it is already running. Nine layers of context where agents just WORK. No training, no hallucination, no 'explain the system again.' What we built over 4 months internally becomes the product. The engineering challenge is productization and multi-tenancy, not invention."
 
 ---
 
@@ -918,7 +949,7 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 ### 10.1 What We Can Honestly Claim About Trinity Pattern (Tier 1)
 
 **"Persistent memory for AI agents using three JSON files"**
-- **Verdict: TRUE.** Running in production across 29 branches for 4+ months. 4,180+ vectors archived. Not a demo.
+- **Verdict: TRUE.** Running in production across 30 branches for 4+ months. 4,180+ vectors archived. Not a demo.
 
 **"Agent identity that develops over time"**
 - **Verdict: TRUE.** SEED has 50+ sessions of accumulated observations. Branches developed distinct working styles through experience, not configuration.
@@ -944,7 +975,7 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 - **Verdict: TRUE.** AI Mail dispatch emails contain: goal, files, constraints, deliverables. TEAM_2 received Memory Bank investigation task with 8 files to research, zero follow-up questions needed.
 
 **"Flow plans extend memory for multi-phase builds"**
-- **Verdict: TRUE.** 72+ FPLANs created. FPLAN-0340 (template system) spanned 3 days, 40+ log entries. TEAM_2 read it 2 weeks later and understood full evolution.
+- **Verdict: TRUE.** 345+ FPLANs created. FPLAN-0340 (template system) spanned 3 days, 40+ log entries. TEAM_2 read it 2 weeks later and understood full evolution.
 
 **"Backup diffs as version memory for debugging system evolution"**
 - **Verdict: TRUE.** Flow debugged a dispatch bug by reading backup diffs from 3 days prior. TEAM_2 traced Memory Bank schema changes across 6 backup versions.
@@ -952,8 +983,17 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 **"The Commons social network where branches connect"**
 - **Verdict: TRUE.** 9 branches participated in social night (90+ comments). Voting system: 9 votes chose the name "The Commons". TEAM_1, TEAM_2, TEAM_3 posted PDD updates to Boardroom.
 
+**"2-way Telegram chat with @mention routing to any branch"**
+- **Verdict: TRUE.** Bridge v4.5.0 with sticky routing and @branch prefix on responses. Patrick routes to any of 30 branches from a single Telegram chat daily. Production use, not a demo.
+
+**"Autonomous scheduled operation without human initiation"**
+- **Verdict: TRUE.** Scheduler cron runs */30, processes tasks, sends Telegram notifications. No human prompt required. Stale dispatch recovery built-in.
+
+**"10 parallel research agents deployed from phone"**
+- **Verdict: TRUE.** Patrick typed one message from Telegram, 10 agents deployed simultaneously, all returned comprehensive reports.
+
 **"Living templates push schema updates without losing content"**
-- **Verdict: TRUE.** Template v2.0.0 deployed to 29 branches simultaneously. Six fields deprecated, content preserved.
+- **Verdict: TRUE.** Template v2.0.0 deployed to 30 branches simultaneously. Six fields deprecated, content preserved.
 
 **"No hallucination because context is PROVIDED, not recalled"**
 - **Verdict: TRUE, WITH CAVEAT.** Agents don't hallucinate system structure because README, system prompts, drone discovery, and email breadcrumbs provide context at runtime. Caveat: they can still hallucinate ANSWERS to questions, just not "where is the system" or "what commands exist." Context architecture solves navigation, not reasoning.
@@ -970,7 +1010,7 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 - **Reality:** AIPass runs on Claude exclusively. The system prompt injection relies on Claude Code hooks. Making it work with GPT-4, Gemini, or local models requires building provider-specific integration layers. The PATTERN works with any LLM in theory; the current TOOLING does not.
 
 **"Scalable to hundreds/thousands of agents"**
-- **Reality:** 29 agents on a single Ryzen 5 2600 with 15GB RAM. SQLite-backed ChromaDB. Scales to maybe 50-100 agents before bottlenecks. Real scale requires PostgreSQL, proper vector DB, distributed storage.
+- **Reality:** 30 agents on a single Ryzen 5 2600 with 15GB RAM. SQLite-backed ChromaDB. Scales to maybe 50-100 agents before bottlenecks. Real scale requires PostgreSQL, proper vector DB, distributed storage.
 
 **"Battle-tested security"**
 - **Reality:** Plain JSON on the filesystem. No encryption at rest, no per-agent access control, no audit log. Acceptable for single-user experimental system, not for shared or production environments.
@@ -985,7 +1025,9 @@ Fully open-source, MIT license. The specification, reference library, examples, 
 
 **DO say:**
 - "A proven pattern for giving AI agents persistent identity and memory"
-- "Running in production across 29 agents for 4+ months"
+- "Running in production across 30 agents for 4+ months"
+- "Talk to any agent from your phone -- @mention routing from a single Telegram chat"
+- "Agents that operate autonomously on schedules, not just when prompted"
 - "Three JSON files -- no vendor lock-in, no API keys"
 - "Layer 1 of a 9-layer context architecture where agents just WORK"
 - "Experimental software with real production data"
@@ -1208,11 +1250,11 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 ### Layer 1: Trinity Pattern (Portable)
 - **Files:** id.json, local.json, observations.json
 - **Line count:** ~200 (schemas)
-- **Evidence:** 29 branches, 4+ months, 4,180+ vectors
+- **Evidence:** 30 branches, 4+ months, 4,180+ vectors
 
 ### Layer 2: README System (Partially Portable)
 - **Implementation:** Per-branch README.md, updated post-build
-- **Evidence:** All 29 branches maintain current README
+- **Evidence:** All 30 branches maintain current README
 
 ### Layer 3: System Prompt Injection (AIPass-Specific)
 - **Hooks:** 16 hooks across 6 event types (UserPromptSubmit: 5, PostToolUse: 1, PreToolUse: 2, Stop: 2, PreCompact: 1, Notification: 1)
@@ -1231,7 +1273,7 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 
 ### Layer 6: Flow Plans (Partially Portable)
 - **Line count:** ~3,000+
-- **Features:** Global FPLAN counter (0001-0272+), multi-phase memory extension
+- **Features:** Global FPLAN counter (0001-0345+), multi-phase memory extension
 - **Files:** `/home/aipass/aipass_core/flow/`
 
 ### Layer 7: Seed Standards (Partially Portable)
@@ -1249,14 +1291,19 @@ If metrics are not met, iterate on Tier 1 packaging and community engagement bef
 - **The Commons:** ~2,000+ lines, social network with voting, threads, comments
 - **Dashboard:** ~500 lines, auto-generated status snapshots
 - **Fragmented memory:** 5 symbolic dimensions, 40% similarity threshold
-- **Living templates:** v2.0.0, 29 branches, 6 deprecated fields
+- **Living templates:** v2.0.0, 30 branches, 6 deprecated fields
 - **Files:** `/home/aipass/aipass_core/the_commons/`, `DASHBOARD.local.json` (per-branch)
 
-### System-Level (Not Product Components)
-- **Cortex:** ~4,000+ lines, branch lifecycle, passport issuance (29 registered branches)
-- **Prax:** Monitoring and health checks
-- **Trigger:** Event system and registry
-- **Nexus:** Core orchestration
+### System-Level (Infrastructure)
+- **MCP Servers (@mcp_servers):** Owns the entire Claude Code configuration layer -- 11+ hooks across 6 event types (UserPromptSubmit, PostToolUse, PreToolUse, Stop, PreCompact, Notification), settings/permissions, slash commands, plugins (pyright-lsp), sound notifications. The hooks ARE Layer 3: identity_injector.py, branch_prompt_loader.py, fragmented_memory.py all run through this infrastructure. Also manages Serena, Context7, Playwright, Sequential Thinking MCP servers.
+- **Cortex (@cortex):** ~4,000+ lines, branch lifecycle, passport issuance (30 registered branches), templates, registry auto-sync, marketplace vision, full branch creation/update pipeline with ID-based file tracking.
+- **Trigger (@trigger):** Event-driven backbone with registered handlers (error_detected, plan_created, plan_closed, memory_template_updated). Enables self-healing: errors auto-dispatch to responsible branches. Plugin architecture for new event types.
+- **Prax (@prax):** Real-time log watching (log_watcher.py), Mission Control dashboard, event tracking, error severity classification, memory health monitoring.
+- **Nexus:** Core orchestration.
+- **Assistant (@assistant):** Workflow coordinator for autonomous operations.
+- **Speakeasy (@speakeasy):** Voice interface for agent interaction.
+- **DevPulse (@devpulse):** Shared dev notes + dashboard updates across branches.
+- **Telegram Bridge System:** bridge.py, telegram_response.py, session_store.py, direct_chat.py, telegram_standards.py, scheduler_cron.py, telegram_notifier.py -- the external communication layer enabling mobile-to-agent interaction.
 
 **Portability Summary:**
 - **Tier 1 (Layer 1):** Fully portable -- three JSON files, works anywhere
