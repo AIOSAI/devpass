@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: daemon.py - Dispatch Daemon Handler
 # Date: 2026-02-17
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: ai_mail/handlers/dispatch
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.1.0 (2026-02-18): FPLAN-0352 - Telegram notifications for daemon lifecycle events
 #   - v1.0.0 (2026-02-17): Initial version - continuous polling daemon for autonomous dispatch
 #
 # CODE STANDARDS:
@@ -49,12 +50,18 @@ sys.path.insert(0, str(AIPASS_HOME))
 from aipass_core.ai_mail.apps.handlers.email.lock_utils import (
     acquire_lock, check_lock
 )
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 # Paths
 CONFIG_FILE = AIPASS_ROOT / "ai_mail" / "safety_config.json"
 DAEMON_STATE_FILE = AIPASS_ROOT / "ai_mail" / "ai_mail.local" / "daemon_state.json"
 DAEMON_LOG_FILE = AIPASS_ROOT / "ai_mail" / "ai_mail.local" / "dispatch_daemon.log"
+DAEMON_PID_FILE = AIPASS_ROOT / "ai_mail" / "ai_mail.local" / "daemon.pid"
 BRANCH_REGISTRY = AIPASS_HOME / "BRANCH_REGISTRY.json"
+
+# Telegram notifications (scheduler bot)
+SCHEDULER_CONFIG = AIPASS_HOME / ".aipass" / "scheduler_config.json"
 
 # Graceful shutdown
 SHUTDOWN = False
@@ -72,6 +79,30 @@ def _setup_logging() -> None:
         _DAEMON_LOGGER.addHandler(logging.StreamHandler())
     for handler in _DAEMON_LOGGER.handlers:
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+
+def _notify_telegram(message: str) -> bool:
+    """Send a notification to Patrick's Telegram via the scheduler bot."""
+    try:
+        with open(SCHEDULER_CONFIG, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        bot_token = config["telegram_bot_token"]
+        chat_id = config["telegram_chat_id"]
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        _DAEMON_LOGGER.info("Telegram notification skipped (no scheduler config)")
+        return False
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = json.dumps({"chat_id": chat_id, "text": message}).encode("utf-8")
+    req = Request(url, data=payload, headers={"Content-Type": "application/json"})
+
+    try:
+        with urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+            return result.get("ok", False)
+    except (URLError, Exception):
+        _DAEMON_LOGGER.info("Telegram notification failed: %s", message[:60])
+        return False
 
 
 def _handle_signal(signum, _frame):
@@ -113,7 +144,7 @@ def load_config() -> Dict[str, Any]:
         "kill_switch_path": "/home/aipass/.aipass/autonomous_pause",
         "poll_interval_seconds": 300,
         "max_depth": 3,
-        "max_turns_per_wake": 15,
+        "max_turns_per_wake": 50,
         "max_dispatches_per_branch_per_day": 10,
         "session_rotation_cycles": 12,
         "cold_start_prompt": "Hi. Check inbox, process new emails, update memories when done.",
@@ -159,6 +190,42 @@ def is_kill_switch_active(config: Dict[str, Any]) -> bool:
     """Check if the system-wide kill switch is engaged."""
     kill_path = Path(config.get("kill_switch_path", "/home/aipass/.aipass/autonomous_pause"))
     return kill_path.exists()
+
+
+def _write_pid_file() -> bool:
+    """Write current PID to daemon.pid. Returns False if another daemon is running."""
+    if DAEMON_PID_FILE.exists():
+        try:
+            old_pid = int(DAEMON_PID_FILE.read_text().strip())
+            try:
+                os.kill(old_pid, 0)
+                # Process exists — another daemon is running
+                _DAEMON_LOGGER.info(f"Another daemon already running (PID {old_pid}). Exiting.")
+                return False
+            except ProcessLookupError:
+                # Stale PID file — process is dead, we can take over
+                _DAEMON_LOGGER.info(f"Removing stale PID file (PID {old_pid} is dead)")
+            except PermissionError:
+                # Process exists but we can't signal it
+                _DAEMON_LOGGER.info(f"Another daemon already running (PID {old_pid}, permission denied). Exiting.")
+                return False
+        except (ValueError, OSError):
+            _DAEMON_LOGGER.info("Corrupt PID file — removing")
+
+    DAEMON_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DAEMON_PID_FILE.write_text(str(os.getpid()))
+    return True
+
+
+def _remove_pid_file() -> None:
+    """Remove the daemon PID file on shutdown."""
+    try:
+        if DAEMON_PID_FILE.exists():
+            stored_pid = int(DAEMON_PID_FILE.read_text().strip())
+            if stored_pid == os.getpid():
+                DAEMON_PID_FILE.unlink(missing_ok=True)
+    except (ValueError, OSError):
+        DAEMON_PID_FILE.unlink(missing_ok=True)
 
 
 def get_registered_branches() -> list:
@@ -240,7 +307,10 @@ def spawn_agent(
     target_cwd = str(branch_path)
     spawn_env = os.environ.copy()
     spawn_env["AIPASS_SPAWNED"] = "1"
-    spawn_env.pop("CLAUDECODE", None)
+    # Strip ALL Claude Code env vars to prevent nested session detection
+    for key in list(spawn_env.keys()):
+        if key.startswith("CLAUDE"):
+            spawn_env.pop(key)
 
     try:
         process = subprocess.Popen(
@@ -281,10 +351,12 @@ def spawn_agent(
             _DAEMON_LOGGER.info(f"Desktop notification unavailable for {branch_email}")
 
         _DAEMON_LOGGER.info(f"SPAWN {branch_email} PID={pid} sender={sender} subject=\"{subject[:60]}\"")
+        _notify_telegram(f"[Dispatch] {branch_email} woke\nTask from {sender}: {subject[:80]}")
         return True
 
     except Exception as e:
         _DAEMON_LOGGER.info(f"SPAWN FAILED {branch_email}: {e}")
+        _notify_telegram(f"[Dispatch FAILED] {branch_email}\n{type(e).__name__}: {e}")
         return False
 
 
@@ -326,7 +398,10 @@ def spawn_heartbeat(
     target_cwd = str(branch_path)
     spawn_env = os.environ.copy()
     spawn_env["AIPASS_SPAWNED"] = "1"
-    spawn_env.pop("CLAUDECODE", None)
+    # Strip ALL Claude Code env vars to prevent nested session detection
+    for key in list(spawn_env.keys()):
+        if key.startswith("CLAUDE"):
+            spawn_env.pop(key)
 
     try:
         process = subprocess.Popen(
@@ -366,10 +441,12 @@ def spawn_heartbeat(
             pass
 
         _DAEMON_LOGGER.info(f"HEARTBEAT {branch_email} PID={pid}")
+        _notify_telegram(f"[Heartbeat] {branch_email} woke (periodic self-check)")
         return True
 
     except Exception as e:
         _DAEMON_LOGGER.info(f"HEARTBEAT FAILED {branch_email}: {e}")
+        _notify_telegram(f"[Heartbeat FAILED] {branch_email}\n{type(e).__name__}: {e}")
         return False
 
 
@@ -409,6 +486,7 @@ def poll_cycle(config: Dict[str, Any], state: Dict[str, Any]) -> int:
 
         daily_count = state.get("daily_counts", {}).get(branch_email, 0)
         if daily_count >= max_daily:
+            _DAEMON_LOGGER.info(f"SKIP {branch_email}: daily limit reached ({daily_count}/{max_daily})")
             continue
 
         dispatch_msg = check_inbox_for_dispatch(branch_path)
@@ -475,9 +553,13 @@ def run_daemon() -> None:
     """
     _setup_logging()
 
+    if not _write_pid_file():
+        return
+
     _DAEMON_LOGGER.info("=" * 60)
-    _DAEMON_LOGGER.info("DISPATCH DAEMON STARTING")
+    _DAEMON_LOGGER.info(f"DISPATCH DAEMON STARTING (PID {os.getpid()})")
     _DAEMON_LOGGER.info("=" * 60)
+    _notify_telegram(f"[Daemon] Started (PID {os.getpid()})")
 
     config = load_config()
     poll_interval = config.get("poll_interval_seconds", 300)
@@ -528,7 +610,9 @@ def run_daemon() -> None:
             time.sleep(min(5, poll_interval - elapsed))
             elapsed += 5
 
+    _remove_pid_file()
     _DAEMON_LOGGER.info("DISPATCH DAEMON STOPPED")
+    _notify_telegram("[Daemon] Stopped")
 
 
 if __name__ == "__main__":

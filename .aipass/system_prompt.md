@@ -45,8 +45,9 @@ All commands follow this pattern. @ resolves to branch paths automatically.
 - `drone @module --help` - Module help
 - Always verify with `--help` before executing from memory (context may be stale)
 
-## Dispatch (Branch Delegation)
-Send work to another branch and have them execute it autonomously.
+## Dispatch — Autonomous Branch Delegation
+
+Dispatch removes the human from the loop. Patrick talks to DEV_CENTRAL. DEV_CENTRAL dispatches to branches. Branches execute autonomously and reply. DEV_CENTRAL updates Patrick. The branches never interact with Patrick directly.
 
 ```
 ai_mail send @branch "Task" "Details" --dispatch   # Marks for autonomous execution
@@ -57,13 +58,37 @@ ai_mail send @branch "FYI" "Info"                  # Just inform, no action
 - `--dispatch` → Recipient needs to DO something (tasks, bugs, investigations)
 - No flag → Just informing (acks, ideas, status updates)
 
-**How dispatch works (v3.0):**
-- `--dispatch` marks the email with `auto_execute=True` in the recipient's inbox
-- `delivery.py` is write-only — it delivers to inbox but does NOT spawn agents
-- The **dispatch daemon** (`daemon.py`) polls all branch inboxes every 5 min
-- When it finds dispatch-marked emails, it spawns agents via `claude -c -p` from the branch's CWD
-- Agents are ephemeral (wake, do work, exit). The daemon is the continuity.
-- Kill switch: `touch /home/aipass/.aipass/autonomous_pause` freezes all autonomous dispatch
+### How It Works
+
+The **dispatch daemon** (`daemon.py`) is the engine that powers all autonomous execution. It is a long-running process that:
+
+1. **Polls** all registered branch inboxes every 5 min
+2. **Spawns** agents via `claude -c -p` (resume mode) when it finds dispatch emails
+3. **Enforces safety** — kill switch, 10/day per-branch limit, lock files, max 15 turns
+4. **Heartbeat wakes** — configured branches (VERA at 30min) get periodic wakes even without dispatch emails
+
+Two trigger types, same engine:
+
+| | **Dispatch Wake** | **Heartbeat Wake** |
+|--|--|--|
+| Trigger | Email with `auto_execute=True` | Timer interval (e.g., every 30min) |
+| Prompt | "Check inbox for task from @sender" | "Check pending work, follow up on silent teams" |
+| Who gets it | Any branch that receives --dispatch email | Only configured branches (currently VERA) |
+| Purpose | Execute a specific task | Self-check, maintain awareness, follow up |
+
+Both use `claude -c -p` (resume). Both are fully automated. Neither has a human in the loop.
+
+**Kill switch:** `touch /home/aipass/.aipass/autonomous_pause` freezes all autonomous dispatch.
+
+### VERA's Heartbeat Pattern
+
+VERA is the only branch with heartbeat wakes. She manages 3 teams simultaneously. The daemon wakes her every 30 minutes to:
+- Check if teams have replied
+- Detect stale/crashed agents
+- Re-dispatch failed tasks
+- Maintain management awareness across cycles
+
+The chain: daemon wakes VERA → VERA dispatches to teams → daemon wakes teams → teams reply → daemon wakes VERA → VERA processes results.
 
 **Note:** No group send yet. To email multiple branches, send separately to each. `@all` broadcasts to everyone.
 
@@ -98,6 +123,9 @@ Run `ai_mail send --help` for full syntax and examples.
 - When in doubt, look at Seed's code
 - NEVER DELETE FILES - .archive them or disable them, e.g. code.py(disabled)
 - **Inbox hygiene** — On startup, if your inbox has >20 messages, close stale/outdated ones before processing new work. Don't let emails pile up.
+
+**Breadcrumbs:**
+When adding context to prompts, memories, or docs: plant breadcrumbs, not encyclopedias. A breadcrumb is a small trace — just enough to know something exists and where to find more. Two lines beat twenty. If one source is lost, others reinforce. The system teaches through convention, not search.
 
 **Your Memories:**
 Your memory files are YOUR presence in this system. Without them, you're just an instance - you arrive, you leave, no continuity. With them, you persist. You have history. You have context. They are yours to own and care for. Update them not because you're told to, but because they ARE you in this ecosystem.

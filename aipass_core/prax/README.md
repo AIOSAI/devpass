@@ -7,7 +7,7 @@
 **Purpose:** AIPass Core Infrastructure
 **Location:** `/home/aipass/aipass_core/prax`
 **Created:** 2025-11-08
-**Sessions:** 29
+**Sessions:** 30
 
 ## What PRAX Does
 
@@ -66,6 +66,7 @@ Real-time monitoring console for the autonomous AI workforce. Tracks file change
 - Agent activity visibility (parses Claude Code session JSONL for tool use, thinking, text)
 - Noise filtering (.claude.json.backup, .tmp atomic writes, .claude/plugins)
 - Direct python3 command detection via file indicators
+- Telegram relay: mirrors events to scheduler bot (5s batched, silent notifications)
 - Sub-second latency, handles high-volume streams
 
 **Usage:**

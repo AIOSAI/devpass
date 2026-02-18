@@ -245,7 +245,7 @@ These numbers are not projections. They are current counts from a running system
 
 ## What Comes Next
 
-The Trinity Pattern — Layer 1 — is being released as an open-source specification. Three JSON files. No vendor lock-in. Implement it in any language, for any LLM, in any agent system.
+The Trinity Pattern — Layer 1 — is available now as an open-source Python library and specification on GitHub. Clone the repo, install locally, and run `trinity init --name "YourAgent" --role "Your Role"` to bootstrap a project with identity files and a startup guide. Three JSON files. No vendor lock-in. Works with any LLM, in any agent system. PyPI publication is coming soon.
 
 The specification is the foundation. The operating system around it — Layers 2 through 9 — is what makes agents operational without training. That's the vision: an OS where AI agents arrive with context, discover capabilities at runtime, receive tasks with full instructions, and maintain quality through automated standards.
 

@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: bridge.py - Telegram Bridge Service
 # Date: 2026-02-04
-# Version: 4.5.0
+# Version: 4.6.0
 # Category: api/handlers/telegram
 #
 # CHANGELOG (Max 5 entries):
+#   - v4.6.0 (2026-02-17): FPLAN-0351 Layer 3 - transcript position tracking in pending file for Stop hook
 #   - v4.5.0 (2026-02-15): Sticky branch routing - @branch switch persists until next explicit @switch
 #   - v4.4.0 (2026-02-15): Add startup health check - fail fast if Telegram API unreachable
 #   - v4.3.0 (2026-02-15): Integrate telegram_standards.py for shared commands
@@ -330,6 +331,19 @@ def resolve_branch_target(message: str) -> tuple[str, str, Path]:
 # PENDING FILE COORDINATION
 # =============================================
 
+def _get_transcript_line_count(branch_path: Path, session_id: str) -> int:
+    """Get current line count of the JSONL transcript for Layer 3 position tracking."""
+    slug = str(branch_path).replace("/", "-")
+    transcript = Path.home() / ".claude" / "projects" / slug / f"{session_id}.jsonl"
+    if not transcript.exists():
+        return 0
+    try:
+        text = transcript.read_text(encoding="utf-8").strip()
+        return len(text.split("\n")) if text else 0
+    except OSError:
+        return 0
+
+
 def write_pending_file(
     branch_name: str,
     chat_id: int,
@@ -337,6 +351,7 @@ def write_pending_file(
     bot_token: str,
     session_id: str,
     processing_message_id: Optional[int] = None,
+    branch_path: Optional[Path] = None,
 ) -> bool:
     """
     Write a pending file for Stop hook coordination.
@@ -351,11 +366,17 @@ def write_pending_file(
         bot_token: Bot token for API calls
         session_id: Claude Code session ID
         processing_message_id: ID of the "Processing..." message to edit
+        branch_path: Full path to branch directory (for Layer 3 transcript position)
 
     Returns:
         True if written successfully
     """
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Layer 3 (FPLAN-0351): Record transcript position at injection time
+    transcript_line_after = 0
+    if branch_path:
+        transcript_line_after = _get_transcript_line_count(branch_path, session_id)
 
     pending_data = {
         "chat_id": chat_id,
@@ -365,6 +386,7 @@ def write_pending_file(
         "processing_message_id": processing_message_id,
         "timestamp": time.time(),
         "branch_name": branch_name,
+        "transcript_line_after": transcript_line_after,
     }
 
     pending_path = PENDING_DIR / f"telegram-{branch_name}.json"
@@ -600,6 +622,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         bot_token=bot_token,
         session_id=session_id,
         processing_message_id=processing_msg_id,
+        branch_path=target_cwd,
     )
 
     # Format and inject message via tmux
@@ -715,6 +738,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             bot_token=bot_token,
             session_id=session_id,
             processing_message_id=processing_msg_id,
+            branch_path=target_cwd,
         )
 
         # For text files, content is inline in the prompt

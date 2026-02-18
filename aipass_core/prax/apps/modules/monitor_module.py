@@ -102,6 +102,15 @@ from prax.apps.handlers.monitoring import (
     ModuleTracker,            # module_tracker.py
 )
 
+# Telegram relay (optional - graceful if unavailable)
+try:
+    from prax.apps.handlers.monitoring.telegram_relay import (
+        telegram_start, telegram_stop, telegram_queue_event
+    )
+    _telegram_available = True
+except ImportError:
+    _telegram_available = False
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
@@ -203,13 +212,17 @@ def handle_command(command: str, args: List[str]) -> bool:
     console.print("[yellow]Quiet mode active - type 'help' for commands[/yellow]")
     console.print()
 
-    # Start monitoring threads
+    # Start monitoring threads + Telegram relay
     _start_threads()
+    if _telegram_available:
+        telegram_start()
 
     # Enter interactive mode
     _interactive_loop()
 
     # Cleanup on exit
+    if _telegram_available:
+        telegram_stop()
     _stop_threads()
 
     return True
@@ -277,8 +290,14 @@ def _display_worker():
                         if len(parts) == 2 and parts[1]:
                             target = parts[1]
                     print_command_separator(event.branch, event.message, caller, target)
+                    # Telegram relay
+                    if _telegram_available:
+                        telegram_queue_event('command', event.branch, event.message, caller, target)
                 else:
                     print_event(event.event_type, event.branch, event.message, event.level)
+                    # Telegram relay
+                    if _telegram_available:
+                        telegram_queue_event(event.event_type, event.branch, event.message)
 
 
 def _file_watcher_worker():

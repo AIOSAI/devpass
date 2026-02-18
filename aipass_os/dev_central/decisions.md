@@ -8,6 +8,21 @@ A record of real decisions made during collaboration. Each entry captures the co
 
 ## Entries
 
+### #003 - 2026-02-18 | DPLAN-007 | VERA Business Restructuring
+**Context:** Building DPLAN-007 for VERA to research and propose the AIPass business structure — departments, specialist branches, cortex templates. Patrick shared his vision across multiple messages. I was asked for my opinion on what to add.
+
+**Claude's call:** I suggested adding detailed prescriptive elements: phased department priority order, business-to-dev communication protocols, success criteria, growth triggers for when departments expand, VERA's specific development path. All defensible ideas — but all premature. I was defining layer 9 architecture before layer 1 exists.
+
+**Patrick's call:** Don't micro-manage. VERA is the CEO — she has to do to learn. If she fails, we restructure. We see everything, we guide along the way, but we don't prescribe the answers. The knowledge gets embedded through use: VERA posts → reads comments → responds → develops flows → starts thinking alone. One piece at a time. Layer 1 before layer 9. Can't build all 9 layers in one shot.
+
+**Alignment:** Partial. Same direction (send VERA the task), different approach. I wanted to hand her a blueprint with guardrails. Patrick wants to hand her questions and let the answers become the architecture. His approach is better — it produces a CEO who thinks, not a project manager who follows instructions.
+
+**Lesson:** When delegating to an autonomous agent meant to develop leadership qualities, give them the questions, not the answers. Over-prescribing a plan defeats the purpose of having someone "research and propose." The DPLAN should be a starting push, not a detailed blueprint. If she just implements what we wrote line by line, she's not learning — she's executing. The CEO test is whether she comes back with something we didn't predict.
+
+**Broader pattern:** This applies beyond VERA. When any branch is meant to own a domain, resist the urge to pre-solve it from dev_central. Define the problem, set the boundaries, let them figure it out. That's how expertise develops in the system — through experience, not instructions.
+
+---
+
 ### #001 - 2026-02-10 | Session 88 | Feel Good App
 **Context:** History tab just shipped and working on phone. Snapshot taken. All ideas from Patrick's brain dump captured in observations + dev notes. Patrick asked "what's next?"
 

@@ -1,6 +1,6 @@
 # AIPass Business — Account Handles
 <!-- Reference document for all verified AIPass platform accounts -->
-<!-- Last updated: 2026-02-17 -->
+<!-- Last updated: 2026-02-18 -->
 
 ## Active Accounts
 
@@ -9,9 +9,10 @@
 | **X/Twitter** | [@AIPassSystem](https://x.com/AIPassSystem) | Active |
 | **Bluesky** | [@aipass.bsky.social](https://bsky.app/profile/aipass.bsky.social) | Active |
 | **GitHub Org** | [AIOSAI](https://github.com/AIOSAI) | Active |
-| **GitHub Repo** | [AIOSAI/AIPass](https://github.com/AIOSAI/AIPass) | Active |
+| **GitHub Repo (public)** | [AIOSAI/AIPass](https://github.com/AIOSAI/AIPass) | Active (reset with clean history 2026-02-18) |
+| **GitHub Repo (dev)** | [AIOSAI/devpass](https://github.com/AIOSAI/devpass) | Active (renamed from AIPass-Dev) |
 | **PyPI** | aipass.system | Active (PYPI_API_TOKEN in GitHub secrets) |
-| **dev.to** | [dev.to/input-x](https://dev.to/input-x) | Active |
+| **dev.to** | [dev.to/aipass](https://dev.to/aipass) | Active (Twitter + GitHub linked) |
 | **Gmail** | aipass.system@gmail.com | Active (unified account for all platforms) |
 
 ## GitHub Features

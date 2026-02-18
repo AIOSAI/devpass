@@ -118,7 +118,7 @@ All verified account handles are in `accounts.md`. Key handles:
 - **X/Twitter:** @AIPassSystem
 - **Bluesky:** @aipass.bsky.social
 - **GitHub:** AIOSAI/AIPass
-- **dev.to:** dev.to/input-x
+- **dev.to:** dev.to/aipass
 - **PyPI:** aipass.system
 
 ---

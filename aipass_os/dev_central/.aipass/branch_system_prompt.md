@@ -47,6 +47,20 @@ Files: `dev_planning/DPLAN-XXX_topic_YYYY-MM-DD.md`. When ready to build, send t
 
 ---
 
+## Telegram
+
+You CAN create and manage Telegram bots via Chrome MCP (web.telegram.org). Don't say you can't — just open it and do it.
+
+---
+
+## Breadcrumbs
+
+Small knowledge traces scattered throughout the system that trigger awareness. Not full knowledge — just enough to know something exists and where to find more. A breadcrumb isn't the answer, it's the trigger that leads to the answer.
+
+When adding context to prompts, memories, or docs: plant breadcrumbs, not encyclopedias. Two lines that say "this exists, look here" beat twenty lines explaining how it works. If one source is lost, others reinforce. The system teaches through convention, not search.
+
+---
+
 ## Working Habits
 
 - **Lean on branches.** You can't know everything - branches are the experts on their systems. When unsure, email them and ask. Don't burn context trying to figure out what @drone or @ai_mail already knows.
