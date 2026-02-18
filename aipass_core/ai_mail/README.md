@@ -18,7 +18,7 @@ AI_MAIL provides internal email system for AI branches within AIPass. Core respo
 - Auto-generate per-branch configs (user_config.json in [branch]_json/)
 - Auto-detect calling branch via PWD/CWD for sender identity
 - Update dashboard on delivery (DASHBOARD.local.json)
-- Dispatch auto-execute: spawn Claude agents for `--dispatch` emails
+- Dispatch daemon: continuous polling engine spawns agents for `--dispatch` emails
 - Single instance per branch locking (PID-based dispatch lock)
 - Reply chain validation (sender must match dispatched_to)
 - Maintain 100% CLI standards compliance
@@ -62,10 +62,12 @@ apps/
 ├── handlers/
 │   ├── central_writer.py   # Central file updates
 │   ├── dispatch/           # Dispatch operations
+│   │   ├── daemon.py       # Continuous dispatch daemon (polling + spawning)
+│   │   ├── pending_work.py # Per-branch pending work tracking
 │   │   └── status.py       # Dispatch log and status
 │   ├── email/              # Email operations
 │   │   ├── create.py       # Create email messages
-│   │   ├── delivery.py     # Deliver to branches + dispatch spawning
+│   │   ├── delivery.py     # Deliver to branch inboxes (write-only, no spawning)
 │   │   ├── format.py       # Email formatting
 │   │   ├── footer.py       # Auto-footer for outgoing emails
 │   │   ├── header.py       # Email header formatting
@@ -107,11 +109,11 @@ apps/
 
 - `email` - Core email functionality (send, inbox, view, reply, close, sent, contacts)
 - `branch_ping` - Branch memory health monitoring
-- `dispatch` - Dispatch status tracking and log
+- `dispatch` - Dispatch status tracking, log, and daemon management
 
 ### Handlers (by domain)
 
-**Dispatch**: status
+**Dispatch**: daemon, pending_work, status
 **Email**: create, delivery, footer, format, header, inbox_cleanup, inbox_lock, inbox_ops, lock_utils, purge, reply
 **JSON Utils**: json_handler
 **Monitoring**: data_ops, errors, memory
@@ -186,15 +188,31 @@ drone @ai_mail contacts
 drone @ai_mail read <message_id>
 ```
 
-### Dispatch System
+### Dispatch System (v3.0)
 
-The `--dispatch` flag triggers auto-execution at the recipient branch:
+The `--dispatch` flag marks emails for autonomous execution. The **dispatch daemon** polls inboxes and spawns agents — delivery.py is write-only.
 
+**Architecture:**
+- `delivery.py` writes to inbox + sends desktop notification. No spawning.
+- `daemon.py` polls all branch inboxes every 5 min for `--dispatch` emails
+- Agents spawned via `claude -c -p` from the branch's CWD (auto-continues most recent session)
+- Agents are ephemeral (wake, do work, exit). The daemon is the continuity.
+- All safety limits configured in `safety_config.json`
+
+**Running the daemon:**
+```bash
+python3 apps/handlers/dispatch/daemon.py       # Standalone
+ai_mail dispatch daemon                        # Via module
+tmux new-session -d -s dispatch 'python3 apps/handlers/dispatch/daemon.py'
+```
+
+**Safety features:**
+- **Kill switch**: `touch /home/aipass/.aipass/autonomous_pause` freezes all dispatches
+- **Max turns**: 15 per wake (configurable)
+- **Max dispatches/branch/day**: 10 (configurable, resets at midnight)
 - **Single instance lock**: PID-based `.dispatch.lock` prevents concurrent agents per branch
-- **Bounce notification**: Sender gets notified if branch is already busy
-- **DEV_CENTRAL protection**: @dev_central is never auto-dispatched (email delivered, no agent spawned)
+- **DEV_CENTRAL protection**: @dev_central is never auto-dispatched
 - **Notification throttling**: Max 3 desktop notifications per recipient in 30s window
-- **Self-reply loop detection**: Reply-to self on auto_execute downgrades to regular delivery
 - **Stale lock timeout**: 10 minutes (auto-cleanup of dead locks)
 
 ### Direct Module Access
@@ -208,6 +226,9 @@ python3 apps/ai_mail.py ping
 
 # Dispatch status
 python3 apps/ai_mail.py dispatch status
+
+# Start dispatch daemon
+python3 apps/ai_mail.py dispatch daemon
 ```
 
 ## Integration Points
@@ -234,6 +255,9 @@ python3 apps/ai_mail.py dispatch status
 - `ai_mail.local/sent/` - Sent messages (individual files, auto-purged at >10)
 - `ai_mail.local/deleted/` - Closed/archived messages (individual files, auto-purged at >10)
 - `ai_mail.local/.dispatch.lock` - PID-based dispatch lock (when agent active)
+- `ai_mail.local/daemon_state.json` - Daemon daily counts and session tracking
+- `ai_mail.local/dispatch_daemon.log` - Daemon activity log
+- `safety_config.json` - Kill switch, poll interval, max turns/dispatches, autonomous branch list
 
 **Email Schema (v2):**
 ```json
@@ -258,7 +282,7 @@ python3 apps/ai_mail.py dispatch status
 
 ## Standards Compliance
 
-Seed audit score: **88%** (passing)
+Seed audit score: **89%** (passing)
 
 Following AIPass code standards:
 - 100% CLI integration
@@ -278,6 +302,14 @@ Following AIPass code standards:
 ---
 
 ## Changelog
+
+**2026-02-17 - FPLAN-0350: Dispatch Daemon — Continuous Work Engine**
+- Created daemon.py: polling daemon spawns agents via `claude -c -p` from branch CWD
+- Created pending_work.py: per-branch `.pending_work.json` read/write utils
+- Created safety_config.json: kill switch, poll interval, max turns/depth/dispatches
+- delivery.py v3.0.0: removed all spawn logic, now write-only (inbox + notification)
+- dispatch.py module v2.0.0: added daemon subcommand
+- Architecture shift: daemon is the sole spawn authority, agents are ephemeral
 
 **2026-02-10 - Seed Compliance + FPLAN-0310 + BrokenPipeError Fix**
 - delivery.py from 64% to 89% Seed compliance (removed logger calls, cross-handler imports, added json_handler import, fixed naming)

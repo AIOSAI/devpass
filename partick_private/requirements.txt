@@ -1,0 +1,29 @@
+# =============================================
+# META DATA HEADER
+# Name: requirements.txt - PARTICK_PRIVATE Dependencies
+# Date: 2026-02-17
+# Version: 0.1.0
+# Category: PARTICK_PRIVATE
+#
+# CHANGELOG:
+#   - v0.1.0 (2026-02-17): Initial template
+#     * Python 3.12+ required
+#     * Dependencies listed as-needed
+# =============================================
+
+# AIPass PARTICK_PRIVATE - Python Dependencies
+# Python >=3.12 required
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For development dependencies:
+#   pip install -e ".[dev]"
+
+# Core Dependencies
+# Add your dependencies here with exact versions
+# Example: requests==2.31.0
+
+# Development Dependencies (optional, can also use pyproject.toml [project.optional-dependencies])
+# pytest>=7.4.3
+# pytest-cov>=4.1.0

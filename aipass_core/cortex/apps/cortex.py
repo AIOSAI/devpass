@@ -249,6 +249,9 @@ EXAMPLES:
     parser.add_argument('--verbose', action='store_true', help='Verbose output')
     parser.add_argument('--all', dest='all_branches', action='store_true', help='Apply to all branches')
     parser.add_argument('--dry-run', action='store_true', help='Preview changes without applying')
+    parser.add_argument('--role', default=None, help='Branch role (for create-branch)')
+    parser.add_argument('--traits', default=None, help='Branch traits (for create-branch)')
+    parser.add_argument('--purpose', default=None, help='Branch purpose brief (for create-branch)')
 
     # Parse known args to allow modules to define their own
     args, unknown = parser.parse_known_args()
@@ -297,7 +300,7 @@ EXAMPLES:
         return 0
     else:
         # Log failed command
-        logger.error(f"[CORTEX] No module handled command: {args.command}")
+        logger.warning(f"[CORTEX] No module handled command: {args.command}")
         console.print(f"Unknown command: {args.command}")
         console.print("Run with --list to see available modules")
         json_handler.log_operation(

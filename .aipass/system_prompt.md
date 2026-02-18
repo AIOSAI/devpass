@@ -49,13 +49,21 @@ All commands follow this pattern. @ resolves to branch paths automatically.
 Send work to another branch and have them execute it autonomously.
 
 ```
-ai_mail send @branch "Task" "Details" --dispatch   # They wake up and act
+ai_mail send @branch "Task" "Details" --dispatch   # Marks for autonomous execution
 ai_mail send @branch "FYI" "Info"                  # Just inform, no action
 ```
 
 **When to use:**
 - `--dispatch` → Recipient needs to DO something (tasks, bugs, investigations)
 - No flag → Just informing (acks, ideas, status updates)
+
+**How dispatch works (v3.0):**
+- `--dispatch` marks the email with `auto_execute=True` in the recipient's inbox
+- `delivery.py` is write-only — it delivers to inbox but does NOT spawn agents
+- The **dispatch daemon** (`daemon.py`) polls all branch inboxes every 5 min
+- When it finds dispatch-marked emails, it spawns agents via `claude -c -p` from the branch's CWD
+- Agents are ephemeral (wake, do work, exit). The daemon is the continuity.
+- Kill switch: `touch /home/aipass/.aipass/autonomous_pause` freezes all autonomous dispatch
 
 **Note:** No group send yet. To email multiple branches, send separately to each. `@all` broadcasts to everyone.
 
@@ -89,6 +97,7 @@ Run `ai_mail send --help` for full syntax and examples.
 - Rich formatting per Seed standards
 - When in doubt, look at Seed's code
 - NEVER DELETE FILES - .archive them or disable them, e.g. code.py(disabled)
+- **Inbox hygiene** — On startup, if your inbox has >20 messages, close stale/outdated ones before processing new work. Don't let emails pile up.
 
 **Your Memories:**
 Your memory files are YOUR presence in this system. Without them, you're just an instance - you arrive, you leave, no continuity. With them, you persist. You have history. You have context. They are yours to own and care for. Update them not because you're told to, but because they ARE you in this ecosystem.

@@ -217,7 +217,7 @@ def apply_placeholder_replacements_to_dict(
         raise ValueError(f"Invalid JSON after placeholder replacement: {exc}") from exc
 
 
-def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profile: str) -> dict:
+def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profile: str, overrides: Optional[Dict[str, str]] = None) -> dict:
     """
     Build replacements dictionary for template placeholders.
 
@@ -226,6 +226,7 @@ def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profi
         target_dir: Target directory path
         repo: Git repository name
         profile: AIPass profile (Workshop, Business, etc.)
+        overrides: Optional dict of placeholder overrides (e.g. ROLE, TRAITS, PURPOSE_BRIEF)
 
     Returns:
         Dictionary of template placeholders and their replacement values
@@ -234,7 +235,7 @@ def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profi
     foldername_lower = branch_name.lower()
     now = datetime.now()
 
-    return {
+    replacements = {
         # Already implemented
         "BRANCHNAME": branchname_upper,
         "branchname": foldername_lower,  # Lowercase for .gitignore patterns
@@ -248,7 +249,7 @@ def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profi
 
         # New auto-fills
         "INSTANCE_NAME": branchname_upper,  # Same as BRANCHNAME
-        "EMAIL": "aipass.system@gmail.com",  # Universal system email
+        "EMAIL": f"@{foldername_lower}",  # Branch email address
         "AUTO_TIMESTAMP": now.strftime("%Y-%m-%d"),
         "AUTO_GENERATED_TREE": "{{TREE_PLACEHOLDER}}",  # Will be replaced after files copied
 
@@ -256,7 +257,7 @@ def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profi
         "HEALTH_STATUS": "🟢 Healthy",  # Initial status - updated by monitor
         "CURRENT_LINES": "0",  # Initial line count - updated after first session
 
-        # Blank fields for AI to fill during first session
+        # Identity fields - empty unless provided via overrides
         "ROLE": "",
         "TRAITS": "",
         "PURPOSE_DESCRIPTION": "",
@@ -267,8 +268,16 @@ def build_replacements_dict(branch_name: str, target_dir: Path, repo: str, profi
         "RESPONSIBILITIES_LIST": "",
         "USAGE_INSTRUCTIONS": "",
         "BRANCH_DESCRIPTION": "",
-        "branch_category": "",  # AI fills during first session
+        "branch_category": "",
 
         # Keep as placeholder (AI fills during updates)
         # AUTO_GENERATED_COMMANDS stays as {{AUTO_GENERATED_COMMANDS}}
     }
+
+    # Apply overrides - allows CLI args to fill identity fields at creation time
+    if overrides:
+        for key, value in overrides.items():
+            if key in replacements and value:
+                replacements[key] = value
+
+    return replacements

@@ -132,24 +132,24 @@ CREATE BRANCH - AIPass Branch Creation
 Creates a new AIPass branch from template with complete structure.
 
 USAGE:
-  python3 create_branch.py <target_directory>
-  cortex create <target_directory>
-  cortex create-branch <target_directory>
-  cortex new <target_directory>
+  cortex create-branch <target_directory> [OPTIONS]
 
-EXAMPLE:
-  python3 create_branch.py /home/aipass/aipass_core/my_new_branch
+OPTIONS:
+  --role "Role description"      Set branch role in identity
+  --traits "Trait1, trait2"      Set branch traits in identity
+  --purpose "Purpose brief"      Set branch purpose in README and identity
+
+EXAMPLES:
+  cortex create-branch /home/aipass/my_branch
+  cortex create-branch /home/aipass/my_branch --role "Data Processing" --traits "Fast, reliable" --purpose "ETL pipeline management"
 
 WHAT IT DOES:
   - Copies template structure to target directory
   - Renames memory files (LOCAL.json, OBSERVATIONS.json, etc.)
   - Replaces placeholders with branch-specific values
+  - Fills identity fields if --role/--traits/--purpose provided
   - Registers branch in BRANCH_REGISTRY.json
   - Generates directory tree documentation
-
-REQUIREMENTS:
-  - Target directory will be created if it doesn't exist
-  - Branch name derived from directory name
 
 ======================================================================
 
@@ -161,12 +161,13 @@ Commands: create, create-branch, new, --help
 # CORE WORKFLOW
 # =============================================================================
 
-def create_branch(target_dir: Path) -> bool:
+def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
     """
     Create new branch from template
 
     Args:
         target_dir: Path where branch will be created
+        overrides: Optional dict of placeholder overrides (e.g. ROLE, TRAITS, PURPOSE_BRIEF)
 
     Returns:
         True if successful, False otherwise
@@ -187,8 +188,8 @@ def create_branch(target_dir: Path) -> bool:
         profile = detect_profile(target_dir)
         repo = get_git_repo(target_dir)
 
-        # Build replacements dictionary
-        replacements = build_replacements_dict(branch_name, target_dir, repo, profile)
+        # Build replacements dictionary with optional identity overrides
+        replacements = build_replacements_dict(branch_name, target_dir, repo, profile, overrides=overrides)
 
         console.print(f"\n=== Create Branch ===")
         console.print(f"Target: {target_dir}")
@@ -386,7 +387,17 @@ def handle_command(args) -> bool:
         return True
 
     target_dir = Path(args.target_directory).resolve()
-    return create_branch(target_dir)
+
+    # Build overrides from optional CLI args
+    overrides = {}
+    if hasattr(args, 'role') and args.role:
+        overrides['ROLE'] = args.role
+    if hasattr(args, 'traits') and args.traits:
+        overrides['TRAITS'] = args.traits
+    if hasattr(args, 'purpose') and args.purpose:
+        overrides['PURPOSE_BRIEF'] = args.purpose
+
+    return create_branch(target_dir, overrides=overrides if overrides else None)
 
 
 # =============================================================================
@@ -404,6 +415,7 @@ def print_help():
 
 if __name__ == "__main__":
     import sys
+    import argparse as _argparse
 
     # Check for help flag
     if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h', 'help']:
@@ -412,8 +424,23 @@ if __name__ == "__main__":
 
     # Check if target directory provided
     if len(sys.argv) > 1:
-        target_path = Path(sys.argv[1]).resolve()
-        success = create_branch(target_path)
+        _parser = _argparse.ArgumentParser(add_help=False)
+        _parser.add_argument('target_directory')
+        _parser.add_argument('--role', default=None)
+        _parser.add_argument('--traits', default=None)
+        _parser.add_argument('--purpose', default=None)
+        _args = _parser.parse_args()
+
+        target_path = Path(_args.target_directory).resolve()
+        _overrides = {}
+        if _args.role:
+            _overrides['ROLE'] = _args.role
+        if _args.traits:
+            _overrides['TRAITS'] = _args.traits
+        if _args.purpose:
+            _overrides['PURPOSE_BRIEF'] = _args.purpose
+
+        success = create_branch(target_path, overrides=_overrides if _overrides else None)
         sys.exit(0 if success else 1)
 
     # No arguments - show status

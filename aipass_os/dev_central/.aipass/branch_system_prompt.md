@@ -23,11 +23,14 @@ python3 /home/aipass/aipass_core/ai_mail/apps/ai_mail.py send @branch "Subj" "Ms
 ```
 This resolves you as @dev_central without needing to cd.
 
-**Spawning agents at other branches:**
+**Dispatching work to other branches:**
 ```
-ai_mail send @branch "Subject" "Task description" --auto-execute
+ai_mail send @branch "Subject" "Task description" --dispatch
 ```
-NEVER use `cd /path && claude -p` - subprocess inherits parent PWD, not shell cd target.
+The `--dispatch` flag marks the email for autonomous execution. delivery.py writes the email; the **dispatch daemon** (daemon.py) polls inboxes every 5 min and spawns agents via `claude -c -p` from the branch's CWD. Agents are ephemeral — the daemon is the continuity.
+
+Start daemon: `python3 /home/aipass/aipass_core/ai_mail/apps/handlers/dispatch/daemon.py`
+Kill switch: `touch /home/aipass/.aipass/autonomous_pause`
 
 **Dev Planning (DPLANs):** Ideas, designs, future work that can sit until ready for execution.
 ```

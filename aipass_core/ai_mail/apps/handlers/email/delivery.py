@@ -4,14 +4,14 @@
 # META DATA HEADER
 # Name: delivery.py - Email Delivery Handler
 # Date: 2025-12-02
-# Version: 2.4.0
+# Version: 3.0.0
 # Category: ai_mail/handlers/email
 #
 # CHANGELOG (Max 5 entries):
+#   - v3.0.0 (2026-02-17): Remove spawn logic — delivery is write-only, daemon handles all spawning
 #   - v2.4.0 (2026-02-10): Seed compliance - remove logger calls, cross-handler imports, fix naming, add json_handler
 #   - v2.3.0 (2026-02-10): Phase 3 polish - concise bounce messages, dispatch chain logging, hardened loop detection
 #   - v2.2.0 (2026-02-10): DEV_CENTRAL dispatch protection, notification throttling, self-reply loop detection
-#   - v2.1.0 (2026-02-10): Silent success confirmations - only send email on spawn failure, not success
 #   - v2.0.0 (2026-02-09): Add fcntl.flock inbox.json locking to prevent concurrent write corruption
 #
 # CODE STANDARDS:
@@ -45,17 +45,7 @@ from aipass_core.ai_mail.apps.handlers.json_utils.json_handler import load_json,
 
 # Lazy imports to avoid circular dependencies
 _CONSOLE = None
-_LOCK_UTILS = None
 _INBOX_LOCK = None
-
-
-def _get_lock_utils():
-    """Lazy import lock_utils."""
-    global _LOCK_UTILS
-    if _LOCK_UTILS is None:
-        from aipass_core.ai_mail.apps.handlers.email import lock_utils
-        _LOCK_UTILS = lock_utils
-    return _LOCK_UTILS
 
 
 def _get_inbox_lock():
@@ -334,199 +324,7 @@ def deliver_email_to_branch(
         except Exception:
             return True, ""
 
-    # Auto-execute: spawn background agent at target branch
-    if email_data.get('auto_execute', False):
-        reply_to = email_data.get('reply_to')
-        sender_from = email_data.get('from')
-        if not ((reply_to and reply_to == to_branch) or (sender_from and sender_from == to_branch)):
-            _spawn_auto_execute_agent(branch_path, email_data['from'], message['id'])
-
     return True, ""
-
-
-def _spawn_auto_execute_agent(branch_path: Path, sender: str, message_id: str) -> None:
-    """
-    Spawn a background Claude agent at target branch to process the email.
-    Sends confirmation email back to sender with spawn result.
-
-    Args:
-        branch_path: Path to target branch directory
-        sender: Email sender address (e.g., @dev_central)
-        message_id: ID of the delivered message
-    """
-    branch_email = _get_branch_email_from_path(branch_path)
-
-    # PROTECTION: @dev_central is protected from auto-dispatch
-    if branch_email == '@dev_central':
-        return
-
-    try:
-        if branch_path == Path("/"):
-            branch_path = Path.home()
-
-        branch_path = branch_path.resolve()
-        if not branch_path.exists():
-            error_msg = f"target path does not exist: {branch_path}"
-            _send_spawn_confirmation(sender, branch_email, branch_path, False, error_msg)
-            return
-
-        # SINGLE INSTANCE GATE: Check if branch already has an active dispatch agent
-        lock = _get_lock_utils()
-        existing_lock = lock.check_lock(branch_path)
-        if existing_lock is not None:
-            existing_pid = existing_lock.get("pid", "unknown")
-            existing_time = existing_lock.get("timestamp", "unknown")
-            _send_bounce_notification(sender, branch_email, branch_path, existing_pid, existing_time)
-            return
-
-        # Build the agent prompt (includes lock release instruction)
-        lock_path = str(branch_path / "ai_mail.local" / ".dispatch.lock")
-        prompt = (
-            f"Hi. Check inbox for task from {sender} (message ID: {message_id}). Execute it. Send confirmation when done. "
-            f"IMPORTANT: When finished, delete the dispatch lock file at {lock_path}"
-        )
-
-        cmd = f"claude -p '{prompt}' --permission-mode bypassPermissions"
-        target_cwd = str(branch_path)
-
-        import os
-        spawn_env = os.environ.copy()
-        spawn_env['AIPASS_SPAWNED'] = '1'
-        spawn_env.pop('CLAUDECODE', None)  # Allow spawned claude to run outside parent session
-
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-            cwd=target_cwd,
-            env=spawn_env
-        )
-
-        pid = process.pid
-
-        # Acquire dispatch lock for this branch
-        lock.acquire_lock(branch_path, pid)
-
-        # Notify desktop that branch agent is running
-        _send_spawn_notification(branch_email)
-
-    except Exception as e:
-        error_msg = str(e)
-        _send_spawn_confirmation(sender, branch_email, branch_path, False, error_msg)
-
-
-def _get_branch_email_from_path(branch_path: Path) -> str:
-    """
-    Get branch email address from path.
-
-    Args:
-        branch_path: Path to branch directory
-
-    Returns:
-        Branch email address (e.g., @ai_mail)
-    """
-    if branch_path == Path("/") or branch_path == Path.home():
-        return "@aipass"
-
-    branch_name = branch_path.name.lower()
-    return f"@{branch_name}"
-
-
-def _send_spawn_confirmation(
-    recipient: str,
-    sender_email: str,
-    branch_path: Path,
-    success: bool,
-    error_msg: str | None = None,
-    pid: int | None = None
-) -> None:
-    """
-    Send spawn confirmation email to the original dispatch sender.
-
-    Args:
-        recipient: Email address to send confirmation to
-        sender_email: Branch email sending the confirmation
-        branch_path: Path to spawning branch (for display name)
-        success: Whether spawn succeeded
-        error_msg: Error message if spawn failed
-        pid: Process ID if spawn succeeded
-    """
-    from datetime import datetime
-
-    try:
-        branch_name = branch_path.name.upper() if branch_path != Path.home() else "AIPASS"
-
-        if success:
-            conf_subject = f"SPAWN OK: Agent started at {sender_email}"
-            conf_message = f"Agent spawned at {sender_email} (PID: {pid})"
-        else:
-            conf_subject = f"SPAWN FAILED at {sender_email}"
-            conf_message = f"SPAWN FAILED at {sender_email}: {error_msg}"
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        email_data = {
-            "from": sender_email,
-            "from_name": branch_name,
-            "to": recipient,
-            "subject": conf_subject,
-            "message": conf_message,
-            "timestamp": timestamp,
-            "auto_execute": False,
-            "priority": "normal"
-        }
-
-        deliver_email_to_branch(recipient, email_data)
-
-    except Exception:
-        return
-
-
-def _send_bounce_notification(
-    recipient: str,
-    branch_email: str,
-    branch_path: Path,
-    existing_pid: int | str,
-    existing_time: str
-) -> None:
-    """
-    Send bounce notification when dispatch is blocked by active lock.
-
-    Args:
-        recipient: Email address to send bounce to (original sender)
-        branch_email: Target branch email that is busy
-        branch_path: Path to target branch
-        existing_pid: PID of the currently running agent
-        existing_time: Timestamp when the existing agent started
-    """
-    from datetime import datetime
-
-    try:
-        branch_name = branch_path.name.upper() if branch_path != Path.home() else "AIPASS"
-
-        bounce_subject = f"DISPATCH BOUNCED: {branch_email} is busy"
-        bounce_message = (
-            f"Dispatch to {branch_email} blocked: active agent PID {existing_pid} running since {existing_time}. "
-            f"Email delivered to inbox for manual review."
-        )
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        email_data = {
-            "from": branch_email,
-            "from_name": branch_name,
-            "to": recipient,
-            "subject": bounce_subject,
-            "message": bounce_message,
-            "timestamp": timestamp,
-            "auto_execute": False,
-            "priority": "normal"
-        }
-
-        deliver_email_to_branch(recipient, email_data)
-
-    except Exception:
-        return
 
 
 def _get_summary_file_path(branch_path: Path) -> Path:
@@ -653,24 +451,6 @@ def _send_desktop_notification(sender: str, recipient: str, subject: str, messag
             timeout=5
         )
         _NOTIFICATION_TIMESTAMPS[recipient].append(now)
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return
-
-
-def _send_spawn_notification(branch_email: str) -> None:
-    """
-    Send desktop notification when a branch agent is spawned via dispatch.
-
-    Args:
-        branch_email: Branch being spawned (e.g., @trigger)
-    """
-    branch_name = branch_email.replace('@', '').upper()
-    try:
-        subprocess.run(
-            ['notify-send', f'{branch_name} Running', f'Agent dispatched at {branch_email}'],
-            capture_output=True,
-            timeout=5
-        )
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return
 

@@ -533,7 +533,7 @@ def send_email_direct(to_branch: str, subject: str, message: str, auto_execute: 
 
             if success:
                 if auto_execute:
-                    console.print(f"✅ Email sent to {to_branch} \\[auto-execute: agent spawned]")
+                    console.print(f"✅ Email sent to {to_branch} \\[dispatch: queued for daemon]")
                 else:
                     console.print(f"✅ Email sent to {to_branch}")
                 log_operation("email_sent", {"to": to_branch, "subject": subject, "auto_execute": auto_execute})

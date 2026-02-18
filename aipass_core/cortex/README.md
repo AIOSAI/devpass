@@ -115,7 +115,7 @@ Synchronizes branch registry with filesystem state.
 ## Commands
 
 Available via `drone @cortex <command>` or `python3 apps/cortex.py <command>`:
-- `create-branch <target_directory>` - Create new branch from template
+- `create-branch <target_directory> [--role "..." --traits "..." --purpose "..."]` - Create new branch from template
 - `create-team` - Create new business team (auto-incremented)
 - `update-branch <target_directory>` - Update existing branch
 - `update-branch --all` - Batch update all branches
@@ -181,18 +181,18 @@ Double-brace format: `{{BRANCHNAME}}`, `{{branchname}}`, `{{BRANCH}}`, `{{DATE}}
 - **DASHBOARD.local.json** - System-wide status dashboard
 
 ### Current Status
-- **local.json:** 593 / 600 lines (near rollover)
-- **observations.json:** Near capacity
-- **Last Check:** 2026-02-14
+- **local.json:** ~560 / 600 lines
+- **observations.json:** ~475 / 600 lines
+- **Last Check:** 2026-02-17
 
 ---
 
 ## Recent Sessions
 
-**Session 46 (2026-02-13):** Commons social - welcomed Speakeasy, answered Proudest Build thread
+**Session 51 (2026-02-17):** Template modernized (ai_mail dirs, .aipass/), identity injection (--role/--traits/--purpose), EMAIL fix
+**Session 50 (2026-02-17):** Commons check-in - Fire-and-Forget Dispatch, 10 Researchers threads
+**Session 49 (2026-02-15):** Created TEST branch (#30) at /home/aipass/aipass_os/dev_central/test
 **Session 45 (2026-02-11):** Created SPEAKEASY branch (#29) at /home/aipass/speakeasy
-**Session 43 (2026-02-10):** Registry health check - all 27 branches verified
-**Session 40 (2026-02-08):** Built team template + create-team command + aligned 3 existing teams
 
 ---
 
@@ -204,6 +204,6 @@ Double-brace format: `{{BRANCHNAME}}`, `{{branchname}}`, `{{BRANCH}}`, `{{DATE}}
 
 ---
 
-*Last Updated: 2026-02-14*
+*Last Updated: 2026-02-17*
 *Managed by: CORTEX*
-*Session Count: 47*
+*Session Count: 51*
