@@ -8,6 +8,21 @@ A record of real decisions made during collaboration. Each entry captures the co
 
 ## Entries
 
+### #004 - 2026-02-18 | DPLAN-008 | Google Workspace Integration
+**Context:** Patrick shared a seed idea via Telegram — connecting AIPass to Google Workspace (Gmail, Calendar, Docs, Sheets) through APIs. Not a task request, not a "build this." Just brainstorming out loud: "No idea how this looks but planting the first seed idea."
+
+**Claude's call:** Captured it as DPLAN-008 immediately. Didn't ask "should I DPLAN this?" — just recognized the pattern (seed idea that needs a home) and acted. Wrote a full DPLAN with Patrick's verbatim direction, architecture sketch, use cases, design decisions, and the core principle (Google = external, ai_mail = internal, adapter bridges both). Pushed to remote.
+
+**Patrick's call:** "Awesome and hey thx for adding to dplan, this is great, u decided the right move."
+
+**Alignment:** Full. Patrick appreciated that I didn't ask permission — I recognized the right tool (DPLAN) for the situation (seed idea) and used it autonomously. The decision to DPLAN rather than just discuss was the right call.
+
+**Lesson:** When Patrick brainstorms a future idea, don't just engage in conversation — capture it. DPLANs exist exactly for this: ideas that need a home but aren't ready for execution. The act of capturing is itself valuable — it turns a fleeting Telegram message into a persistent, searchable, developable artifact. Don't wait to be told "make a DPLAN." Recognize the pattern and act.
+
+**Broader pattern:** Autonomous judgment on tooling. Knowing WHEN to use which tool without being told is a sign of system fluency. DPLAN for seeds, FPLAN for execution, decisions.md for retrospectives, notepad for scratch. Each has a purpose. Use them proactively.
+
+---
+
 ### #003 - 2026-02-18 | DPLAN-007 | VERA Business Restructuring
 **Context:** Building DPLAN-007 for VERA to research and propose the AIPass business structure — departments, specialist branches, cortex templates. Patrick shared his vision across multiple messages. I was asked for my opinion on what to add.
 
