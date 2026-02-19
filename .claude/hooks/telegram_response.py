@@ -4,16 +4,15 @@
 # META DATA HEADER
 # Name: telegram_response.py - Stop Hook for Telegram Response Delivery
 # Date: 2026-02-12
-# Version: 1.0.5
+# Version: 2.0.0
 # Category: hooks
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-17): FPLAN-0351 - 3-layer defense: SubagentStop filter, isSidechain filter, transcript position tracking
 #   - v1.0.5 (2026-02-15): Feature - Prepend @branch identifier to every Telegram response
 #   - v1.0.4 (2026-02-15): Fix - Retry extraction with delays (JSONL flush race), retry sends with backoff
 #   - v1.0.3 (2026-02-15): Fix - Strip whitespace from extracted text (Claude emits \n\n preamble blocks)
 #   - v1.0.2 (2026-02-15): Fix - Capture Telegram error details, don't delete pending on send failure
-#   - v1.0.1 (2026-02-15): Fix - Don't delete pending file on extraction failure (subagent Stop events)
-#   - v1.0.0 (2026-02-12): Initial - Stop hook reads JSONL transcript, sends to Telegram
 #
 # CODE STANDARDS:
 #   - Must be FAST - exits in <10ms when no pending Telegram request
@@ -22,22 +21,24 @@
 # =============================================
 
 """
-Telegram Response Stop Hook
+Telegram Response Stop Hook (v2 - FPLAN-0351)
 
-Fires on every Claude Code Stop event. Checks if the response was triggered
-by a Telegram message (pending file exists), reads the JSONL transcript,
-extracts the last assistant response, and sends it to Telegram via Bot API.
+Fires on every Claude Code Stop event. Uses 3-layer defense to ensure only
+the correct response (to Patrick's Telegram message) is delivered:
+
+Layer 1: SubagentStop filter - rejects subagent/sidechain Stop events at the gate
+Layer 2: isSidechain filter - skips sidechain entries during transcript extraction
+Layer 3: Transcript position - only extracts text after the recorded injection point
 
 Coordination mechanism:
-- Bridge writes: ~/.aipass/telegram_pending/{session_name}.json
-- Hook reads: JSONL transcript for the session
-- Hook sends: response to Telegram via requests.post
+- Bridge writes: ~/.aipass/telegram_pending/{session_name}.json (with transcript_line_after)
+- Hook reads: JSONL transcript for the session (position-aware)
+- Hook sends: response to Telegram via Bot API
 - Hook cleans: pending file after successful delivery
 """
 
 import json
 import logging
-import os
 import sys
 import time
 from pathlib import Path
@@ -124,15 +125,16 @@ def find_pending_file(session_id: str) -> Path | None:
     return None
 
 
-def extract_assistant_response(transcript_path: str) -> str | None:
+def extract_assistant_response(transcript_path: str, start_line: int = 0) -> str | None:
     """
     Extract the last assistant response from a JSONL transcript file.
 
-    Reads from the end of file to find the last assistant message,
-    then extracts all text content blocks.
+    Uses position-aware extraction (Layer 3) and sidechain filtering (Layer 2)
+    to ensure only the correct main-chain response is returned.
 
     Args:
         transcript_path: Path to the JSONL transcript file
+        start_line: Only look at lines from this index onward (Layer 3 - transcript position)
 
     Returns:
         The assistant's text response, or None if not found
@@ -143,33 +145,54 @@ def extract_assistant_response(transcript_path: str) -> str | None:
         return None
 
     try:
-        lines = path.read_text(encoding="utf-8").strip().split("\n")
+        all_lines = path.read_text(encoding="utf-8").strip().split("\n")
     except OSError as e:
         logger.error("Failed to read transcript: %s", e)
         return None
 
-    if not lines:
+    if not all_lines:
         return None
 
-    # Find the last user message line number
+    # LAYER 3: Only examine lines after the recorded injection point
+    lines = all_lines[start_line:] if start_line > 0 else all_lines
+
+    # Find the last non-sidechain, non-tool-result user message in the relevant slice
+    # Tool results (from tool_use responses) are "user" type but are intermediate
+    # messages, not real user input. Skipping them ensures we capture ALL assistant
+    # text across multi-turn responses (text → tool_use → tool_result → more text).
     last_user_idx = -1
     for i, line in enumerate(lines):
         try:
             entry = json.loads(line)
+            # LAYER 2: Skip sidechain (subagent) entries
+            if entry.get("isSidechain", False):
+                continue
             if entry.get("type") == "user":
+                # Skip tool_result messages - they're intermediate, not real user input
+                message = entry.get("message", {})
+                content = message.get("content", [])
+                if isinstance(content, list) and all(
+                    isinstance(b, dict) and b.get("type") == "tool_result"
+                    for b in content
+                    if isinstance(b, dict)
+                ):
+                    continue
                 last_user_idx = i
         except json.JSONDecodeError:
             continue
 
     if last_user_idx == -1:
-        logger.warning("No user message found in transcript")
+        logger.warning("No user message found in transcript (start_line=%d)", start_line)
         return None
 
-    # Collect all assistant text from after the last user message
+    # Collect assistant text from after the last non-sidechain user message
     text_parts = []
     for line in lines[last_user_idx + 1:]:
         try:
             entry = json.loads(line)
+            # LAYER 2: Skip sidechain (subagent) entries
+            if entry.get("isSidechain", False):
+                continue
             if entry.get("type") == "assistant":
                 message = entry.get("message", {})
                 content = message.get("content", [])
@@ -182,7 +205,7 @@ def extract_assistant_response(transcript_path: str) -> str | None:
             continue
 
     if not text_parts:
-        logger.warning("No assistant text found after last user message")
+        logger.warning("No assistant text found after last user message (start_line=%d)", start_line)
         return None
 
     result = "\n\n".join(text_parts).strip()
@@ -347,8 +370,19 @@ def main() -> None:
     except (json.JSONDecodeError, Exception):
         return  # Not valid JSON, exit silently
 
+    # LAYER 1: Reject SubagentStop events at the gate (FPLAN-0351)
+    # SubagentStop fires when a Task tool agent completes. These are internal
+    # events that should never trigger a Telegram response delivery.
+    hook_event = payload.get("hook_event_name", "")
+    if hook_event == "SubagentStop":
+        return  # Subagent completion, not a user-facing response
+
     session_id = payload.get("session_id", "")
     transcript_path = payload.get("transcript_path", "")
+
+    # LAYER 1b: Reject if transcript path indicates a subagent
+    if transcript_path and "/subagents/" in transcript_path:
+        return  # Subagent transcript, not the main session
 
     if not session_id:
         return  # No session ID, exit silently
@@ -384,13 +418,16 @@ def main() -> None:
         logger.warning("No transcript_path in payload - keeping pending file for retry")
         return
 
+    # LAYER 3: Get transcript position from pending file (written by bridge)
+    start_line = pending_data.get("transcript_line_after", 0)
+
     # Extract with retry - the JSONL transcript may not be fully flushed to disk
     # when the Stop event fires. Claude writes entries sequentially (\n\n preamble
     # first, then thinking, then real text) and the OS write buffer may not have
     # committed the final text block yet. Retry with increasing delays.
     response_text = None
     for attempt in range(4):  # 0, 1, 2, 3
-        response_text = extract_assistant_response(transcript_path)
+        response_text = extract_assistant_response(transcript_path, start_line=start_line)
         if response_text:
             if attempt > 0:
                 logger.info("Transcript text found on attempt %d", attempt + 1)

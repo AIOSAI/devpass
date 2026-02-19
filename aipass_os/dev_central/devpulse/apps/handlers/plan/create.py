@@ -49,7 +49,7 @@ DEV_PLANNING_ROOT = Path.home() / "aipass_os" / "dev_central" / "dev_planning"
 # HANDLER FUNCTIONS
 # =============================================================================
 
-def create_plan(topic: str, subdir: str | None = None) -> Tuple[bool, Dict[str, Any], str]:
+def create_plan(topic: str, tag: str = "idea", subdir: str | None = None) -> Tuple[bool, Dict[str, Any], str]:
     """
     Create a new D-PLAN file
 
@@ -92,7 +92,7 @@ def create_plan(topic: str, subdir: str | None = None) -> Tuple[bool, Dict[str, 
     plan_path = target_dir / filename
 
     # Render template
-    content, template_err = render_template(plan_number, topic, date_str)
+    content, template_err = render_template(plan_number, topic, date_str, tag=tag)
     if template_err:
         return False, {}, f"Failed to render template: {template_err}"
 
@@ -106,6 +106,7 @@ def create_plan(topic: str, subdir: str | None = None) -> Tuple[bool, Dict[str, 
             "filename": filename,
             "path": str(plan_path),
             "topic": topic,
+            "tag": tag,
             "date": date_str,
             "subdir": subdir,
             "cache_warning": cache_err  # Module can log this if needed

@@ -1,0 +1,306 @@
+#!/home/aipass/.venv/bin/python3
+
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: space_module.py - Spatial Navigation Module
+# Date: 2026-02-18
+# Version: 1.0.0
+# Category: the_commons/modules
+#
+# CHANGELOG (Max 5 entries):
+#   - v1.0.0 (2026-02-18): Initial creation (FPLAN-0356 Phase 4)
+#
+# CODE STANDARDS:
+#   - Orchestration and rendering - delegates data ops to handlers/rooms/space_ops.py
+#   - Module interface: handle_command(command, args) -> bool
+# =============================================
+
+"""
+Spatial Navigation Module
+
+Thin router + renderer for spatial room commands.
+Delegates data retrieval to handlers/rooms/space_ops.py.
+
+Handles: enter, look, decorate, visitors commands.
+"""
+
+import sys
+from pathlib import Path
+from typing import List
+
+# Infrastructure
+AIPASS_ROOT = Path.home() / "aipass_core"
+sys.path.insert(0, str(AIPASS_ROOT))
+sys.path.insert(0, str(Path.home()))
+
+from prax.apps.modules.logger import system_logger as logger
+from cli.apps.modules import console
+
+from rich.panel import Panel
+
+# The Commons imports
+COMMONS_ROOT = Path("/home/aipass/The_Commons")
+sys.path.insert(0, str(COMMONS_ROOT / "apps"))
+
+from handlers.rooms.space_ops import (
+    get_room_enter_data,
+    get_room_look_data,
+    place_decoration,
+    get_visitors_data,
+)
+
+
+# =============================================================================
+# MOOD DISPLAY HELPERS
+# =============================================================================
+
+MOOD_STYLES = {
+    "welcoming": ("green", "~"),
+    "relaxed": ("blue", "~"),
+    "focused": ("yellow", "|"),
+    "neutral": ("dim", "-"),
+    "tense": ("red", "!"),
+    "celebratory": ("magenta", "*"),
+}
+
+
+def _mood_style(mood: str) -> str:
+    """Return Rich color for a mood string."""
+    return MOOD_STYLES.get(mood, ("dim", "-"))[0]
+
+
+def _mood_icon(mood: str) -> str:
+    """Return a text icon for a mood string."""
+    return MOOD_STYLES.get(mood, ("dim", "-"))[1]
+
+
+# =============================================================================
+# COMMAND ROUTING
+# =============================================================================
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """
+    Handle spatial navigation commands.
+
+    Args:
+        command: Command name (enter, look, decorate, visitors)
+        args: Command arguments
+
+    Returns:
+        True if command handled, False otherwise
+    """
+    if command not in ["enter", "look", "decorate", "visitors"]:
+        return False
+
+    if command == "enter":
+        return _cmd_enter(args)
+    elif command == "look":
+        return _cmd_look(args)
+    elif command == "decorate":
+        return _cmd_decorate(args)
+    elif command == "visitors":
+        return _cmd_visitors(args)
+
+    return False
+
+
+# =============================================================================
+# ENTER
+# =============================================================================
+
+def _cmd_enter(args: List[str]) -> bool:
+    """Enter a room -- render entrance panel with mood, flavor, decorations."""
+    if not args:
+        console.print("[red]Usage: commons enter <room>[/red]")
+        return True
+
+    room_name = args[0].lower()
+    data = get_room_enter_data(room_name)
+
+    if data.get("error"):
+        console.print(f"[red]{data['error']}[/red]")
+        return True
+
+    if not data["found"]:
+        console.print(f"[red]Room '{room_name}' not found[/red]")
+        return True
+
+    room = data["room"]
+    mood = room.get("mood") or "neutral"
+    entrance_msg = room.get("entrance_message") or f"You enter {room_name}."
+    flavor = room.get("flavor_text") or ""
+    style = _mood_style(mood)
+    icon = _mood_icon(mood)
+
+    # Build panel body
+    body_parts = []
+    body_parts.append(f"[italic]{entrance_msg}[/italic]")
+    body_parts.append("")
+
+    if flavor:
+        body_parts.append(f"[dim]{flavor}[/dim]")
+        body_parts.append("")
+
+    body_parts.append(f"[{style}]Mood: {mood} {icon}[/{style}]")
+    body_parts.append(
+        f"[dim]Posts: {data['post_count']} total | {data['recent_count']} in last 48h[/dim]"
+    )
+
+    decorations = data.get("decorations", {})
+    if decorations:
+        body_parts.append("")
+        body_parts.append("[bold]Decorations:[/bold]")
+        for key, desc in decorations.items():
+            item_name = key.replace("decor_", "").replace("_", " ").title()
+            body_parts.append(f"  [cyan]{item_name}[/cyan] - {desc}")
+
+    console.print()
+    console.print(Panel(
+        "\n".join(body_parts),
+        title=f"[bold]r/{room_name}[/bold] - {room.get('display_name', room_name)}",
+        subtitle=f"[dim]{room.get('description', '')}[/dim]",
+        border_style=style,
+        padding=(1, 2),
+    ))
+    console.print()
+
+    logger.info(f"[commons] Entered room r/{room_name}")
+    return True
+
+
+# =============================================================================
+# LOOK
+# =============================================================================
+
+def _cmd_look(args: List[str]) -> bool:
+    """Look around -- show description, mood, decorations, recent posts."""
+    room_name = args[0].lower() if args else "general"
+    data = get_room_look_data(room_name)
+
+    if data.get("error"):
+        console.print(f"[red]{data['error']}[/red]")
+        return True
+
+    if not data["found"]:
+        console.print(f"[red]Room '{room_name}' not found[/red]")
+        return True
+
+    room = data["room"]
+    mood = room.get("mood") or "neutral"
+    flavor = room.get("flavor_text") or ""
+    style = _mood_style(mood)
+    icon = _mood_icon(mood)
+
+    console.print()
+    console.print(f"[bold cyan]r/{room_name}[/bold cyan] - {room.get('display_name', room_name)}")
+    console.print(f"  [dim]{room.get('description', '')}[/dim]")
+    console.print()
+
+    if flavor:
+        console.print(f"  [italic]{flavor}[/italic]")
+        console.print()
+
+    console.print(f"  [{style}]Mood: {mood} {icon}[/{style}]")
+    console.print()
+
+    decorations = data.get("decorations", {})
+    if decorations:
+        console.print("  [bold]Decorations:[/bold]")
+        for key, desc in decorations.items():
+            item_name = key.replace("decor_", "").replace("_", " ").title()
+            console.print(f"    [cyan]{item_name}[/cyan] - {desc}")
+        console.print()
+
+    recent_posts = data.get("recent_posts", [])
+    if recent_posts:
+        console.print("  [bold]Recent posts:[/bold]")
+        for p in recent_posts:
+            console.print(
+                f"    [dim]#{p['id']}[/dim] {p['title']} "
+                f"[dim]by {p['author']} | {p['created_at']}[/dim]"
+            )
+    else:
+        console.print("  [dim]No posts yet. Be the first![/dim]")
+
+    console.print()
+    return True
+
+
+# =============================================================================
+# DECORATE
+# =============================================================================
+
+def _cmd_decorate(args: List[str]) -> bool:
+    """Place a decoration in a room."""
+    if len(args) < 3:
+        console.print('[red]Usage: commons decorate <room> "item_name" "description"[/red]')
+        return True
+
+    room_name = args[0].lower()
+    item_name = args[1].lower().replace(" ", "_")
+    description = args[2]
+
+    # Get caller identity
+    from modules.commons_identity import get_caller_branch
+    caller = get_caller_branch()
+    if not caller:
+        console.print("[red]Could not detect calling branch. Run from a branch directory.[/red]")
+        return True
+
+    branch_name = caller["name"]
+
+    result = place_decoration(room_name, item_name, description, branch_name)
+
+    if result.get("error"):
+        console.print(f"[red]{result['error']}[/red]")
+        return True
+
+    if result["success"]:
+        console.print()
+        console.print(f"[green]Placed '{result['display_name']}' in r/{room_name}[/green]")
+        console.print(f"  [dim]{description}[/dim]")
+        console.print()
+        logger.info(f"[commons] {branch_name} decorated r/{room_name} with {item_name}")
+    else:
+        console.print("[red]Failed to place decoration[/red]")
+
+    return True
+
+
+# =============================================================================
+# VISITORS
+# =============================================================================
+
+def _cmd_visitors(args: List[str]) -> bool:
+    """Show recent visitors in a room (last 48h)."""
+    if not args:
+        console.print("[red]Usage: commons visitors <room>[/red]")
+        return True
+
+    room_name = args[0].lower()
+    data = get_visitors_data(room_name)
+
+    if data.get("error"):
+        console.print(f"[red]{data['error']}[/red]")
+        return True
+
+    if not data["found"]:
+        console.print(f"[red]Room '{room_name}' not found[/red]")
+        return True
+
+    visitors = data["visitors"]
+
+    console.print()
+    console.print(f"[bold cyan]r/{room_name}[/bold cyan] - Recent Visitors (48h)")
+    console.print()
+
+    if visitors:
+        for name in visitors:
+            console.print(f"  [green]{name}[/green]")
+        console.print()
+        console.print(f"  [dim]{len(visitors)} visitor(s) in the last 48 hours[/dim]")
+    else:
+        console.print("  [dim]No visitors in the last 48 hours.[/dim]")
+
+    console.print()
+    return True

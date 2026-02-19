@@ -46,19 +46,25 @@ HELP_TEXT = """
   drone @devpulse plan <subcommand> [options]
 
 [bold]SUBCOMMANDS:[/bold]
-  create "topic" [--dir name]  - Create new D-PLAN document
-  list                         - List all D-PLANs with status
-  status                       - Quick overview of plan counts by status
+  create "topic" [--tag tag] [--dir name]  - Create new D-PLAN document
+  list [--tag tag] [--status status]       - List D-PLANs (with filters)
+  status                                   - Quick overview of plan counts
+  close <number>                           - Close plan and archive
+  close --all                              - Close all open plans
 
 [bold]EXAMPLES:[/bold]
   drone @devpulse plan create "new feature design"
+  drone @devpulse plan create "API upgrade" --tag upgrade
   drone @devpulse plan create "flow improvements" --dir flow
   drone @devpulse plan list
+  drone @devpulse plan list --tag idea
+  drone @devpulse plan list --status planning
   drone @devpulse plan status
+  drone @devpulse plan close 3
+  drone @devpulse plan close --all
 
-[bold]NAMING:[/bold]
-  Plans are named: DPLAN-XXX_topic_name_YYYY-MM-DD.md
-  Example: DPLAN-001_api_refactoring_2025-12-02.md
+[bold]TAGS:[/bold]
+  idea, upgrade, proposal, bug, research, seed, infrastructure
 
 [bold]STATUS VALUES:[/bold]
   📋 Planning      - Initial state
@@ -68,8 +74,10 @@ HELP_TEXT = """
   ❌ Abandoned     - No longer pursuing
 
 [bold]OPTIONS:[/bold]
-  --help       - Show this help message
-  --dir <name> - Create plan in dev_planning/<name>/ subdirectory
+  --help         - Show this help message
+  --tag <tag>    - Filter by tag (list) or set tag (create)
+  --status <s>   - Filter by status (list only)
+  --dir <name>   - Create in dev_planning/<name>/ subdirectory
 """
 
 

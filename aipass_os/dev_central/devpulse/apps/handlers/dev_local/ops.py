@@ -4,11 +4,17 @@
 # META DATA HEADER
 # Name: ops.py - Dev.local.md Operations Handler
 # Date: 2025-11-16
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: Handler
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.1.0 (2026-02-18): Slim to 2 sections (Issues + Todos) per FPLAN-0355
 #   - v1.0.0 (2025-11-16): Initial version - extracted from devpulse_dev_tracking.py
+#
+# CONNECTS:
+#   - central_writer.py (section counting for DEVPULSE.central.json)
+#   - cortex template (branch generation - NOT owned by devpulse)
+#   - template/ops.py (dev status compliance)
 #
 # CODE STANDARDS:
 #   - Handler independence: No module imports, only same-package imports allowed
@@ -38,14 +44,10 @@ sys.path.insert(0, str(AIPASS_ROOT))
 # SECTION ALIASES & VALIDATION
 # =============================================================================
 
-VALID_SECTIONS = ["Issues", "Upgrades", "Testing", "Notes", "Ideas", "Todos"]
+VALID_SECTIONS = ["Issues", "Todos"]
 
 SECTION_ALIASES = {
     "issue": "Issues",
-    "upgrade": "Upgrades",
-    "test": "Testing",
-    "note": "Notes",
-    "idea": "Ideas",
     "todo": "Todos",
 }
 

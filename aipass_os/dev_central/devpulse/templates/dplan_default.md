@@ -1,5 +1,7 @@
 # DPLAN-{{NUMBER}}: {{TOPIC}}
 
+Tag: {{TAG}}
+
 > One-line description
 
 ## Vision

@@ -4,11 +4,16 @@
 # META DATA HEADER
 # Name: ops.py - Template Operations Handler
 # Date: 2025-11-16
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: Handler
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.1.0 (2026-02-18): Slim to 2 sections (Issues + Todos) per FPLAN-0355
 #   - v1.0.0 (2025-11-16): Initial version - template parsing and compliance
+#
+# CONNECTS:
+#   - dev_local/ops.py (section validation - must match VALID_SECTIONS)
+#   - central_writer.py (section counting - must match sections here)
 #
 # CODE STANDARDS:
 #   - Handler independence: No module imports
@@ -33,6 +38,9 @@ sys.path.insert(0, str(AIPASS_ROOT))
 
 # Default template location
 DEFAULT_TEMPLATE = AIPASS_ROOT / "templates" / "ai_branch_setup_template" / "dev.local.md"
+
+# Canonical sections (source of truth when template file is missing)
+REQUIRED_SECTIONS = ["Issues", "Todos"]
 
 # =============================================================================
 # TEMPLATE PARSING
@@ -97,10 +105,10 @@ def check_template_compliance(
     if not dev_file_path.exists():
         return (False, [])
 
-    # Get expected sections from template
+    # Get expected sections from template (fall back to hardcoded if template missing)
     expected_sections = parse_template_sections(template_path)
     if not expected_sections:
-        return (False, [])
+        expected_sections = REQUIRED_SECTIONS
 
     # Read dev.local.md
     try:
@@ -140,4 +148,7 @@ def get_available_sections(template_path: Path | None = None) -> List[str]:
     Returns:
         List of section names
     """
-    return parse_template_sections(template_path)
+    sections = parse_template_sections(template_path)
+    if not sections:
+        return REQUIRED_SECTIONS
+    return sections

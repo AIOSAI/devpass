@@ -42,6 +42,8 @@ TEMPLATE_FILE = DEVPULSE_ROOT / "templates" / "dplan_default.md"
 
 DEFAULT_TEMPLATE = """# DPLAN-{{NUMBER}}: {{TOPIC}}
 
+Tag: {{TAG}}
+
 > One-line description
 
 ## Vision
@@ -89,18 +91,20 @@ def get_default_template() -> str:
 def render_template(
     plan_number: int,
     topic: str,
-    date_str: str
+    date_str: str,
+    tag: str = "idea"
 ) -> Tuple[str, str]:
     """
     Render D-PLAN template with variables
 
     Loads custom template if available, falls back to default.
-    Replaces {{NUMBER}}, {{TOPIC}}, {{DATE}} placeholders.
+    Replaces {{NUMBER}}, {{TOPIC}}, {{DATE}}, {{TAG}} placeholders.
 
     Args:
         plan_number: The D-PLAN number (e.g., 42)
         topic: Topic name
         date_str: Date string (YYYY-MM-DD)
+        tag: Plan tag classification (default: idea)
 
     Returns:
         Tuple of (rendered_content, error_message)
@@ -121,5 +125,6 @@ def render_template(
     content = template_content.replace("{{NUMBER}}", f"{plan_number:03d}")
     content = content.replace("{{TOPIC}}", topic)
     content = content.replace("{{DATE}}", date_str)
+    content = content.replace("{{TAG}}", tag)
 
     return content, ""

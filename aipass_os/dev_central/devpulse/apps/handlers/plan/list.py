@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path.home()))
 
 # NOTE: Handlers do NOT import Prax logger (per 3-tier standard)
 
-from .status import extract_status
+from .status import extract_status, extract_tag, extract_description
 
 # =============================================================================
 # CONFIGURATION
@@ -67,14 +67,18 @@ def list_plans() -> Tuple[List[Dict[str, Any]], str]:
             topic = match.group(2).replace('_', ' ')
             date = match.group(3)
 
-            # Extract status from file content
+            # Extract metadata from file content
             status = extract_status(plan_file)
+            tag = extract_tag(plan_file)
+            description = extract_description(plan_file)
 
             plans.append({
                 "number": num,
                 "topic": topic,
                 "date": date,
                 "status": status,
+                "tag": tag,
+                "description": description,
                 "file": plan_file.name
             })
 

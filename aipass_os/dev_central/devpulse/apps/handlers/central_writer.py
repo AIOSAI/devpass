@@ -4,11 +4,17 @@
 # META DATA HEADER
 # Name: central_writer.py - DEVPULSE Central File Writer
 # Date: 2025-11-27
-# Version: 0.1.0
+# Version: 0.2.0
 # Category: devpulse/handlers
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-02-18): Slim to 2 sections (Issues + Todos) per FPLAN-0355
 #   - v0.1.0 (2025-11-27): Initial implementation - central file writer
+#
+# CONNECTS:
+#   - dev_local/ops.py (section validation - must match sections here)
+#   - cortex template (branch generation - NOT owned by devpulse)
+#   - template/ops.py (dev status compliance)
 #
 # CODE STANDARDS:
 #   - Handler tier 3: pure functions, raises exceptions
@@ -158,16 +164,12 @@ def _get_branch_summary(branch_path: Path) -> Dict[str, int]:
     content = _read_dev_file(branch_path)
 
     if content is None:
-        return {"notes": 0, "issues": 0, "todos": 0, "ideas": 0, "upgrades": 0, "testing": 0}
+        return {"issues": 0, "todos": 0}
 
     try:
         return {
-            "notes": _count_section_items(content, "Notes"),
             "issues": _count_section_items(content, "Issues"),
-            "todos": _count_section_items(content, "Todos"),
-            "ideas": _count_section_items(content, "Ideas"),
-            "upgrades": _count_section_items(content, "Upgrades"),
-            "testing": _count_section_items(content, "Testing")
+            "todos": _count_section_items(content, "Todos")
         }
     except Exception as e:
         raise ValueError(f"Failed to parse dev.local.md at {branch_path}: {e}")

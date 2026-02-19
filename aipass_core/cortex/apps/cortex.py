@@ -249,6 +249,7 @@ EXAMPLES:
     parser.add_argument('--verbose', action='store_true', help='Verbose output')
     parser.add_argument('--all', dest='all_branches', action='store_true', help='Apply to all branches')
     parser.add_argument('--dry-run', action='store_true', help='Preview changes without applying')
+    parser.add_argument('--template', default=None, help='Template name: branch, business_branch (for create-branch)')
     parser.add_argument('--role', default=None, help='Branch role (for create-branch)')
     parser.add_argument('--traits', default=None, help='Branch traits (for create-branch)')
     parser.add_argument('--purpose', default=None, help='Branch purpose brief (for create-branch)')

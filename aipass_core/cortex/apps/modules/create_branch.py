@@ -101,9 +101,16 @@ except ImportError as e:
 # CONSTANTS
 # =============================================================================
 
-# Get template directory
+# Template directories
 AIPASS_ROOT = Path.home() / "aipass_core"
-TEMPLATE_DIR = AIPASS_ROOT / "cortex" / "templates" / "branch_template"
+TEMPLATES_DIR = AIPASS_ROOT / "cortex" / "templates"
+TEMPLATE_DIR = TEMPLATES_DIR / "branch_template"  # Default
+
+# Available templates
+AVAILABLE_TEMPLATES = {
+    "branch": "branch_template",
+    "business_branch": "business_branch_template",
+}
 
 # Files to exclude from template copy
 EXCLUDE_PATTERNS = [
@@ -114,13 +121,21 @@ EXCLUDE_PATTERNS = [
     "__pycache__",
 ]
 
-# Files to rename after copying
+# Files to rename after copying (dev branches)
 FILE_RENAMES = {
     "LOCAL.json": "{BRANCHNAME}.local.json",
     "OBSERVATIONS.json": "{BRANCHNAME}.observations.json",
     "AI_MAIL.json": "{BRANCHNAME}.ai_mail.json",
     "BRANCH.ID.json": "{BRANCHNAME}.id.json",
     "apps/BRANCH.py": "apps/{branchname}.py",
+}
+
+# Files to rename for business branches (no apps/BRANCH.py)
+BUSINESS_FILE_RENAMES = {
+    "LOCAL.json": "{BRANCHNAME}.local.json",
+    "OBSERVATIONS.json": "{BRANCHNAME}.observations.json",
+    "AI_MAIL.json": "{BRANCHNAME}.ai_mail.json",
+    "BRANCH.ID.json": "{BRANCHNAME}.id.json",
 }
 
 # Help text for drone compliance
@@ -135,13 +150,19 @@ USAGE:
   cortex create-branch <target_directory> [OPTIONS]
 
 OPTIONS:
+  --template <name>              Template to use: branch (default), business_branch
   --role "Role description"      Set branch role in identity
   --traits "Trait1, trait2"      Set branch traits in identity
   --purpose "Purpose brief"      Set branch purpose in README and identity
 
 EXAMPLES:
   cortex create-branch /home/aipass/my_branch
-  cortex create-branch /home/aipass/my_branch --role "Data Processing" --traits "Fast, reliable" --purpose "ETL pipeline management"
+  cortex create-branch /home/aipass/my_branch --role "Data Processing" --purpose "ETL pipeline"
+  cortex create-branch /home/aipass/dept --template business_branch --role "Growth" --purpose "Revenue growth"
+
+AVAILABLE TEMPLATES:
+  branch           Standard dev branch (apps/, modules/, handlers/, tests/)
+  business_branch  Business department (playbooks/, strategy/, output/, metrics/)
 
 WHAT IT DOES:
   - Copies template structure to target directory
@@ -161,13 +182,14 @@ Commands: create, create-branch, new, --help
 # CORE WORKFLOW
 # =============================================================================
 
-def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
+def create_branch(target_dir: Path, overrides: Optional[dict] = None, template_name: str = "branch") -> bool:
     """
     Create new branch from template
 
     Args:
         target_dir: Path where branch will be created
         overrides: Optional dict of placeholder overrides (e.g. ROLE, TRAITS, PURPOSE_BRIEF)
+        template_name: Template to use ('branch' or 'business_branch')
 
     Returns:
         True if successful, False otherwise
@@ -175,6 +197,20 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
     if not HANDLERS_AVAILABLE:
         console.print(f"\n❌ Handlers not available: {HANDLER_ERROR}")
         return False
+
+    # Resolve template directory
+    template_folder = AVAILABLE_TEMPLATES.get(template_name)
+    if not template_folder:
+        console.print(f"\n❌ Unknown template: {template_name}")
+        console.print(f"Available templates: {', '.join(AVAILABLE_TEMPLATES.keys())}")
+        return False
+    template_dir = TEMPLATES_DIR / template_folder
+    if not template_dir.exists():
+        console.print(f"\n❌ Template directory not found: {template_dir}")
+        return False
+
+    # Select file renames based on template
+    file_renames = BUSINESS_FILE_RENAMES if template_name == "business_branch" else FILE_RENAMES
 
     try:
         # Create target directory if doesn't exist
@@ -194,6 +230,7 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
         console.print(f"\n=== Create Branch ===")
         console.print(f"Target: {target_dir}")
         console.print(f"Branch: {branch_name} ({branchname_upper})")
+        console.print(f"Template: {template_name}")
         console.print(f"Profile: {profile}")
         console.print(f"Repo: {repo}")
         console.print()
@@ -233,7 +270,7 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
             "DEPENDS_ON", "INTEGRATES_WITH", "PROVIDES_TO",
         }
         copied, skipped, validation_errors = copy_template_contents(
-            TEMPLATE_DIR, target_dir, replacements, branch_name, EXCLUDE_PATTERNS, FILE_RENAMES, allowed_placeholders
+            template_dir, target_dir, replacements, branch_name, EXCLUDE_PATTERNS, file_renames, allowed_placeholders
         )
 
         # Show validation errors if any
@@ -245,7 +282,7 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
 
         # Rename files
         console.print("\nRenaming files...")
-        renamed, missing = rename_files(target_dir, branch_name, FILE_RENAMES)
+        renamed, missing = rename_files(target_dir, branch_name, file_renames)
 
         # Report missing files as error
         if missing:
@@ -253,12 +290,13 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
             for filename in missing:
                 console.print(f"  - {filename}")
 
-        # Rename json directory
-        json_rename = rename_json_directory(target_dir, branch_name)
-
-        # Migrate Python modules to apps/ directory
-        console.print("\nMigrating Python modules to apps/...")
-        migrated_modules = migrate_modules_to_apps(target_dir)
+        # Dev-only steps (skip for business branches)
+        json_rename = None
+        migrated_modules = []
+        if template_name != "business_branch":
+            json_rename = rename_json_directory(target_dir, branch_name)
+            console.print("\nMigrating Python modules to apps/...")
+            migrated_modules = migrate_modules_to_apps(target_dir)
 
         # Register branch
         console.print("\nRegistering branch...")
@@ -270,7 +308,7 @@ def create_branch(target_dir: Path, overrides: Optional[dict] = None) -> bool:
         update_readme_tree_placeholders(target_dir, tree_output)
 
         # Detect naming mismatches
-        naming_mismatches = detect_naming_mismatches(target_dir, branch_name, FILE_RENAMES)
+        naming_mismatches = detect_naming_mismatches(target_dir, branch_name, file_renames)
 
         # Validate no unreplaced placeholders
         allowed_placeholders = {
@@ -397,7 +435,10 @@ def handle_command(args) -> bool:
     if hasattr(args, 'purpose') and args.purpose:
         overrides['PURPOSE_BRIEF'] = args.purpose
 
-    return create_branch(target_dir, overrides=overrides if overrides else None)
+    # Template selection
+    template_name = getattr(args, 'template', None) or "branch"
+
+    return create_branch(target_dir, overrides=overrides if overrides else None, template_name=template_name)
 
 
 # =============================================================================
@@ -426,6 +467,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         _parser = _argparse.ArgumentParser(add_help=False)
         _parser.add_argument('target_directory')
+        _parser.add_argument('--template', default='branch')
         _parser.add_argument('--role', default=None)
         _parser.add_argument('--traits', default=None)
         _parser.add_argument('--purpose', default=None)
@@ -440,7 +482,7 @@ if __name__ == "__main__":
         if _args.purpose:
             _overrides['PURPOSE_BRIEF'] = _args.purpose
 
-        success = create_branch(target_path, overrides=_overrides if _overrides else None)
+        success = create_branch(target_path, overrides=_overrides if _overrides else None, template_name=_args.template)
         sys.exit(0 if success else 1)
 
     # No arguments - show status

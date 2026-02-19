@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: status.py - D-PLAN status handler
 # Date: 2025-12-02
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: devpulse/handlers/plan
 #
 # CHANGELOG (Max 5 entries):
+#   - v1.1.0 (2026-02-18): Add VALID_TAGS, extract_tag(), extract_description() per FPLAN-0355
 #   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
 #
 # CODE STANDARDS:
@@ -39,6 +40,8 @@ sys.path.insert(0, str(Path.home()))
 # =============================================================================
 
 DEV_PLANNING_ROOT = Path.home() / "aipass_os" / "dev_central" / "dev_planning"
+
+VALID_TAGS = ["idea", "upgrade", "proposal", "bug", "research", "seed", "infrastructure"]
 
 STATUS_ICONS = {
     "planning": "📋",
@@ -133,3 +136,47 @@ def get_status_summary() -> Tuple[Dict[str, int], int, str]:
             status_counts["unknown"] += 1
 
     return status_counts, total, ""
+
+
+def extract_tag(plan_file: Path) -> str:
+    """
+    Extract tag from plan file Tag: metadata line
+
+    Args:
+        plan_file: Path to the plan file
+
+    Returns:
+        Tag string (lowercase) or empty string if not found/invalid
+    """
+    try:
+        content = plan_file.read_text(encoding='utf-8')
+        match = re.search(r'^Tag:\s*(\S+)', content, re.MULTILINE)
+        if match:
+            tag = match.group(1).lower().strip()
+            if tag in VALID_TAGS:
+                return tag
+        return ""
+    except Exception:
+        return ""
+
+
+def extract_description(plan_file: Path) -> str:
+    """
+    Extract one-line description from plan file blockquote
+
+    Args:
+        plan_file: Path to the plan file
+
+    Returns:
+        Description string or empty if not found/placeholder
+    """
+    try:
+        content = plan_file.read_text(encoding='utf-8')
+        match = re.search(r'^>\s*(.+)$', content, re.MULTILINE)
+        if match:
+            desc = match.group(1).strip()
+            if desc != "One-line description":
+                return desc
+        return ""
+    except Exception:
+        return ""
