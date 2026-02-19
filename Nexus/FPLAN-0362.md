@@ -1,4 +1,4 @@
-# FPLAN-0359 - Phase 2: Natural Flow - Execution Engine
+# FPLAN-0362 - Phase 5: LLM Client - Multi-Provider and LangChain
 
 **Created**: 2026-02-18
 **Branch**: /home/aipass/Nexus
@@ -201,7 +201,7 @@ WHEN COMPLETE:
 ## Execution Log
 
 ### 2026-02-18
-- [ ] Created FPLAN-0359
+- [ ] Created FPLAN-0362
 - [ ] Agent deployed for: [task]
 - [ ] Agent completed: [outcome]
 - [ ] Seed checklist passed: [file]
@@ -211,7 +211,7 @@ WHEN COMPLETE:
 
 **If production stops (critical blocker):**
 ```bash
-drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0359" "Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
+drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0362" "Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
 ```
 
 ---
@@ -235,7 +235,7 @@ drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0359" "Issue: [descr
 - [ ] README.md updated (if build changed status/capabilities)
 - [ ] Status email sent to DEV_CENTRAL:
   ```bash
-  drone @ai_mail send @dev_central "FPLAN-0359 Complete" "Summary of what was done, any issues, outcomes"
+  drone @ai_mail send @dev_central "FPLAN-0362 Complete" "Summary of what was done, any issues, outcomes"
   ```
 
 **Completion Order:** Memories → README → Email (README before email - don't report complete with stale docs)
@@ -249,5 +249,5 @@ drone @ai_mail send @dev_central "PRODUCTION STOPPED: FPLAN-0359" "Issue: [descr
 
 When all boxes checked:
 ```bash
-drone @flow close FPLAN-0359
+drone @flow close FPLAN-0362
 ```

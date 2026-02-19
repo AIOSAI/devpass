@@ -1,0 +1,8 @@
+
+backups
+#credentials.json
+deleted_branches
+processed_plans
+pruned_files
+!backups/system_snapshot           
+

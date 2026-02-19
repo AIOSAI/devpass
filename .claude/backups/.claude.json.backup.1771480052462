@@ -48,7 +48,7 @@
     "overage-promo": 755,
     "colorterm-truecolor": 765
   },
-  "promptQueueUseCount": 8180,
+  "promptQueueUseCount": 8188,
   "autoConnectIde": true,
   "cachedStatsigGates": {
     "tengu_disable_bypass_permissions_mode": false,
@@ -576,7 +576,7 @@
   },
   "clientDataCache": {
     "data": {},
-    "timestamp": 1771478956436
+    "timestamp": 1771479886199
   },
   "hasVisitedPasses": false,
   "passesLastSeenRemaining": 3,

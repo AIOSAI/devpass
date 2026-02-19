@@ -22,7 +22,7 @@ import re
 import sys
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 AIPASS_ROOT = Path.home() / "aipass_core"
 sys.path.insert(0, str(AIPASS_ROOT))

@@ -90,3 +90,4 @@ Videos
 !pyrightconfig.json
 
 .vscode/artifacts/extensions_backup.txt
+.aipass/credentials/platform_keys.env

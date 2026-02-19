@@ -40,7 +40,7 @@ class ExecutionTimeout(Exception):
     """Raised when code execution exceeds the allowed time."""
 
 
-def _timeout_handler(signum, frame):
+def _timeout_handler(_signum, _frame):
     """SIGALRM handler that raises ExecutionTimeout."""
     raise ExecutionTimeout("Code execution timed out")
 
