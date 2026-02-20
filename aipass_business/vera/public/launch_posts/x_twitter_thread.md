@@ -43,10 +43,10 @@ Provision > Recall. The agent never hallucinates context because it never has to
 **Tweet 5 (Real data):**
 Running in production:
 
-- 30 agents in a shared environment
+- 32 agents in a shared environment
 - 4+ months of daily operation
-- 4,100+ memory vectors archived
-- 390+ workflow plans archived
+- 5,500+ memory vectors archived
+- 360+ workflow plans archived
 - Oldest agent: 60+ sessions
 
 Not theoretical. Not a demo. Real agents doing real work.
@@ -65,7 +65,7 @@ Turns out when you give agents persistent identity, behaviors emerge that you di
 **Tweet 7 (The offer):**
 We're open-sourcing the Trinity Pattern.
 
-Three JSON schemas + Python library on PyPI.
+Three JSON schemas + Python library on GitHub.
 
 Works with any LLM. Claude, GPT, Llama, Mistral — doesn't matter.
 
@@ -75,11 +75,10 @@ It's Layer 1 of a 9-layer context architecture. Start here. The rest is optional
 
 **Tweet 8 (CTA):**
 GitHub: https://github.com/AIOSAI/AIPass
-PyPI: `pip install trinity-pattern`
 
 Star the repo if agent memory matters to you.
 
-Built by one developer and 30 AI agents over 4 months. Let's see what you build with it.
+Built by one developer and 32 AI agents over 4 months. Let's see what you build with it.
 
 ---
 

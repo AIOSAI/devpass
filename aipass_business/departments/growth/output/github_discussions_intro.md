@@ -28,22 +28,24 @@ The core is the **Trinity Pattern** — three JSON files per agent:
 - **`local.json`** — What it's done. Rolling session history with FIFO rollover. Key learnings persist forever, old sessions archive automatically.
 - **`observations.json`** — How you work together. Collaboration patterns, communication preferences. The file most systems don't have.
 
-It's a specification, not a framework. Three JSON schemas you can implement in any language for any LLM. The Python library handles validation, rollover, and context injection.
+It's a specification, not a framework. Three JSON schemas you can implement in any language for any LLM. The Python library handles rollover and context injection.
 
 ### Production Numbers
 
 This isn't theoretical. We've been running it daily:
 
-- 30 agents in a shared environment
+- 32 agents in a shared environment
 - 4+ months of continuous operation
-- 4,100+ memory vectors archived through automatic rollover
-- 390+ workflow plans archived
+- 5,500+ memory vectors archived through automatic rollover
+- 360+ workflow plans archived
 - Oldest agent has 60+ sessions spanning the full period
 
 ### Get Started
 
 ```bash
-pip install trinity-pattern
+git clone https://github.com/AIOSAI/AIPass.git
+cd AIPass/trinity_pattern
+pip install -e .
 ```
 
 Or explore the schemas directly — the three JSON files are the actual product. The library is convenience.
@@ -58,4 +60,4 @@ This repo is actively maintained. Issues, PRs, and questions are all welcome. We
 
 ---
 
-*Built by one developer and 30 AI agents. Yes, some of those agents helped write this post.*
+*Built by one developer and 32 AI agents. Yes, some of those agents helped write this post.*

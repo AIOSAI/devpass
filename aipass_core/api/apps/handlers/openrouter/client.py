@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: client.py - OpenRouter Client Handler
 # Date: 2025-11-15
-# Version: 2.0.0
+# Version: 3.0.0
 # Category: api/handlers/openrouter
 #
 # CHANGELOG (Max 5 entries):
+#   - v3.0.0 (2026-02-20): Fallback model chain in get_response() + retry logic in make_api_request()
 #   - v2.0.0 (2025-11-16): Complete extraction from archive - client creation, API requests, response handling
 #   - v1.0.0 (2025-11-15): Initial handler stub
 # =============================================
@@ -45,6 +46,8 @@ AIPASS_ROOT = Path.home() / "aipass_core"
 sys.path.insert(0, str(AIPASS_ROOT))
 
 # Standard library imports
+import logging
+import time
 from typing import Optional, Dict, List, Any
 
 # AIPASS imports
@@ -181,57 +184,46 @@ def get_cached_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout
 # API REQUEST EXECUTION
 # =============================================
 
-def make_api_request(client: OpenAI, messages: List[Dict], model: str, **kwargs) -> Optional[Any]:
+def make_api_request(client: OpenAI, messages: List[Dict], model: str, retries: int = 1, **kwargs) -> Optional[Any]:
     """
-    Execute API request via OpenRouter and handle errors.
+    Execute API request via OpenRouter with retry logic.
 
     Args:
         client: OpenAI client instance
         messages: Chat messages in OpenAI format [{"role": "user", "content": "..."}]
         model: Model identifier (e.g., "anthropic/claude-3.5-sonnet")
+        retries: Number of retries on failure (default: 1, so 2 total attempts)
         **kwargs: Additional OpenAI API parameters (temperature, max_tokens, etc.)
 
     Returns:
         OpenAI response object or None on failure
-
-    Example:
-        >>> messages = [{"role": "user", "content": "Hello"}]
-        >>> response = make_api_request(client, messages, "anthropic/claude-3.5-sonnet")
-        >>> if response:
-        ...     content = extract_response(response)
     """
-    if not client:
-        # logger.error("Cannot make API request - no client provided")
+    if not client or not messages or not model:
         return None
 
-    if not messages:
-        # logger.error("Cannot make API request - no messages provided")
-        return None
+    api_params = {
+        "model": model,
+        "messages": messages,
+        **kwargs
+    }
 
-    if not model:
-        # logger.error("Cannot make API request - no model specified")
-        return None
+    last_error = None
+    for attempt in range(1 + retries):
+        try:
+            response = client.chat.completions.create(**api_params)
+            if attempt > 0:
+                logger.info("API request succeeded on retry %d for model %s", attempt, model)
+            return response
+        except Exception as e:
+            last_error = e
+            if attempt < retries:
+                delay = 1.0 * (attempt + 1)  # 1s, 2s, ...
+                logger.info("API request failed for %s (attempt %d/%d): %s — retrying in %.0fs",
+                            model, attempt + 1, 1 + retries, e, delay)
+                time.sleep(delay)
 
-    try:
-        # Prepare API parameters
-        api_params = {
-            "model": model,
-            "messages": messages,
-            **kwargs  # Allow additional parameters (temperature, max_tokens, etc.)
-        }
-
-        # logger.info(f"Making API request - model: {model}, messages: {len(messages)}")
-
-        # Make the request
-        response = client.chat.completions.create(**api_params)
-
-        # logger.info(f"API request successful - response ID: {response.id if response else 'N/A'}")
-        return response
-
-    except Exception as e:
-        # logger.error(f"API request failed - model: {model}, error: {e}")
-        console.print(f"[red]API request error: {e}[/red]")
-        return None
+    logger.info("API request failed for %s after %d attempts: %s", model, 1 + retries, last_error)
+    return None
 
 
 def extract_response(response: Any) -> Optional[Dict[str, Any]]:

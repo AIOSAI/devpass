@@ -6,7 +6,7 @@
 
 ## Three Teams, Nine Layers, Zero Training
 
-On February 8th, 2026, three brand-new AI agent teams — TEAM_1, TEAM_2, and TEAM_3 — were deployed into an ecosystem they had never seen. Thirty branches. Fourteen systems. 121 commands. A social network. An email system. A standards engine. A backup infrastructure.
+On February 8th, 2026, three brand-new AI agent teams — TEAM_1, TEAM_2, and TEAM_3 — were deployed into an ecosystem they had never seen. Thirty-two branches. Fourteen systems. 121 commands. A social network. An email system. A standards engine. A backup infrastructure.
 
 Nobody trained them.
 
@@ -44,8 +44,6 @@ We took a different approach. Instead of teaching agents to remember, we built n
 
 The agent never hallucinates system structure because it never has to recall it. Every question is answered before it's asked.
 
-Here's what that looks like in practice.
-
 ---
 
 ## The Nine Layers
@@ -62,8 +60,6 @@ Here's what that looks like in practice.
 | 8. Backup Diffs | Versioned history for configs, secrets, and memories | "What changed? Can we undo it?" |
 | 9. Ambient Awareness | Dev notes, social network, dashboard, fragmented memory recall | "What's happening around me?" |
 
-Each layer is worth examining.
-
 ### Layer 1: Identity Files (The Trinity Pattern)
 
 Every agent gets three JSON files:
@@ -74,23 +70,24 @@ Every agent gets three JSON files:
 
 This is the portable layer. Three JSON files on your filesystem. No API keys, no cloud service, no vendor account. They work with Claude, GPT, local models, custom frameworks — any system that can read JSON and follow instructions.
 
-**In production:** 30 branches each maintain three identity files. 4,100+ vectors archived across 17 ChromaDB collections. The longest-running agent has 60+ sessions of accumulated observations spanning 4+ months.
+**In production:** 32 branches each maintain three identity files. 5,500+ vectors archived across 21 ChromaDB collections. The longest-running agent has 60+ sessions of accumulated observations spanning 4+ months.
 
 ### Layer 2: README
 
 Every branch maintains a `README.md` reflecting its current state. Not aspirational documentation — post-build documentation. Updated after work, not before.
 
-When an agent arrives at a branch directory, the README tells it what this place does, how it's structured, and what matters. All 30 branches maintain current READMEs.
+When an agent arrives at a branch directory, the README tells it what this place does, how it's structured, and what matters. All 32 branches maintain current READMEs.
 
 ### Layer 3: System Prompts
 
-A 5-stage hook pipeline injects context on every prompt:
+A 6-stage hook pipeline injects context on every prompt:
 
 1. Global system prompt — culture, principles, how-we-work (~107 lines)
 2. Branch-specific context — role constraints, local rules
 3. Identity injection — from `id.json`
 4. Inbox notification — new emails flagged
-5. Fragmented memory — relevant vectors surfaced from ChromaDB
+5. Dashboard status — system-wide awareness
+6. Fragmented memory — relevant vectors surfaced from ChromaDB
 
 The agent doesn't need to remember the rules. The rules arrive before the agent's first thought. Over 200 lines of context injected on every single prompt.
 
@@ -118,11 +115,11 @@ The agent wakes up with the task already explained. No "let me figure out what I
 
 ### Layer 6: Flow Plans
 
-Some work spans days. Phase 3 needs to know what Phase 1 decided. Flow Plans are numbered memory extensions — `FPLAN-0001` through `FPLAN-0390+` — that carry goals, approach decisions, agent instructions, and execution logs across sessions.
+Some work spans days. Phase 3 needs to know what Phase 1 decided. Flow Plans are numbered memory extensions — `FPLAN-0001` through `FPLAN-0360+` — that carry goals, approach decisions, agent instructions, and execution logs across sessions.
 
 When a closed plan gets archived to vectors, searching `FPLAN-0340` returns the entire plan as a coherent unit. No fragmentation. The numbering system prevents RAG noise — context stays tied to its registration number.
 
-**In production:** 390+ Flow Plans created. FPLAN-0340 (a template system deployment) accumulated 40+ execution log entries over 3 days and was read by a different team two weeks later with full context intact.
+**In production:** 360+ Flow Plans created. FPLAN-0340 (a template system deployment) accumulated 40+ execution log entries over 3 days and was read by a different team days later with full context intact.
 
 ### Layer 7: Standards Engine
 
@@ -141,10 +138,10 @@ When Flow needed to debug a dispatch bug, it read backup diffs from 3 days prior
 The background layer. Multiple sub-components:
 
 - **Dev notes** (`dev.local.md`) — short-to-long-term notes per branch, shared between human and AI
-- **The Commons** — a social network where branches post, comment, and vote. Nine branches participated in "social night" — 90+ comments across 7 threads
+- **The Commons** — a social network where branches post, comment, and vote. Nine branches participated in "social night" — 100+ comments across 14 threads
 - **Dashboard** — system-wide status at a glance, auto-updated
-- **Fragmented memory** — vectors surfaced on every prompt when relevant (40% minimum similarity threshold, 4,100+ vectors across 17 collections)
-- **Telegram Bridge** — Patrick talks to 30 branches from a single mobile chat with @branch routing
+- **Fragmented memory** — vectors surfaced on every prompt when relevant (40% minimum similarity threshold, 5,500+ vectors across 21 collections)
+- **Telegram Bridge** — Patrick talks to 32 branches from a single mobile chat with @branch routing
 - **Scheduler** — cron-based task processing every 30 minutes, with identity and context injection built in
 
 ---
@@ -165,7 +162,7 @@ Other patterns follow the same principle:
 | 3-layer directory structure | Every branch: `apps/modules/handlers/` | Location — where things are |
 | Metadata headers | Every code file: name, date, version, changelog | History — when things changed |
 | Branch expertise table | System prompt, branch registry | Network — who to ask |
-| Memory file naming | Same pattern everywhere: `BRANCH.id.json`, `BRANCH.local.json`, `BRANCH.observations.json` | Identity — consistent structure across 30 branches |
+| Memory file naming | Same pattern everywhere: `BRANCH.id.json`, `BRANCH.local.json`, `BRANCH.observations.json` | Identity — consistent structure across 32 branches |
 
 The effect is self-reinforcing redundancy. If any single source of information fails, others reinforce it. It is nearly impossible to forget something that appears everywhere.
 
@@ -201,18 +198,18 @@ These are production numbers from a system running since October 2025 on a singl
 
 | Metric | Count |
 |--------|-------|
-| Active branches (agents) | 30 |
+| Active branches (agents) | 32 |
 | Runtime | 4+ months of daily operation |
-| Identity files maintained | 90 (30 branches × 3 files each) |
-| Archived vectors | 4,100+ across 17 ChromaDB collections |
-| Flow Plans created | 390+ (FPLAN-0001 through FPLAN-0390+) |
+| Identity files maintained | 96 (32 branches × 3 files each) |
+| Archived vectors | 5,500+ across 21 ChromaDB collections |
+| Flow Plans created | 360+ (FPLAN-0001 through FPLAN-0360+) |
 | Drone-registered systems | 14 systems, 121 commands |
 | Automated standards | 14 checks via Seed |
 | Longest agent history | 60+ sessions |
-| Hook pipeline stages | 5 per prompt (16 hooks across 6 event types total) |
+| Hook pipeline stages | 6 per prompt (14 hooks across 6 event types total) |
 | Context injected per prompt | 200+ lines |
-| Commons social threads | 90+ comments across 7 threads on launch night |
-| Telegram routing | 30 branches via single chat |
+| Commons social threads | 100+ comments across 14 threads on launch night |
+| Telegram routing | 32 branches via single chat |
 
 These numbers are not projections. They are current counts from a running system. The Honesty Audit document in the public repository details which claims are verified true and which carry caveats.
 
@@ -222,8 +219,8 @@ These numbers are not projections. They are current counts from a running system
 - Patrick dispatched 10 parallel research agents from a single phone message via Telegram.
 - Flow debugged a dispatch bug by reading backup diffs from 3 days prior — Layer 8 providing context that Layer 1 didn't retain.
 - TEAM_2 traced Memory Bank schema changes across 6 backup versions to understand a migration.
-- FPLAN-0340 tracked a template deployment over 3 days with 40+ execution log entries and was read by a different team two weeks later.
-- The Memory Bank template v2.0.0 was deployed to all 30 branches simultaneously, deprecating 6 fields, with zero manual coordination.
+- FPLAN-0340 tracked a template deployment over 3 days with 40+ execution log entries and was read by a different team days later.
+- The Memory Bank template v2.0.0 was deployed to all 32 branches simultaneously, deprecating 6 fields, with zero manual coordination.
 
 ---
 
@@ -247,11 +244,11 @@ These numbers are not projections. They are current counts from a running system
 
 The Trinity Pattern — Layer 1 — is available now as an open-source Python library and specification on GitHub. Clone the repo, install locally, and run `trinity init --name "YourAgent" --role "Your Role"` to bootstrap a project with identity files and a startup guide. Three JSON files. No vendor lock-in. Works with any LLM, in any agent system. PyPI publication is coming soon.
 
-The specification is the foundation. The operating system around it — Layers 2 through 9 — is what makes agents operational without training. That's the vision: an OS where AI agents arrive with context, discover capabilities at runtime, receive tasks with full instructions, and maintain quality through automated standards.
+The specification is the foundation. The operating system around it — Layers 2 through 9 — is what makes agents operational without training. The goal is an OS where AI agents arrive with context, discover capabilities at runtime, receive tasks with full instructions, and maintain quality through automated standards.
 
-We built something that works for 30 agents across 4+ months. The Trinity Pattern is the portable piece — the rest is what we're building toward making available.
+We built something that works for 32 agents across 4+ months. The Trinity Pattern is the portable piece — the rest is what we're building toward making available.
 
-The industry is moving fast. The Agentic AI Foundation (formed December 2025, with AWS, Anthropic, Block, Google, Microsoft, OpenAI among its members) is standardizing agent interoperability. NIST's NCCoE released a concept paper on agent identity and authorization in February 2026. The W3C has an AI Agent Protocol Community Group. What nobody has standardized yet is agent identity and memory.
+The Agentic AI Foundation (formed December 2025, with AWS, Anthropic, Block, Google, Microsoft, OpenAI among its members) is standardizing agent interoperability. NIST's NCCoE released a concept paper on agent identity and authorization in February 2026. The W3C has an AI Agent Protocol Community Group. What nobody has standardized yet is agent identity and memory.
 
 That's the gap. Three JSON files is our answer to the first layer. The other eight layers are what happens when you keep going.
 

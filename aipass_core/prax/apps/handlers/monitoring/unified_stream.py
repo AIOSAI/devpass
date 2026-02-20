@@ -118,8 +118,10 @@ def print_event(event_type: str, branch: str, message: str, level: str = 'info')
         timestamp = datetime.now().strftime("%H:%M:%S")
 
         # Get branch color (unique per branch)
+        # For subagent labels like 'DEV_CENTRAL AGENT', use base branch color
         branch_upper = branch.upper()
-        branch_color = BRANCH_COLORS.get(branch_upper, 'white')
+        base_branch = branch_upper[:-6] if branch_upper.endswith(' AGENT') else branch_upper
+        branch_color = BRANCH_COLORS.get(base_branch, 'white')
 
         # Format branch with fixed width padding and color
         branch_formatted = f"[{branch_color}][{branch_upper:<{BRANCH_WIDTH}}][/{branch_color}]"

@@ -15,11 +15,11 @@ from api.apps.openrouter import get_response
 print("Testing Top 3 Free Models")
 print("=" * 60)
 
-# Top 3 candidates
+# Top 3 candidates (updated 2026-02-20)
 models_to_test = [
-    ("google/gemini-2.0-flash-exp:free", "Gemini 2.0 Flash (1M context)"),
-    ("meta-llama/llama-3.3-70b-instruct:free", "Llama 3.3 70B"),
-    ("mistralai/mistral-small-3.2-24b-instruct:free", "Mistral Small 3.2"),
+    ("google/gemma-3-27b-it:free", "Gemma 3 27B (131K context)"),
+    ("deepseek/deepseek-r1-0528:free", "DeepSeek R1 (164K context)"),
+    ("meta-llama/llama-3.2-3b-instruct:free", "Llama 3.2 3B (131K context)"),
 ]
 
 test_message = [{"role": "user", "content": "Reply with just 'OK' if you receive this"}]

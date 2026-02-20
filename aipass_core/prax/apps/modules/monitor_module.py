@@ -484,6 +484,11 @@ def _file_watcher_worker():
 
                 # Claude Code JSONL files: parse agent activity instead of raw modification
                 if file_path.suffix == '.jsonl' and '.claude/projects/' in path_str:
+                    # Distinguish subagents from main sessions
+                    # Main: ~/.claude/projects/{hash}/{uuid}.jsonl
+                    # Sub:  ~/.claude/projects/{hash}/{uuid}/subagents/agent-{id}.jsonl
+                    if '/subagents/' in path_str:
+                        branch = branch + ' agent'
                     if self._parse_agent_activity(file_path, branch):
                         return  # Parsed successfully, don't show raw event
                     # Parsing failed - fall through to show raw file event

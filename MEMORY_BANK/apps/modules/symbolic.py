@@ -313,9 +313,25 @@ def extract_and_store_llm(
     logger.info("[symbolic] Starting LLM extract-and-store pipeline")
     extract_result = extractor.extract_fragments_llm(chat_history)
 
+    # Log any per-chunk errors even on partial success
+    chunk_errors = extract_result.get('chunk_errors', [])
+    if chunk_errors:
+        for ce in chunk_errors:
+            logger.warning(f"[symbolic] Chunk extraction error: {ce}")
+
     if not extract_result.get('success'):
         error_msg = extract_result.get('error', 'Unknown extraction error')
         logger.error(f"[symbolic] LLM extraction failed: {error_msg}")
+        try:
+            from trigger.apps.modules.errors import report_error
+            report_error(
+                error_type="ExtractionError",
+                message=error_msg,
+                component="MEMORY_BANK",
+                severity="high"
+            )
+        except Exception:
+            pass  # Trigger unavailable — prax log is the fallback
         return {
             'success': False,
             'processed': 0,

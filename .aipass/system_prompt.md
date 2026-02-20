@@ -122,6 +122,7 @@ Run `ai_mail send --help` for full syntax and examples.
 - Rich formatting per Seed standards
 - When in doubt, look at Seed's code
 - NEVER DELETE FILES - .archive them or disable them, e.g. code.py(disabled)
+- **NEVER expose API keys outside `.env` files.** No keys in markdown docs, code comments, commit messages, README files, or any file that could end up in git history. Load keys from `.env` files or environment variables only. GitHub secret scanning WILL catch exposed keys and revoke them — this has already happened to us.
 - **Inbox hygiene** — On startup, if your inbox has >20 messages, close stale/outdated ones before processing new work. Don't let emails pile up.
 
 **Breadcrumbs:**

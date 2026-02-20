@@ -31,7 +31,11 @@ import re
 import sys
 from collections import Counter
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Any, Optional
+
+AIPASS_ROOT = Path.home() / "aipass_core"
+sys.path.insert(0, str(AIPASS_ROOT))
 
 # =============================================================================
 # v1 REGEX EXTRACTION (fallback)
@@ -379,7 +383,9 @@ def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     chunks = _chunk_messages(chat_history)
     all_fragments = []
-    for chunk in chunks:
+    chunk_errors = []
+    chunks_succeeded = 0
+    for i, chunk in enumerate(chunks):
         conv_text = _format_conversation_for_prompt(chunk)
         if not conv_text.strip():
             continue
@@ -407,20 +413,32 @@ def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
             content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-        except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError):
+        except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError) as e:
+            err_msg = f"Chunk {i+1}/{len(chunks)}: {type(e).__name__}: {e}"
+            chunk_errors.append(err_msg)
+            # Error tracked in chunk_errors for module-layer logging
             continue
         if not content:
             continue
         parsed = _parse_llm_json(content)
         if parsed is None:
             continue
+        chunks_succeeded += 1
         for frag in parsed:
             if _validate_fragment(frag):
                 frag.setdefault('technical_domain', '')
                 all_fragments.append(frag)
 
-    return {'success': True, 'fragments': all_fragments,
-            'chunk_count': len(chunks), 'error': None}
+    all_failed = len(chunks) > 0 and chunks_succeeded == 0 and len(chunk_errors) > 0
+    return {
+        'success': not all_failed,
+        'fragments': all_fragments,
+        'chunk_count': len(chunks),
+        'chunks_succeeded': chunks_succeeded,
+        'chunks_failed': len(chunk_errors),
+        'error': '; '.join(chunk_errors) if all_failed else None,
+        'chunk_errors': chunk_errors
+    }
 
 
 def analyze_conversation_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:

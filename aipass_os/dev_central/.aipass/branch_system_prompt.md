@@ -47,6 +47,12 @@ Files: `dev_planning/DPLAN-XXX_topic_YYYY-MM-DD.md`. When ready to build, send t
 
 ---
 
+## External Access SOP
+
+**`/home/aipass/.aipass/access.md`** — Step-by-step procedures for all external services (GitHub API, dev.to, Twitter, Telegram, etc.). Check here before trying to access any external service. Add new entries when you learn a new access method.
+
+---
+
 ## Telegram
 
 You CAN create and manage Telegram bots via Chrome MCP (web.telegram.org). Don't say you can't — just open it and do it.

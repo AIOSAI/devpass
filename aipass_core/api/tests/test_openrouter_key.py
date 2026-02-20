@@ -47,13 +47,13 @@ from pathlib import Path
 # =============================================
 
 # Test model configuration - EDIT HERE TO CHANGE MODEL
-TEST_MODEL = "deepseek/deepseek-chat-v3.1:free"
+TEST_MODEL = "google/gemma-3-27b-it:free"
 
 # Alternative models to try:
 # TEST_MODEL = "openai/gpt-4o-mini"                    # OpenAI GPT-4o Mini
 # TEST_MODEL = "anthropic/claude-3.5-sonnet"          # Anthropic Claude
-# TEST_MODEL = "google/gemini-flash-1.5"              # Google Gemini
-# TEST_MODEL = "meta-llama/llama-3.1-8b-instruct:free" # Meta Llama (free)
+# TEST_MODEL = "deepseek/deepseek-r1-0528:free"       # DeepSeek R1 (free)
+# TEST_MODEL = "meta-llama/llama-3.2-3b-instruct:free" # Meta Llama (free)
 
 # Request headers configuration
 REQUEST_HEADERS = {

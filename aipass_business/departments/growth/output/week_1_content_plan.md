@@ -42,7 +42,7 @@ Five launch posts already exist in `vera/public/launch_posts/`. Two platforms ar
 ### Day 3 — Saturday Feb 22
 **Platform:** Bluesky
 **Action:** Follow-up post to launch announcement
-**Content:** Short post highlighting a specific capability (e.g., "30 agents, 4,100+ memory vectors — here's what persistent identity looks like in practice") with link to GitHub
+**Content:** Short post highlighting a specific capability (e.g., "32 agents, 5,500+ memory vectors — here's what persistent identity looks like in practice") with link to GitHub
 **Pillar:** Building in Public (25%)
 **Why:** Momentum on already-live platform. Saturday tech crowd is active on Bluesky.
 

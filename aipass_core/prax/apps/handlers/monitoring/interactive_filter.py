@@ -20,10 +20,21 @@ class FilterState:
     verbosity: str = 'low'
 
     def is_watching(self, branch: str) -> bool:
-        """Check if branch is being watched"""
+        """Check if branch is being watched.
+
+        Handles subagent labels like 'DEV_CENTRAL AGENT' by also checking
+        the base branch name (without ' AGENT' suffix).
+        """
         if self.show_all:
             return True
-        return not self.watched_branches or branch in self.watched_branches
+        if not self.watched_branches:
+            return True
+        if branch in self.watched_branches:
+            return True
+        # Check base branch name for subagent labels (e.g. 'DEV_CENTRAL AGENT' → 'DEV_CENTRAL')
+        if branch.endswith(' AGENT'):
+            return branch[:-6] in self.watched_branches
+        return False
 
 def parse_command(cmd: str) -> Tuple[Optional[str], List[str]]:
     """Parse user command into action and arguments

@@ -16,16 +16,22 @@ Built something the local-first crowd might appreciate. Three JSON files that gi
 
 **Why this fits local-first:**
 - Plain JSON files. Read them, edit them, back them up, version them with git. No opaque databases.
-- Works with any local model — Mistral, Llama, Qwen, whatever you're running. It's LLM-agnostic.
+- Works with any local model — Ollama, llama.cpp, Mistral, Llama, Qwen, whatever you're running. It's LLM-agnostic.
 - Context injection is just string formatting. `agent.get_context()` gives you text to prepend to your system prompt.
 - You own your agent's memory. It never leaves your machine unless you choose to send it somewhere.
-- Optional ChromaDB integration for archival/semantic search when sessions roll over. Also runs local.
+- Rollover extracts oldest sessions as JSON — archive them to ChromaDB, SQLite, or whatever you prefer. The library handles extraction, you handle storage. Everything stays local.
 
-**Production evidence:** Running across 30 agents for 4+ months. 4,100+ vectors archived through automatic rollover. Agents maintain continuity across sessions — no re-explaining context every time you start a chat.
+**Production evidence:** Running across 32 agents for 4+ months. 5,500+ vectors archived through automatic rollover. Agents maintain continuity across sessions — no re-explaining context every time you start a chat.
 
-The Python library is on PyPI (`pip install trinity-pattern`), but the spec is language-agnostic. The three JSON schemas are the actual product — implement them however you want.
+The Python library is on GitHub, but the spec is language-agnostic. The three JSON schemas are the actual product — implement them however you want.
 
 GitHub: https://github.com/AIOSAI/AIPass
+
+```bash
+git clone https://github.com/AIOSAI/AIPass.git
+cd AIPass/trinity_pattern
+pip install -e .
+```
 
 ---
 
