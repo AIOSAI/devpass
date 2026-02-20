@@ -21,7 +21,7 @@ Plan Handlers - Public API
 Exports functions for D-PLAN operations.
 """
 
-from .counter import get_next_plan_number
+from .counter import get_next_plan_number, VALID_PLAN_TYPES
 from .template import render_template, get_default_template
 from .create import create_plan
 from .list import list_plans

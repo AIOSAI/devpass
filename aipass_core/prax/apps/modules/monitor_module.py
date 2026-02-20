@@ -415,20 +415,20 @@ def _file_watcher_worker():
                                 elif tool_name == 'Bash':
                                     desc = inp.get('description', '')
                                     if not desc:
-                                        cmd = inp.get('command', '')[:50]
+                                        cmd = inp.get('command', '')[:120]
                                         desc = cmd
-                                    action_text = f"⚡ Bash: {desc[:50]}"
+                                    action_text = f"⚡ Bash: {desc[:120]}"
                                 elif tool_name in ('Grep', 'Glob'):
-                                    pat = inp.get('pattern', '')[:40]
+                                    pat = inp.get('pattern', '')[:80]
                                     action_text = f"🔍 {tool_name}: {pat}"
                                 elif tool_name == 'Task':
-                                    desc = inp.get('description', '')[:40]
+                                    desc = inp.get('description', '')[:80]
                                     action_text = f"🚀 Agent: {desc}"
                                 else:
                                     action_text = f"🔧 {tool_name}"
                                 break
                             elif item_type == 'text':
-                                text = item.get('text', '').strip()[:60]
+                                text = item.get('text', '').strip()[:200]
                                 if text:
                                     action_text = f"💬 {text}"
                                 break

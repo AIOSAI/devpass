@@ -2,12 +2,13 @@
 
 # ===================AIPASS====================
 # META DATA HEADER
-# Name: counter.py - D-PLAN counter management
+# Name: counter.py - Plan counter management
 # Date: 2025-12-02
-# Version: 1.0.0
+# Version: 2.0.0
 # Category: devpulse/handlers/plan
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-19): Multi-type support (DPLAN/BPLAN), configurable root
 #   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
 #
 # CODE STANDARDS:
@@ -17,9 +18,10 @@
 # ==============================================
 
 """
-Counter Handler - D-PLAN Numbering
+Counter Handler - Plan Numbering
 
-Manages sequential D-PLAN numbers by scanning existing files.
+Manages sequential plan numbers by scanning existing files.
+Supports multiple plan types (DPLAN, BPLAN) with separate sequences.
 Counter file is a cache, not source of truth.
 """
 
@@ -44,28 +46,40 @@ sys.path.insert(0, str(Path.home()))
 DEV_PLANNING_ROOT = Path.home() / "aipass_os" / "dev_central" / "dev_planning"
 COUNTER_FILE = DEV_PLANNING_ROOT / "counter.json"
 
+VALID_PLAN_TYPES = {"dplan": "DPLAN", "bplan": "BPLAN"}
+
 
 # =============================================================================
 # HANDLER FUNCTIONS
 # =============================================================================
 
-def get_next_plan_number() -> Tuple[int, str]:
+def get_next_plan_number(
+    plan_type: str = "DPLAN",
+    planning_root: Path | None = None
+) -> Tuple[int, str]:
     """
-    Get next D-PLAN number
+    Get next plan number for a given plan type.
 
-    Strategy: Scan files for highest number, increment by 1.
+    Strategy: Scan files for highest number with matching prefix, increment by 1.
     Counter file is cache, not source of truth.
+
+    Args:
+        plan_type: Plan prefix (DPLAN, BPLAN). Case-insensitive, normalized to upper.
+        planning_root: Override directory to scan. Defaults to DEV_PLANNING_ROOT.
 
     Returns:
         Tuple of (next_number, error_message)
         Error message is empty on success
     """
-    # Scan existing plans to find highest number
+    plan_type = plan_type.upper()
+    root = planning_root or DEV_PLANNING_ROOT
+
+    # Scan existing plans to find highest number for this type
     highest = 0
 
-    if DEV_PLANNING_ROOT.exists():
-        for plan_file in DEV_PLANNING_ROOT.glob("DPLAN-*.md"):
-            match = re.match(r"DPLAN-(\d+)", plan_file.name)
+    if root.exists():
+        for plan_file in root.glob(f"{plan_type}-*.md"):
+            match = re.match(rf"{plan_type}-(\d+)", plan_file.name)
             if match:
                 num = int(match.group(1))
                 if num > highest:
@@ -76,9 +90,27 @@ def get_next_plan_number() -> Tuple[int, str]:
     # Update counter cache (best effort, return error for logging by module)
     cache_error = ""
     try:
-        COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(COUNTER_FILE, 'w', encoding='utf-8') as f:
-            json.dump({"next_number": next_num + 1}, f, indent=2)
+        counter_file = root / "counter.json"
+        counter_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Load existing counter data
+        counter_data = {}
+        if counter_file.exists():
+            try:
+                with open(counter_file, 'r', encoding='utf-8') as f:
+                    counter_data = json.load(f)
+            except Exception:
+                counter_data = {}
+
+        # Update per-type counter
+        counter_data[plan_type] = {"next_number": next_num + 1}
+
+        # Backwards compat: also set top-level next_number for DPLAN
+        if plan_type == "DPLAN":
+            counter_data["next_number"] = next_num + 1
+
+        with open(counter_file, 'w', encoding='utf-8') as f:
+            json.dump(counter_data, f, indent=2)
     except Exception as e:
         cache_error = f"Cache update failed: {e}"
 

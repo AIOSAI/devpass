@@ -1,14 +1,28 @@
 #!/home/aipass/.venv/bin/python3
 # -*- coding: utf-8 -*-
+
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: llm_client.py - Multi-provider LLM client with unified chat interface
+# Date: 2026-02-18
+# Version: 2.1.0
+# Category: Nexus/handlers/system
+#
+# CHANGELOG (Max 5 entries):
+#   - v2.1.0 (2026-02-18): Multi-provider support (OpenAI, Anthropic, Mistral, Google)
+#   - v2.0.0 (2026-02-08): OpenAI-only client with make_client/chat interface
+#
+# CODE STANDARDS:
+#   - Graceful SDK imports: try/except per provider
+#   - Backward compatible: existing calls work unchanged
+# =============================================
+
 """
-META:
-  app: Nexus
-  layer: handlers/system
-  purpose: Multi-provider LLM client with unified chat interface
-  status: Active
-  version: 2.1
-  v1_ref: .archive/nexus_v1_original/a.i_core/a.i_profiles/Nexus/llm_client.py
-  providers: openai, anthropic, mistral, google
+Multi-provider LLM client with unified chat interface.
+
+Supports OpenAI, Anthropic, Mistral, and Google Gemini with graceful
+degradation when SDKs aren't installed. Provider auto-detection from
+model names.
 """
 
 import sys

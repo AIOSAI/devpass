@@ -2,12 +2,13 @@
 
 # ===================AIPASS====================
 # META DATA HEADER
-# Name: dev_flow.py - D-PLAN management module (thin orchestrator)
+# Name: dev_flow.py - Plan management module (thin orchestrator)
 # Date: 2025-12-02
-# Version: 3.0.0
+# Version: 4.0.0
 # Category: Module
 #
 # CHANGELOG (Max 5 entries):
+#   - v4.0.0 (2026-02-19): Multi-type (DPLAN/BPLAN), --type flag, @ branch resolution
 #   - v3.0.0 (2026-02-18): Tags, filters, registry, dashboard per FPLAN-0355
 #   - v2.0.0 (2025-12-02): Refactored to thin orchestrator - all logic in handlers
 #   - v1.0.0 (2025-12-02): Initial version - plan create/list/status commands
@@ -16,6 +17,7 @@
 #   - handlers/plan/ (all plan handlers)
 #   - registry.py (plan tracking)
 #   - dashboard.py (DASHBOARD.local.json + DEVPULSE.central.json push)
+#   - BRANCH_REGISTRY.json (@ resolution)
 #
 # CODE STANDARDS:
 #   - Modules orchestrate, handlers implement (3-tier architecture)
@@ -25,16 +27,18 @@
 # ==============================================
 
 """
-D-PLAN Management Module - Thin Orchestrator
+Plan Management Module - Thin Orchestrator
 
 Routes commands to handlers in handlers/plan/.
-Manages numbered, dated planning documents in dev_planning/.
+Manages numbered, dated planning documents (DPLAN, BPLAN) in dev_planning/.
+Supports @ branch resolution for creating plans in other branches.
 """
 
 # INFRASTRUCTURE IMPORT PATTERN
 import sys
+import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 AIPASS_ROOT = Path.home() / "aipass_core"
 sys.path.insert(0, str(AIPASS_ROOT))
@@ -52,11 +56,59 @@ from aipass_os.dev_central.devpulse.apps.handlers.plan.display import show_help,
 from aipass_os.dev_central.devpulse.apps.handlers.plan.close import (
     normalize_plan_number, close_plan, get_open_plans
 )
+from aipass_os.dev_central.devpulse.apps.handlers.plan.counter import VALID_PLAN_TYPES
 from aipass_os.dev_central.devpulse.apps.handlers.plan.registry import (
     register_plan, update_plan_status, populate_from_filesystem,
     get_summary, save_plan_summary, generate_description_summary
 )
 from aipass_os.dev_central.devpulse.apps.handlers.plan.dashboard import push_all as push_dashboard
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+BRANCH_REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
+
+
+# =============================================================================
+# @ BRANCH RESOLUTION
+# =============================================================================
+
+def resolve_branch_target(branch_ref: str) -> Optional[Path]:
+    """
+    Resolve @branch reference to a filesystem path via BRANCH_REGISTRY.json.
+
+    Args:
+        branch_ref: Branch reference like "@vera" or "@team_1"
+
+    Returns:
+        Path to the branch directory, or None if not found
+    """
+    name = branch_ref.lstrip("@").upper()
+
+    if not BRANCH_REGISTRY_PATH.exists():
+        logger.warning(f"[dev_flow] BRANCH_REGISTRY.json not found at {BRANCH_REGISTRY_PATH}")
+        return None
+
+    try:
+        with open(BRANCH_REGISTRY_PATH, "r", encoding="utf-8") as f:
+            registry = json.load(f)
+
+        for branch in registry.get("branches", []):
+            if branch.get("name", "").upper() == name:
+                branch_path = Path(branch["path"])
+                if branch_path.exists():
+                    return branch_path
+                else:
+                    logger.warning(f"[dev_flow] Branch path does not exist: {branch_path}")
+                    return None
+
+        logger.warning(f"[dev_flow] Branch '{name}' not found in registry")
+        return None
+
+    except Exception as e:
+        logger.warning(f"[dev_flow] Failed to read branch registry: {e}")
+        return None
 
 
 # =============================================================================
@@ -116,25 +168,31 @@ def _handle_create(args: List[str]) -> bool:
     # Handle --help flag
     if args and args[0] == '--help':
         console.print("\n[bold]USAGE:[/bold]")
-        console.print("  plan create \"topic name\" [--tag tag] [--dir subdirectory]")
+        console.print("  plan create \"topic name\" [--type type] [--tag tag] [--dir subdir] [@branch]")
         console.print("\n[bold]OPTIONS:[/bold]")
+        console.print("  --type <type> Plan type: dplan (default), bplan")
         console.print("  --tag <tag>   Set plan tag (default: idea)")
         console.print("  --dir <name>  Create plan in dev_planning/<name>/ subdirectory")
+        console.print("  @<branch>     Create in target branch's dev_planning/")
         console.print(f"\n[bold]TAGS:[/bold] {', '.join(VALID_TAGS)}")
         console.print("\n[bold]EXAMPLES:[/bold]")
         console.print("  plan create \"new feature design\"")
         console.print("  plan create \"API upgrade\" --tag upgrade")
-        console.print("  plan create \"flow improvements\" --dir flow\n")
+        console.print("  plan create \"revenue model\" --type bplan")
+        console.print("  plan create \"vera improvements\" @vera\n")
         return True
 
     if len(args) < 1:
-        error("Usage: plan create \"topic name\" [--tag tag] [--dir subdirectory]")
+        error("Usage: plan create \"topic name\" [--type type] [--tag tag] [@branch]")
         return True
 
     # Parse arguments: topic and optional flags
     topic = args[0]
     subdir = None
     tag = "idea"
+    plan_type = "dplan"
+    target_path = None
+    target_branch_name = None
 
     # Check for --dir flag
     if '--dir' in args:
@@ -157,8 +215,36 @@ def _handle_create(args: List[str]) -> bool:
             error("--tag requires a tag name")
             return True
 
+    # Check for --type flag
+    if '--type' in args:
+        type_idx = args.index('--type')
+        if type_idx + 1 < len(args):
+            plan_type = args[type_idx + 1].lower()
+            if plan_type not in VALID_PLAN_TYPES:
+                valid = ", ".join(VALID_PLAN_TYPES.keys())
+                error(f"Invalid plan type '{plan_type}'. Valid types: {valid}")
+                return True
+        else:
+            error("--type requires a plan type (dplan, bplan)")
+            return True
+
+    # Check for @branch target (last arg starting with @)
+    for arg in args[1:]:
+        if arg.startswith("@") and not arg.startswith("--"):
+            target_branch_name = arg
+            target_path = resolve_branch_target(arg)
+            if target_path is None:
+                error(f"Could not resolve branch target '{arg}'")
+                return True
+            break
+
+    prefix = VALID_PLAN_TYPES[plan_type]
+
     # Delegate to handler
-    ok, result, err = create_plan(topic, tag=tag, subdir=subdir)
+    ok, result, err = create_plan(
+        topic, tag=tag, plan_type=plan_type,
+        target_path=target_path, subdir=subdir
+    )
 
     if not ok:
         logger.error(f"[dev_flow] Failed to create plan: {err}")
@@ -166,37 +252,41 @@ def _handle_create(args: List[str]) -> bool:
         return True
 
     # Log success (module does logging)
-    logger.info(f"[dev_flow] Created DPLAN-{result['plan_number']:03d}: {result['filename']}")
+    logger.info(f"[dev_flow] Created {prefix}-{result['plan_number']:03d}: {result['filename']}")
 
     # Log cache warning if any
     if result.get('cache_warning'):
         logger.warning(f"[dev_flow] {result['cache_warning']}")
 
-    # Register in registry
-    try:
-        register_plan(
-            plan_number=result['plan_number'],
-            topic=result['topic'],
-            status="planning",
-            tag=tag,
-            file_path=result['path'],
-            date=result['date']
-        )
-        logger.info(f"[dev_flow] Registered DPLAN-{result['plan_number']:03d} in registry")
-    except Exception as e:
-        logger.warning(f"[dev_flow] Failed to register plan: {e}")
+    # Register in registry (only for local plans, not @ targets)
+    if not target_path:
+        try:
+            register_plan(
+                plan_number=result['plan_number'],
+                topic=result['topic'],
+                status="planning",
+                tag=tag,
+                file_path=result['path'],
+                date=result['date']
+            )
+            logger.info(f"[dev_flow] Registered {prefix}-{result['plan_number']:03d} in registry")
+        except Exception as e:
+            logger.warning(f"[dev_flow] Failed to register plan: {e}")
 
-    # Push dashboard update
-    try:
-        push_dashboard()
-    except Exception as e:
-        logger.warning(f"[dev_flow] Dashboard push failed: {e}")
+        # Push dashboard update
+        try:
+            push_dashboard()
+        except Exception as e:
+            logger.warning(f"[dev_flow] Dashboard push failed: {e}")
 
     # Display result
     console.print()
-    success(f"Created DPLAN-{result['plan_number']:03d}")
+    success(f"Created {prefix}-{result['plan_number']:03d}")
     console.print(f"  [dim]Topic:[/dim] {result['topic']}")
+    console.print(f"  [dim]Type:[/dim] {plan_type.upper()}")
     console.print(f"  [dim]Tag:[/dim] {tag}")
+    if target_branch_name:
+        console.print(f"  [dim]Target:[/dim] {target_branch_name}")
     console.print(f"  [dim]File:[/dim] {result['path']}")
     console.print()
 

@@ -353,27 +353,29 @@ def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not chat_history:
         return empty
 
-    # Lazy import to avoid errors when API module isn't available
-    try:
-        from pathlib import Path
-        aipass_root = str(Path.home() / "aipass_core")
-        if aipass_root not in sys.path:
-            sys.path.insert(0, aipass_root)
-        from api.apps.handlers.openrouter.client import (
-            get_cached_client, make_api_request, extract_response)
-        from api.apps.handlers.auth.keys import get_api_key
-    except ImportError as e:
-        return {'success': False, 'fragments': [], 'chunk_count': 0,
-                'error': f"OpenRouter API not available: {e}"}
+    # Direct OpenRouter API call via urllib (no cross-branch imports needed)
+    import urllib.request
+    import urllib.error
+    from pathlib import Path
 
-    api_key = get_api_key("openrouter")
+    # Load API key from env file
+    api_key = None
+    for env_path in [
+        Path.home() / "aipass_core" / "api" / "apps" / ".env",
+        Path.home() / "aipass_core" / "api" / ".env",
+    ]:
+        if env_path.exists():
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("OPENROUTER_API_KEY="):
+                        api_key = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+        if api_key:
+            break
+
     if not api_key:
         return {'success': False, 'fragments': [], 'chunk_count': 0,
-                'error': "No OpenRouter API key configured"}
-    client = get_cached_client(api_key)
-    if not client:
-        return {'success': False, 'fragments': [], 'chunk_count': 0,
-                'error': "Failed to create OpenRouter client"}
+                'error': "No OpenRouter API key found in env files"}
 
     chunks = _chunk_messages(chat_history)
     all_fragments = []
@@ -385,14 +387,31 @@ def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
             {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
             {"role": "user", "content": conv_text}
         ]
-        response = make_api_request(client, messages, LLM_MODEL,
-                                    temperature=0.3, max_tokens=2000)
-        if not response:
+        payload = json.dumps({
+            "model": LLM_MODEL,
+            "messages": messages,
+            "temperature": 0.3,
+            "max_tokens": 2000
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://aipass.dev",
+                "X-Title": "AIPass Memory Bank"
+            }
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError):
             continue
-        data = extract_response(response)
-        if not data or not data.get('content'):
+        if not content:
             continue
-        parsed = _parse_llm_json(data['content'])
+        parsed = _parse_llm_json(content)
         if parsed is None:
             continue
         for frag in parsed:

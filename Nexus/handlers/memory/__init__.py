@@ -14,6 +14,12 @@ from .knowledge_base import (
 from .vector_memory import (
     store_memory, search_memories, get_memory_count
 )
+from .auto_knowledge import (
+    detect_and_store, detect_learn_command, detect_memory_search
+)
+from .shorthand_parser import (
+    parse as parse_shorthand, get_tone_context, is_emotional_input
+)
 
 __all__ = [
     # Chat history
@@ -44,4 +50,14 @@ __all__ = [
     'store_memory',
     'search_memories',
     'get_memory_count',
+
+    # Auto-knowledge extraction
+    'detect_and_store',
+    'detect_learn_command',
+    'detect_memory_search',
+
+    # Shorthand parsing
+    'parse_shorthand',
+    'get_tone_context',
+    'is_emotional_input',
 ]

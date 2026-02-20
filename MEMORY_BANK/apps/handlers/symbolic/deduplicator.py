@@ -115,43 +115,54 @@ def deduplicate_fragment(
     # Build prompt and call LLM
     messages = _build_dedup_prompt(new_fragment, existing_fragments)
 
-    # Lazy import OpenRouter (path already on sys.path via AIPASS_ROOT)
-    try:
-        from api.apps.handlers.openrouter.client import (
-            get_cached_client, make_api_request, extract_response)
-        from api.apps.handlers.auth.keys import get_api_key
-    except ImportError as e:
-        # Fallback: if no API available, default to ADD
-        return {
-            'success': True,
-            'action': 'ADD',
-            'fragment': new_fragment,
-            'reason': f'OpenRouter API not available, defaulting to ADD: {e}'
-        }
+    # Direct OpenRouter API call via urllib (no cross-branch imports needed)
+    import urllib.request
+    import urllib.error
+    from pathlib import Path
 
-    api_key = get_api_key("openrouter")
+    api_key = None
+    for env_path in [
+        Path.home() / "aipass_core" / "api" / "apps" / ".env",
+        Path.home() / "aipass_core" / "api" / ".env",
+    ]:
+        if env_path.exists():
+            with open(env_path, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("OPENROUTER_API_KEY="):
+                        api_key = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+        if api_key:
+            break
+
     if not api_key:
         return {
             'success': True,
             'action': 'ADD',
             'fragment': new_fragment,
-            'reason': 'No OpenRouter API key, defaulting to ADD'
+            'reason': 'No OpenRouter API key found, defaulting to ADD'
         }
 
-    client = get_cached_client(api_key)
-    if not client:
-        return {
-            'success': True,
-            'action': 'ADD',
-            'fragment': new_fragment,
-            'reason': 'Failed to create OpenRouter client, defaulting to ADD'
+    payload = json.dumps({
+        "model": LLM_MODEL,
+        "messages": messages,
+        "temperature": 0.2,
+        "max_tokens": 500
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://aipass.dev",
+            "X-Title": "AIPass Memory Bank"
         }
-
-    response = make_api_request(
-        client, messages, LLM_MODEL,
-        temperature=0.2, max_tokens=500
     )
-    if not response:
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+    except (urllib.error.URLError, json.JSONDecodeError, KeyError, IndexError):
         return {
             'success': True,
             'action': 'ADD',
@@ -159,14 +170,14 @@ def deduplicate_fragment(
             'reason': 'LLM request failed, defaulting to ADD'
         }
 
-    data = extract_response(response)
-    if not data or not data.get('content'):
+    if not content:
         return {
             'success': True,
             'action': 'ADD',
             'fragment': new_fragment,
             'reason': 'Empty LLM response, defaulting to ADD'
         }
+    data = {'content': content}
 
     # Parse LLM decision
     parsed = _parse_dedup_response(data['content'])

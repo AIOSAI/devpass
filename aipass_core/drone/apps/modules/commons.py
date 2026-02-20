@@ -28,7 +28,6 @@ sys.path.insert(0, str(AIPASS_ROOT))
 
 from prax.apps.modules.logger import system_logger as logger
 from drone.apps.handlers.discovery import run_branch_module
-from drone.apps.handlers.routing import preprocess_args
 
 COMMONS_PATH = Path("/home/aipass/The_Commons")
 
@@ -38,6 +37,6 @@ def handle_command(command: str, args: list) -> bool:
     if command != "commons":
         return False
 
-    resolved_args = preprocess_args(args)
-    run_branch_module(COMMONS_PATH, resolved_args)
+    # Pass args through raw - The Commons handles its own @ resolution
+    run_branch_module(COMMONS_PATH, args)
     return True

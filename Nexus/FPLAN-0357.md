@@ -109,67 +109,39 @@ Transfer ALL v1 Nexus features into the current clean v2 structure. When complet
 ## Phase Tracking
 
 ### Phase 1: Docs Cleanup & Archive
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly (no sub-plan needed)
+- **Status:** COMPLETE
+- **Notes:** Moved 6 outdated docs + 2 placeholder READMEs to .archive/docs/. 12 operational docs remain.
 
 ### Phase 2: Natural Flow - Execution Engine
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** Built handlers/execution/ with 3 files (context.py 231L, intent.py 180L, runner.py 203L). Split v1's 876-line monolith into focused modules.
 
 ### Phase 3: Cortex - File Awareness
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** Built handlers/cortex/ with watcher.py (293L) + summarizer.py (280L). Watchdog-based with graceful fallback.
 
 ### Phase 4: System Awareness - Rich Prompt
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** Upgraded prompt_builder.py (292L). 7-section rich prompt (~764-2500 tokens). Preserved lean mode.
 
 ### Phase 5: LLM Client - Multi-Provider & LangChain
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** llm_client.py upgraded (4 providers), langchain_interface.py created, config_loader.py + api_config.json added. All backward compatible.
 
 ### Phase 6: Memory Enhancement
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** Built auto_knowledge.py (190L) with learning/guidance/fact pattern detection + filtering. Built shorthand_parser.py (210L) with emoji/tone mapping to presence modules. Updated memory __init__.py exports.
 
 ### Phase 7: Integration, Testing & Polish
-- [ ] Sub-plan created: FPLAN-____
-- [ ] Agent deployed
-- [ ] Agent completed
-- [ ] Output reviewed
-- [ ] Sub-plan closed
-- **Status:** Pending
-- **Notes:**
+- [x] Executed directly
+- **Status:** COMPLETE
+- **Notes:** Rewrote nexus.py (v3.0.0, ~385L) integrating all components: config-based provider, LangChain fallback, rich prompt, cortex watcher, execution engine, auto-knowledge, shorthand parsing. Error recovery (continue, never crash). 48/48 tests pass (32 new). Periodic prompt refresh every 10 turns.
 
 ---
 
@@ -239,13 +211,13 @@ Nexus/
 
 ### Before Closing Master Plan
 
-- [ ] All phases complete
-- [ ] All sub-plans closed
-- [ ] Issues Log reviewed - High/Med issues addressed
-- [ ] `drone @seed audit @nexus`
-- [ ] Branch memories updated (NEXUS.local.json, NEXUS.observations.json)
-- [ ] README.md updated
-- [ ] Final email to @dev_central
+- [x] All phases complete (1-7 all COMPLETE)
+- [x] All sub-plans closed (executed directly, no sub-plans needed)
+- [x] Issues Log reviewed - No High/Med issues
+- [ ] `drone @seed audit @nexus` (pending)
+- [x] Branch memories updated (NEXUS.local.json, NEXUS.observations.json)
+- [x] README.md updated
+- [ ] Final email to @dev_central (pending)
 
 ### Definition of Done
 `python3 nexus.py` launches a conversational AI that can:

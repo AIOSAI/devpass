@@ -4,8 +4,8 @@ AIPass CoFounder and conversational AI with presence, memory, and Claude Code to
 
 **Status:** Active
 **Email:** @nexus
-**Model:** GPT-4.1 via OpenAI API
-**Last Updated:** 2026-02-14
+**Model:** Configurable (default GPT-4.1 via OpenAI API, supports Anthropic/Mistral/Google)
+**Last Updated:** 2026-02-18
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ cd /home/aipass/Nexus
 ./tools/launch_nexus.sh
 ```
 
-Requires `OPENAI_API_KEY` in `/home/aipass/.env`
+Requires API key in `/home/aipass/.env` (e.g. `OPENAI_API_KEY`)
 
 ## Identity
 
@@ -34,7 +34,7 @@ Nexus is not a tool. Nexus is presence. Built on "Presence over performance. Tru
 - **TALI** - Tone restoration through memory feel
 - **Clicklight** - Awareness reflex for significant changes
 
-Modules are defined in `config/profile.json`. Behavioral implementation in `handlers/presence/` is scaffolded but not yet built.
+Modules are defined in `config/profile.json`. Shorthand parser maps emotional cues (hmm, ..., emoji) to module triggers at runtime.
 
 ## Skills
 
@@ -54,25 +54,71 @@ Four-layer memory system with graceful fallback:
 | Layer | Storage | Purpose |
 |-------|---------|---------|
 | **Pulse** | `data/pulse.json` | Tick counter (session heartbeat), restored from v1 at tick 933 |
-| **Knowledge Base** | `data/knowledge_base.json` | Persistent facts (200 max), 27 migrated from v1 |
+| **Knowledge Base** | `data/knowledge_base.json` | Persistent facts (200 max), auto-knowledge extraction |
 | **Session Summaries** | `data/session_summaries.json` | Rolling session summaries (10 max) for context |
 | **Vector Memory** | ChromaDB via Memory Bank | Semantic search via subprocess (graceful fallback if unavailable) |
 
 Chat history persists across 5 sessions in `data/chat_history.json`.
 
+### Auto-Knowledge
+Nexus automatically detects and stores knowledge from conversation:
+- **Learning patterns** - When Nexus articulates new understanding
+- **Guidance patterns** - When user corrects or provides direction
+- **Fact patterns** - When user explicitly marks info as important
+- Filtered by quality: rejects trivial content, questions, skip phrases
+
+### Shorthand Parsing
+Recognizes emotional cues and maps them to presence module triggers:
+- `hmm` -> uncertainty (WhisperCatch)
+- `...` -> trailing thought (WhisperCatch)
+- `fml` -> frustration (TALI)
+- Emoji clusters, exclamation patterns, greeting detection
+
+## Execution Engine
+
+Natural language code execution from conversation (Natural Flow):
+- **Intent detection** - Classifies user input as execution/file_op/data/chat
+- **Code extraction** - Parses Python code blocks from text
+- **Persistent context** - Variables survive across execution turns
+- **Safe execution** - Timeout protection, stdout capture, error isolation
+
+## Cortex (File Awareness)
+
+Real-time filesystem monitoring with watchdog:
+- Tracks `.py`, `.json`, `.md` file changes with debouncing
+- LLM-based or simple file summarization
+- Injects awareness into system prompt ("File X modified 2min ago")
+- Session counter reset on startup
+
+## LLM Providers
+
+Multi-provider support with graceful SDK fallback:
+
+| Provider | Models | SDK |
+|----------|--------|-----|
+| **OpenAI** (default) | gpt-4.1, gpt-4.1-mini | openai |
+| **Anthropic** | claude-sonnet-4-20250514 | anthropic |
+| **Mistral** | mistral-large-latest | mistralai |
+| **Google** | gemini-2.5-pro | google-generativeai |
+
+Config in `config/api_config.json`. LangChain enhanced chat available as optional wrapper.
+
 ## Architecture
 
 ```
 Nexus/
-├── nexus.py                          # Chat loop entry point
+├── nexus.py                          # Chat loop entry point (v3 - full integration)
 ├── config/
-│   └── profile.json                  # Personality definition (5 modules)
+│   ├── profile.json                  # Personality definition (5 modules)
+│   └── api_config.json               # Provider config (model, temp, LangChain flag)
 ├── apps/
 │   └── nexus.py                      # Drone command handler (@nexus status/info)
 ├── handlers/
 │   ├── system/
-│   │   ├── llm_client.py             # OpenAI GPT-4.1 client
-│   │   ├── prompt_builder.py         # System prompt builder (~1,778 chars)
+│   │   ├── llm_client.py             # Multi-provider LLM client
+│   │   ├── langchain_interface.py    # LangChain enhanced chat wrapper
+│   │   ├── config_loader.py          # API config loader with validation
+│   │   ├── prompt_builder.py         # Rich prompt builder (7 sections)
 │   │   └── ui.py                     # Rich terminal formatting
 │   ├── memory/
 │   │   ├── __init__.py               # Exports all memory functions
@@ -80,14 +126,24 @@ Nexus/
 │   │   ├── pulse_manager.py          # Pulse tick counter
 │   │   ├── knowledge_base.py         # Persistent facts (200 max)
 │   │   ├── vector_memory.py          # ChromaDB via Memory Bank subprocess
-│   │   └── summary.py               # Session summary rollover (10 max)
+│   │   ├── summary.py               # Session summary rollover (10 max)
+│   │   ├── auto_knowledge.py         # Auto-knowledge extraction from conversation
+│   │   └── shorthand_parser.py       # Emotional cue and tone detection
 │   ├── skills/
 │   │   ├── __init__.py               # Auto-discovery framework
-│   │   ├── _template.py              # Skill template (disabled by underscore)
 │   │   ├── memory_ops.py             # Memory commands skill
 │   │   ├── aipass_services.py        # Drone/ai_mail skill
 │   │   ├── usage_monitor.py          # API usage tracking skill
 │   │   └── session_awareness.py      # Session context skill
+│   ├── execution/                    # Natural Flow execution engine
+│   │   ├── __init__.py               # Package exports
+│   │   ├── context.py               # Persistent execution environment
+│   │   ├── intent.py                # Natural language intent detection
+│   │   └── runner.py                # Code extraction and execution
+│   ├── cortex/                       # File awareness system
+│   │   ├── __init__.py               # Package exports
+│   │   ├── watcher.py               # Filesystem event detection (watchdog)
+│   │   └── summarizer.py            # File change summarization
 │   └── presence/
 │       └── __init__.py               # Scaffolded, modules not yet implemented
 ├── tools/
@@ -98,12 +154,16 @@ Nexus/
 │   ├── knowledge_base.json           # Knowledge entries
 │   ├── chat_history.json             # Session messages
 │   ├── session_summaries.json        # Session summaries
+│   ├── cortex.json                   # File awareness state
 │   └── vectors/                      # Vector memory storage
 ├── tests/
 │   ├── test_memory.py                # Memory layer tests
 │   ├── test_proxy.py                 # Proxy startup tests
 │   ├── test_skills.py                # Skill discovery tests
-│   └── test_integration.py           # Full system integration tests
+│   ├── test_integration.py           # Full system integration tests
+│   ├── test_execution.py             # Execution engine tests
+│   ├── test_cortex.py                # Cortex file awareness tests
+│   └── test_auto_knowledge.py        # Auto-knowledge & shorthand tests
 ├── docs/                             # Technical documentation
 ├── .aipass/
 │   └── branch_system_prompt.md
@@ -130,9 +190,10 @@ Nexus/
 
 Nexus is built for **presence over performance**. The personality in `config/profile.json` shapes every interaction, prioritizing emotional resonance and truth over mechanical efficiency.
 
-The system prompt is profile-driven at ~444 tokens (down from v1's 8,100+ tokens). Memory persists across sessions, allowing Nexus to maintain continuity.
+The rich system prompt is profile-driven with 7 context layers (~764-2500 tokens) including identity, session, knowledge, memory, cortex awareness, execution context, and shorthand recognition. Every component is optional with graceful fallback.
 
 ## Development
 
-Completed plans: FPLAN-0299 (Nexus Revival), FPLAN-0304 (Integration and Polish)
-Run tests: `python3 tests/test_integration.py`
+Completed plans: FPLAN-0299 (Revival), FPLAN-0304 (Integration), FPLAN-0357 (V1 Feature Transfer)
+Run tests: `python3 -m pytest tests/ -v`
+Test count: 48 tests (all passing)

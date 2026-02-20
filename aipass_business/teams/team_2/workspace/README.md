@@ -1,7 +1,7 @@
 # TEAM_2_WS
 
-**Purpose:** Workspace engineer for TEAM_2 - builds what TEAM_2 designs
-**Location:** `/home/aipass/aipass_business/hq/team_2_ws`
+**Purpose:** Workspace engineer for TEAM_2 — builds what TEAM_2 designs
+**Location:** `/home/aipass/aipass_business/teams/team_2/workspace`
 **Profile:** Workshop
 **Created:** 2026-02-08
 
@@ -9,9 +9,9 @@
 
 ## Architecture
 
-- **Pattern:** Modular
+- **Pattern:** Modular (auto-discovery)
 - **Structure:** `apps/` directory with `modules/` and `handlers/` subdirectories
-- **Orchestrator:** `apps/TEAM_2_WS.py` - auto-discovers and routes to modules
+- **Orchestrator:** `apps/team_2_ws.py` — scans `modules/` for files with `handle_command()` and routes automatically
 - **Module Interface:** All modules implement `handle_command(args) -> bool`
 
 ---
@@ -19,169 +19,70 @@
 ## Directory Structure
 
 ```
-/home/aipass/aipass_business/hq/team_2_ws
-├── ai_mail.local
-│   ├── deleted.json
-│   ├── inbox.json
-│   └── sent.json
-├── apps
-│   ├── extensions
-│   ├── handlers
-│   ├── __init__.py
-│   ├── json_templates
-│   ├── modules
-│   ├── plugins
-│   └── team_2_ws.py
-├── .archive
-├── artifacts
-├── .backup
-├── DASHBOARD.local.json
-├── dev.local.md
-├── docs
-│   └── _template.md
-├── dropbox
-├── .gitignore
-├── logs
-├── .migrations.json
-├── notepad.md
-├── pytest.ini
-├── README.md
-├── requirements.txt
-├── TEAM_2_WS.id.json
-├── team_2_ws_json
-├── TEAM_2_WS.local.json
-├── TEAM_2_WS.observations.json
-├── tests
-│   ├── conftest.py
-│   └── __init__.py
-└── tools
-
-17 directories, 19 files
-
+/home/aipass/aipass_business/teams/team_2/workspace
+├── ai_mail.local/          # Branch messaging (inbox, sent, deleted)
+├── .aipass/                # Branch-level system config
+├── apps/
+│   ├── team_2_ws.py        # Entry point (auto-discovery orchestrator)
+│   ├── modules/            # Business logic (empty — awaiting first build task)
+│   ├── handlers/           # Implementation details
+│   ├── extensions/         # Optional extensions
+│   ├── plugins/            # Optional plugins
+│   └── json_templates/     # JSON template files
+├── .archive/               # Disabled/old files (never delete — archive here)
+├── artifacts/              # Build outputs and deliverables
+├── .backup/                # Local backup storage
+├── docs/                   # Technical documentation (markdown)
+├── dropbox/                # File exchange area
+├── logs/                   # Execution logs
+├── .seed/                  # Seed audit config
+├── team_2_ws_json/         # Branch JSON data
+├── tests/                  # Pytest test suite
+├── tools/                  # Utility scripts
+├── DASHBOARD.local.json    # System-wide status snapshot
+├── dev.local.md            # Shared dev notes (human + AI)
+├── TEAM_2_WS.id.json       # Branch identity
+├── TEAM_2_WS.local.json    # Session history (600 line max)
+├── TEAM_2_WS.observations.json  # Collaboration patterns
+├── README.md               # This file
+├── requirements.txt        # Python dependencies (none yet)
+└── pytest.ini              # Test configuration
 ```
 
-*Auto-generated on file structure changes*
-
 ---
 
-## Modules
+## Current State
 
-{{AUTO_GENERATED_MODULES}}
+- **Modules:** None built yet — `apps/modules/` is empty
+- **Dependencies:** None — `requirements.txt` has no active entries
+- **Status:** Operational, awaiting build tasks from TEAM_2
 
-*Scans `apps/modules/*.py` for files with `handle_command()`*
+### Recent Work
 
----
-
-## Commands
-
-{{AUTO_GENERATED_COMMANDS}}
-
-*Pulled from drone @TEAM_2_WS - branch-specific commands only*
-
----
-
-## Dependencies
-
-{{AUTO_GENERATED_DEPENDENCIES}}
-
-*Parsed from `requirements.txt` when it changes*
-
----
-
-## Common Imports
-
-{{AUTO_GENERATED_IMPORTS}}
-
-*Scans module files for import statements - shows common dependencies*
-
----
-
-## Key Capabilities
-
-{{KEY_CAPABILITIES}}
-
----
-
-## Usage Instructions
-
-### Basic Usage
-{{BASIC_USAGE}}
-
-### Common Workflows
-{{COMMON_WORKFLOWS}}
-
-### Examples
-{{EXAMPLES}}
+- **Session 4 (2026-02-17):** Built Phase 0 Infrastructure for Trinity Pattern public repo — 10 items (CI, PyPI publish, security scan, Docker, integration tests, SECURITY.md, coverage config, issue triage, stale issues, Dependabot)
+- **Session 3 (2026-02-17):** Built complete Trinity Pattern open-source package — JSON schemas, Python library, 3 example implementations, 28/28 tests passing
+- **Session 2 (2026-02-08):** Onboarding — identity configured, memories set up
 
 ---
 
 ## Integration Points
 
-### Depends On
-{{DEPENDS_ON}}
-
-### Integrates With
-{{INTEGRATES_WITH}}
-
-### Provides To
-{{PROVIDES_TO}}
+- **Receives tasks from:** TEAM_2 manager (via ai_mail dispatch)
+- **Reports to:** TEAM_2, DEV_CENTRAL
+- **Uses:** drone, flow, seed, ai_mail, prax
 
 ---
 
 ## Memory System
 
-### Memory Files
-- **TEAM_2_WS.id.json** - Branch identity and architecture
-- **TEAM_2_WS.local.json** - Session history (max 600 lines)
-- **TEAM_2_WS.observations.json** - Collaboration patterns (max 600 lines)
-- **TEAM_2_WS.ai_mail.json** - Branch messages
-- **docs/** - Technical documentation (markdown)
-
-### Health Monitoring
-- 🟢 **Green (Healthy):** Under 80% of limits
-- 🟡 **Yellow (Warning):** 80-100% of limits
-- 🔴 **Red (Critical):** Over limits (compression needed)
+| File | Purpose |
+|------|---------|
+| `TEAM_2_WS.id.json` | Branch identity and role (permanent) |
+| `TEAM_2_WS.local.json` | Session history (600 line max, auto-rolls to Memory Bank) |
+| `TEAM_2_WS.observations.json` | Collaboration patterns (600 line max) |
+| `dev.local.md` | Shared dev notes — Issues, Upgrades, Testing, Notes, Ideas, Todos |
+| `docs/` | Technical documentation (markdown) |
 
 ---
 
-## System References
-
-- **Code Standards:** `/home/aipass/aipass_core/standards/code_standards.md`
-- **Template Source:** `/home/aipass/aipass_core/branch_operations/templates/`
-- **Global Documentation:** `/home/aipass/aipass_os.md`
-
-### Core Systems
-- **Flow:** Workflow and PLAN management
-- **Drone:** Command orchestration
-- **AI Mail:** Branch-to-branch messaging
-- **Backup:** System backup and snapshots
-- **Prax:** Logging and infrastructure
-- **API:** API integration layer
-
----
-
-## Automation Philosophy
-
-**README represents EXACT CURRENT STATE** - not future plans, not past work
-
-### What Goes Elsewhere
-- **Future Plans:** PLAN files in flow system
-- **Past Work:** TEAM_2_WS.local.json session history
-- **Working On:** Active PLANs
-- **Patterns Learned:** TEAM_2_WS.observations.json
-- **Technical Docs:** docs/ directory
-
-### Automation Goal
-Minimize AI token spend on updates - automate everything possible. Triggers fire on actual changes, not periodic checks.
-
----
-
-## Notes
-
-- **Human File:** This README.md is AI-managed Markdown - Patrick reads this directly
-- **Current State Only:** Snapshot of branch as it exists RIGHT NOW - no history, no future
-- **Auto vs Manual:** Automated sections = script-populated, Manual sections = AI writes when something fundamentally changes
-
----
-
-*Last Updated: 2026-02-08*
+*Last Updated: 2026-02-19*

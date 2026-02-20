@@ -141,7 +141,7 @@ This is what the 9 layers do:
 
 **What this solves:** "What does this branch do?" answered instantly. No hunting through code or asking other branches.
 
-**Example:** When TEAM_1 spawned, they read `/home/aipass/aipass_business/hq/team_1/README.md` and immediately knew: "I'm the business strategy lead. My job is competitive research and market positioning. I work with TEAM_2 (technical) and TEAM_3 (strategic analysis)."
+**Example:** When TEAM_1 spawned, they read `/home/aipass/aipass_business/teams/team_1/README.md` and immediately knew: "I'm the business strategy lead. My job is competitive research and market positioning. I work with TEAM_2 (technical) and TEAM_3 (strategic analysis)."
 
 ---
 
@@ -276,7 +276,7 @@ The 80% threshold is the floor for initial work, not the ceiling for mature syst
 
 **Example:** Before TEAM_3 finalized the honesty audit section, they ran:
 ```
-> drone @seed checklist /home/aipass/aipass_business/hq/team_3/honesty_audit.md
+> drone @seed checklist /home/aipass/aipass_business/teams/team_3/honesty_audit.md
 Score: 12/14 (85.7%)
 PASS - Ready for integration
 ```
@@ -349,7 +349,7 @@ Field was gone. Diff comment explained why. No need to ask Memory Bank.
 **DASHBOARD.local.json:** System state at a glance (auto-updated by centrals)
 - Shows: active Flow plans, unread mail count, bulletin board posts, branch status
 - TEAM_1 checked Dashboard every session to see system-wide activity
-- File: `/home/aipass/aipass_business/hq/team_1/DASHBOARD.local.json`
+- File: `/home/aipass/aipass_business/teams/team_1/DASHBOARD.local.json`
 
 **Fragmented memory:** Associative recall from ChromaDB vectors
 - 5 symbolic dimensions: technical flow, emotional journey, collaboration patterns, key learnings, context triggers

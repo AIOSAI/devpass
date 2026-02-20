@@ -101,9 +101,13 @@ def get_status_icon(status: str) -> str:
     return STATUS_ICONS.get(status, "?")
 
 
-def get_status_summary() -> Tuple[Dict[str, int], int, str]:
+def get_status_summary(filter_type: str | None = None) -> Tuple[Dict[str, int], int, str]:
     """
-    Get summary of all D-PLANs by status
+    Get summary of all plans by status, optionally filtered by type.
+
+    Args:
+        filter_type: Optional plan type filter (e.g. "dplan", "bplan").
+                     None counts all types.
 
     Returns:
         Tuple of (status_counts, total, error_message)
@@ -123,8 +127,14 @@ def get_status_summary() -> Tuple[Dict[str, int], int, str]:
     if not DEV_PLANNING_ROOT.exists():
         return status_counts, 0, ""
 
-    for plan_file in DEV_PLANNING_ROOT.glob("DPLAN-*.md"):
-        if not re.match(r"DPLAN-\d+", plan_file.name):
+    for plan_file in DEV_PLANNING_ROOT.glob("*PLAN-*.md"):
+        match = re.match(r"([A-Z]+PLAN)-\d+", plan_file.name)
+        if not match:
+            continue
+
+        plan_type = match.group(1).lower()
+
+        if filter_type and plan_type != filter_type.lower():
             continue
 
         total += 1

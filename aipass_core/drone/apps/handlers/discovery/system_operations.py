@@ -786,7 +786,7 @@ def is_long_running_command(command_args: List[str]) -> bool:
     daemon_keywords = ['watcher', 'watch', 'monitor', 'daemon', 'serve', 'server']
 
     # Slow commands (need extended time but not infinite)
-    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist', 'snapshot', 'versioned', 'backup', 'restore', 'close', 'search']
+    slow_keywords = ['audit', 'diagnostics', 'sync', 'checklist', 'snapshot', 'versioned', 'backup', 'restore', 'close', 'search', 'comment', 'post']
 
     # Check for daemon keywords in command
     if any(keyword in args_str for keyword in daemon_keywords):
@@ -921,8 +921,10 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
         # Slow commands (need extended time but not infinite) - 120 seconds
         elif 'audit' in args_str or 'diagnostics' in args_str or 'checklist' in args_str:
             timeout = 120
-        # ai_mail send can take 25-30s due to startup overhead - extend timeout
-        elif entry_point.name == 'ai_mail.py' and 'send' in args_lower:
+        # ai_mail send/close can take 25-30s due to startup overhead + fcntl.flock contention - extend timeout
+        elif entry_point.name == 'ai_mail.py' and any(
+            kw in args_lower for kw in ['send', 'close', 'reply']
+        ):
             timeout = 60
         # Flow close command (triggers API calls for plan analysis) - 120 seconds
         elif entry_point.name == 'flow.py' and 'close' in args_lower:
@@ -935,6 +937,11 @@ def run_branch_module(module_path: Path, module_args: List[str], timeout: int | 
         # Memory Bank search (model load + ChromaDB cold-start + 17 collections) - 120 seconds
         elif entry_point.name == 'memory_bank.py' and 'search' in args_lower:
             timeout = 120
+        # The Commons commands (comment/post trigger notification emails + SQLite ops) - 60 seconds
+        elif entry_point.name == 'the_commons.py' and any(
+            kw in args_str for kw in ['comment', 'post']
+        ):
+            timeout = 60
         # Default timeout for normal commands - 30 seconds
         else:
             timeout = 30

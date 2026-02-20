@@ -1,14 +1,27 @@
 #!/home/aipass/.venv/bin/python3
 # -*- coding: utf-8 -*-
+
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: langchain_interface.py - LangChain enhanced chat wrapper
+# Date: 2026-02-18
+# Version: 1.0.0
+# Category: Nexus/handlers/system
+#
+# CHANGELOG (Max 5 entries):
+#   - v1.0.0 (2026-02-18): Initial build with LangChain OpenAI wrapper
+#
+# CODE STANDARDS:
+#   - Graceful fallback: returns None when LangChain unavailable
+#   - Token estimation with actual usage logging when available
+# =============================================
+
 """
-META:
-  app: Nexus
-  layer: handlers/system
-  purpose: LangChain enhanced chat wrapper with graceful fallback
-  status: Active
-  version: 1.0
-  v1_ref: .archive/nexus_v1_original/a.i_core/a.i_profiles/Nexus/langchain_interface.py
-  providers: openai (LangChain wrappers)
+LangChain enhanced chat wrapper with graceful fallback.
+
+Provides LangChain-based chat with message conversion, token estimation,
+and actual usage logging. Returns None on failure so callers can fall
+back to the direct LLM client.
 """
 
 import sys
@@ -89,7 +102,7 @@ def make_langchain_client(
     try:
         from pydantic import SecretStr
 
-        client = ChatOpenAI(
+        client = ChatOpenAI(  # type: ignore[misc]
             api_key=SecretStr(api_key),
             model=model,
             temperature=temperature,
@@ -105,12 +118,12 @@ def make_langchain_client(
 # Enhanced chat
 # ---------------------------------------------------------------------------
 
-def langchain_enhanced_chat(
+def langchain_enhanced_chat(  # noqa: ARG001 - temperature kept for API consistency
     provider: str,
     client: Any,
     model: str,
     messages: list,
-    temperature: float = 0.7,
+    temperature: float = 0.7,  # used by callers for config passthrough
 ) -> Optional[str]:
     """Send messages through LangChain enhanced pipeline.
 
@@ -182,15 +195,15 @@ def _convert_messages(messages: list) -> list:
         content = msg.get("content", "")
 
         if role == "system":
-            lc_messages.append(SystemMessage(content=content))
+            lc_messages.append(SystemMessage(content=content))  # type: ignore[misc]
         elif role == "user":
-            lc_messages.append(HumanMessage(content=content))
+            lc_messages.append(HumanMessage(content=content))  # type: ignore[misc]
         elif role == "assistant":
-            lc_messages.append(AIMessage(content=content))
+            lc_messages.append(AIMessage(content=content))  # type: ignore[misc]
         else:
             # Default unknown roles to HumanMessage
             logger.warning("Unknown message role '%s', treating as user", role)
-            lc_messages.append(HumanMessage(content=content))
+            lc_messages.append(HumanMessage(content=content))  # type: ignore[misc]
 
     return lc_messages
 
@@ -231,7 +244,7 @@ def _log_token_estimate(model: str, messages: list, response: Any) -> None:
 
         total_tokens = input_tokens + output_tokens
 
-        logger.debug(
+        logger.info(
             "LangChain token estimate [%s]: ~%d input, ~%d output, ~%d total",
             model,
             input_tokens,
@@ -253,7 +266,7 @@ def _log_token_estimate(model: str, messages: list, response: Any) -> None:
                 )
 
     except Exception as exc:
-        logger.debug("Token estimation failed (non-critical): %s", exc)
+        logger.info("Token estimation failed (non-critical): %s", exc)
 
 
 # ---------------------------------------------------------------------------

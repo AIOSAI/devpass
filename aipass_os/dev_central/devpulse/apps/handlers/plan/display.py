@@ -2,12 +2,13 @@
 
 # ===================AIPASS====================
 # META DATA HEADER
-# Name: display.py - D-PLAN display handler
+# Name: display.py - Plan display handler
 # Date: 2025-12-02
-# Version: 1.0.0
+# Version: 2.0.0
 # Category: devpulse/handlers/plan
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-19): Multi-type help (--type flag, @ resolution, BPLAN)
 #   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
 #
 # CODE STANDARDS:
@@ -46,22 +47,35 @@ HELP_TEXT = """
   drone @devpulse plan <subcommand> [options]
 
 [bold]SUBCOMMANDS:[/bold]
-  create "topic" [--tag tag] [--dir name]  - Create new D-PLAN document
-  list [--tag tag] [--status status]       - List D-PLANs (with filters)
-  status                                   - Quick overview of plan counts
+  create "topic" [options]                 - Create new plan document
+  list [--type type] [--tag tag] [--status status] - List plans (with filters)
+  status [--type type]                     - Quick overview of plan counts
   close <number>                           - Close plan and archive
   close --all                              - Close all open plans
+  sync                                     - Refresh registry from filesystem
+
+[bold]PLAN TYPES:[/bold]
+  dplan  - Development plans (default)
+  bplan  - Business plans
 
 [bold]EXAMPLES:[/bold]
   drone @devpulse plan create "new feature design"
   drone @devpulse plan create "API upgrade" --tag upgrade
-  drone @devpulse plan create "flow improvements" --dir flow
+  drone @devpulse plan create "revenue model" --type bplan
+  drone @devpulse plan create "vera improvements" --type dplan @vera
   drone @devpulse plan list
+  drone @devpulse plan list --type bplan
   drone @devpulse plan list --tag idea
   drone @devpulse plan list --status planning
   drone @devpulse plan status
+  drone @devpulse plan status --type dplan
   drone @devpulse plan close 3
   drone @devpulse plan close --all
+
+[bold]@ RESOLUTION:[/bold]
+  Append @branch to create plans in another branch's dev_planning/:
+    plan create "topic" @vera        → creates in vera/dev_planning/
+    plan create "topic" @team_1      → creates in team_1/dev_planning/
 
 [bold]TAGS:[/bold]
   idea, upgrade, proposal, bug, research, seed, infrastructure
@@ -75,9 +89,11 @@ HELP_TEXT = """
 
 [bold]OPTIONS:[/bold]
   --help         - Show this help message
+  --type <type>  - Plan type: dplan (default), bplan
   --tag <tag>    - Filter by tag (list) or set tag (create)
   --status <s>   - Filter by status (list only)
   --dir <name>   - Create in dev_planning/<name>/ subdirectory
+  @<branch>      - Target branch for plan creation
 """
 
 

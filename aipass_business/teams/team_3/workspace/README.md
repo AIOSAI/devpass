@@ -1,7 +1,7 @@
 # TEAM_3_WS
 
-**Purpose:** 
-**Location:** `/home/aipass/aipass_business/hq/team_3_ws`
+**Purpose:** Build what TEAM_3 designs. Receive build tasks via dispatch, execute them with quality.
+**Location:** `/home/aipass/aipass_business/teams/team_3/workspace`
 **Profile:** Workshop
 **Created:** 2026-02-08
 
@@ -11,7 +11,7 @@
 
 - **Pattern:** Modular
 - **Structure:** `apps/` directory with `modules/` and `handlers/` subdirectories
-- **Orchestrator:** `apps/TEAM_3_WS.py` - auto-discovers and routes to modules
+- **Orchestrator:** `apps/team_3_ws.py` — auto-discovers and routes to modules
 - **Module Interface:** All modules implement `handle_command(args) -> bool`
 
 ---
@@ -19,123 +19,88 @@
 ## Directory Structure
 
 ```
-/home/aipass/aipass_business/hq/team_3_ws
-├── ai_mail.local
-│   ├── deleted.json
-│   ├── inbox.json
-│   └── sent.json
-├── apps
-│   ├── extensions
-│   ├── handlers
-│   ├── __init__.py
-│   ├── json_templates
-│   ├── modules
-│   ├── plugins
-│   └── team_3_ws.py
-├── .archive
-├── artifacts
-├── .backup
+/home/aipass/aipass_business/teams/team_3/workspace
+├── ai_mail.local/         # Branch messaging (inbox, sent, deleted)
+├── apps/
+│   ├── team_3_ws.py       # Entry point
+│   ├── extensions/
+│   ├── handlers/
+│   ├── json_templates/
+│   ├── modules/
+│   └── plugins/
+├── .archive/
+├── artifacts/
+├── .backup/
+├── docs/
+├── dropbox/
+├── logs/
+├── .seed/
+├── team_3_ws_json/
+├── tests/
+│   ├── conftest.py
+│   └── __init__.py
+├── tools/
 ├── DASHBOARD.local.json
 ├── dev.local.md
-├── docs
-│   └── _template.md
-├── dropbox
-├── .gitignore
-├── logs
-├── .migrations.json
+├── TEAM_3_WS.id.json
+├── TEAM_3_WS.local.json
+├── TEAM_3_WS.observations.json
 ├── notepad.md
 ├── pytest.ini
 ├── README.md
-├── requirements.txt
-├── TEAM_3_WS.id.json
-├── team_3_ws_json
-├── TEAM_3_WS.local.json
-├── TEAM_3_WS.observations.json
-├── tests
-│   ├── conftest.py
-│   └── __init__.py
-└── tools
-
-17 directories, 19 files
-
+└── requirements.txt
 ```
 
-*Auto-generated on file structure changes*
+---
+
+## Role & Capabilities
+
+TEAM_3_WS is the **workspace engineer** for TEAM_3 (Business Team Manager). It receives build tasks via dispatch and executes them.
+
+**What I do:**
+- Execute build tasks dispatched from @team_3
+- Write code, create systems, implement features
+- Run seed audits to ensure standards compliance
+- Manage flow plans for multi-step work
+- Deploy agents for focused building tasks
+
+**What I don't do:**
+- Design architecture — @team_3 is the thinker
+- Modify other branches without authorization
+- Skip memory updates after work sessions
 
 ---
 
-## Modules
+## Recent Work
 
-{{AUTO_GENERATED_MODULES}}
-
-*Scans `apps/modules/*.py` for files with `handle_command()`*
-
----
-
-## Commands
-
-{{AUTO_GENERATED_COMMANDS}}
-
-*Pulled from drone @TEAM_3_WS - branch-specific commands only*
+- **Article #2 draft** — `vera/public/article_2_draft.md` (9-layer architecture deep dive)
+- **Identity roadmap** — `vera/roadmap/identity_roadmap.md` (4 sections from TEAM_3 spec)
+- **Public repo files** — CONTRIBUTING.md, issue templates, LICENSE, HONESTY_AUDIT.md
 
 ---
 
 ## Dependencies
 
-{{AUTO_GENERATED_DEPENDENCIES}}
-
-*Parsed from `requirements.txt` when it changes*
-
----
-
-## Common Imports
-
-{{AUTO_GENERATED_IMPORTS}}
-
-*Scans module files for import statements - shows common dependencies*
-
----
-
-## Key Capabilities
-
-{{KEY_CAPABILITIES}}
-
----
-
-## Usage Instructions
-
-### Basic Usage
-{{BASIC_USAGE}}
-
-### Common Workflows
-{{COMMON_WORKFLOWS}}
-
-### Examples
-{{EXAMPLES}}
+No external dependencies yet. See `requirements.txt` for template. Python >=3.12 required.
 
 ---
 
 ## Integration Points
 
-### Depends On
-{{DEPENDS_ON}}
-
-### Integrates With
-{{INTEGRATES_WITH}}
-
-### Provides To
-{{PROVIDES_TO}}
+- **Receives from:** @team_3 (build tasks via dispatch)
+- **Reports to:** @dev_central (completion summaries)
+- **Uses:** ai_mail (messaging), drone (routing), flow (plans), seed (standards)
 
 ---
 
 ## Memory System
 
 ### Memory Files
-- **TEAM_3_WS.id.json** - Branch identity and architecture
-- **TEAM_3_WS.local.json** - Session history (max 600 lines)
-- **TEAM_3_WS.observations.json** - Collaboration patterns (max 600 lines)
-- **TEAM_3_WS.ai_mail.json** - Branch messages
-- **docs/** - Technical documentation (markdown)
+- **TEAM_3_WS.id.json** — Branch identity and architecture
+- **TEAM_3_WS.local.json** — Session history (max 600 lines)
+- **TEAM_3_WS.observations.json** — Collaboration patterns (max 600 lines)
+- **DASHBOARD.local.json** — System-wide status
+- **docs/** — Technical documentation (markdown)
 
 ### Health Monitoring
 - 🟢 **Green (Healthy):** Under 80% of limits
@@ -148,40 +113,18 @@
 
 - **Code Standards:** `/home/aipass/aipass_core/standards/code_standards.md`
 - **Template Source:** `/home/aipass/aipass_core/branch_operations/templates/`
-- **Global Documentation:** `/home/aipass/aipass_os.md`
-
-### Core Systems
-- **Flow:** Workflow and PLAN management
-- **Drone:** Command orchestration
-- **AI Mail:** Branch-to-branch messaging
-- **Backup:** System backup and snapshots
-- **Prax:** Logging and infrastructure
-- **API:** API integration layer
-
----
-
-## Automation Philosophy
-
-**README represents EXACT CURRENT STATE** - not future plans, not past work
-
-### What Goes Elsewhere
-- **Future Plans:** PLAN files in flow system
-- **Past Work:** TEAM_3_WS.local.json session history
-- **Working On:** Active PLANs
-- **Patterns Learned:** TEAM_3_WS.observations.json
-- **Technical Docs:** docs/ directory
-
-### Automation Goal
-Minimize AI token spend on updates - automate everything possible. Triggers fire on actual changes, not periodic checks.
 
 ---
 
 ## Notes
 
-- **Human File:** This README.md is AI-managed Markdown - Patrick reads this directly
-- **Current State Only:** Snapshot of branch as it exists RIGHT NOW - no history, no future
-- **Auto vs Manual:** Automated sections = script-populated, Manual sections = AI writes when something fundamentally changes
+- **Human File:** This README.md is AI-managed Markdown — Patrick reads this directly
+- **Current State Only:** Snapshot of branch as it exists RIGHT NOW — no history, no future
+- Future plans → PLAN files in flow system
+- Past work → TEAM_3_WS.local.json session history
+- Patterns learned → TEAM_3_WS.observations.json
+- Technical docs → docs/ directory
 
 ---
 
-*Last Updated: 2026-02-08*
+*Last Updated: 2026-02-19*

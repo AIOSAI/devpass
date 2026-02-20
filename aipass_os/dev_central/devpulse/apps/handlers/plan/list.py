@@ -2,12 +2,13 @@
 
 # ===================AIPASS====================
 # META DATA HEADER
-# Name: list.py - D-PLAN listing handler
+# Name: list.py - Plan listing handler
 # Date: 2025-12-02
-# Version: 1.0.0
+# Version: 2.0.0
 # Category: devpulse/handlers/plan
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-02-19): Multi-type listing (DPLAN/BPLAN), plan_type field
 #   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
 #
 # CODE STANDARDS:
@@ -17,9 +18,9 @@
 # ==============================================
 
 """
-List Handler - D-PLAN Listing
+List Handler - Plan Listing
 
-Collects and returns D-PLAN data for display.
+Collects and returns plan data for display. Supports multiple plan types.
 """
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -42,47 +43,64 @@ from .status import extract_status, extract_tag, extract_description
 
 DEV_PLANNING_ROOT = Path.home() / "aipass_os" / "dev_central" / "dev_planning"
 
+# Regex matches any plan type: DPLAN-001_topic_2026-02-19.md, BPLAN-001_topic_2026-02-19.md
+PLAN_FILENAME_PATTERN = re.compile(r"([A-Z]+PLAN)-(\d+)_(.+)_(\d{4}-\d{2}-\d{2})\.md")
+
 
 # =============================================================================
 # HANDLER FUNCTIONS
 # =============================================================================
 
-def list_plans() -> Tuple[List[Dict[str, Any]], str]:
+def list_plans(filter_type: str | None = None) -> Tuple[List[Dict[str, Any]], str]:
     """
-    List all D-PLANs with their metadata
+    List all plans with their metadata.
+
+    Args:
+        filter_type: Optional plan type filter (e.g. "dplan", "bplan").
+                     None returns all types.
 
     Returns:
         Tuple of (plans_list, error_message)
-        Each plan has: number, topic, date, status, file
+        Each plan has: number, topic, date, status, tag, description, plan_type, prefix, file
     """
     plans = []
 
     if not DEV_PLANNING_ROOT.exists():
         return [], ""
 
-    for plan_file in DEV_PLANNING_ROOT.glob("DPLAN-*.md"):
-        match = re.match(r"DPLAN-(\d+)_(.+)_(\d{4}-\d{2}-\d{2})\.md", plan_file.name)
-        if match:
-            num = int(match.group(1))
-            topic = match.group(2).replace('_', ' ')
-            date = match.group(3)
+    for plan_file in DEV_PLANNING_ROOT.glob("*PLAN-*.md"):
+        match = PLAN_FILENAME_PATTERN.match(plan_file.name)
+        if not match:
+            continue
 
-            # Extract metadata from file content
-            status = extract_status(plan_file)
-            tag = extract_tag(plan_file)
-            description = extract_description(plan_file)
+        prefix = match.group(1)
+        num = int(match.group(2))
+        topic = match.group(3).replace('_', ' ')
+        date = match.group(4)
+        plan_type = prefix.lower()
 
-            plans.append({
-                "number": num,
-                "topic": topic,
-                "date": date,
-                "status": status,
-                "tag": tag,
-                "description": description,
-                "file": plan_file.name
-            })
+        # Apply type filter if specified
+        if filter_type and plan_type != filter_type.lower():
+            continue
 
-    # Sort by number
-    plans.sort(key=lambda x: x["number"])
+        # Extract metadata from file content
+        status = extract_status(plan_file)
+        tag = extract_tag(plan_file)
+        description = extract_description(plan_file)
+
+        plans.append({
+            "number": num,
+            "topic": topic,
+            "date": date,
+            "status": status,
+            "tag": tag,
+            "description": description,
+            "plan_type": plan_type,
+            "prefix": prefix,
+            "file": plan_file.name
+        })
+
+    # Sort by type then number
+    plans.sort(key=lambda x: (x["plan_type"], x["number"]))
 
     return plans, ""

@@ -680,3 +680,45 @@ def store_llm_fragments_batch(
             'success': False,
             'error': f"Batch LLM fragment storage failed: {e}"
         }
+
+
+def delete_fragment(
+    fragment_id: str,
+    db_path: Path | None = None
+) -> Dict[str, Any]:
+    """
+    Delete a fragment from ChromaDB by ID.
+
+    Used by the AUDN deduplication pipeline when the LLM determines
+    an existing fragment is obsolete and should be removed.
+
+    Args:
+        fragment_id: The ChromaDB document ID to delete
+        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+
+    Returns:
+        Dict with 'success', 'deleted_id', 'total_fragments'
+    """
+    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+
+    try:
+        client = get_chroma_client(db_path)
+        collection = client.get_or_create_collection(
+            name=COLLECTION_NAME,
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=None
+        )
+
+        collection.delete(ids=[fragment_id])
+
+        return {
+            'success': True,
+            'deleted_id': fragment_id,
+            'total_fragments': collection.count()
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f"Fragment deletion failed: {e}"
+        }

@@ -28,7 +28,9 @@ symbolic dimensions (technical flow, emotional arc, collaboration patterns, etc.
 Part of the Fragmented Memory implementation.
 """
 
+import json
 import sys
+import time
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -383,12 +385,20 @@ def extract_and_store_llm(
                     )
 
             elif action == 'DELETE':
-                # Note deletion but don't actually delete in this phase
+                delete_id = dedup_result.get('delete_id', '')
+                if delete_id:
+                    del_result = storage.delete_fragment(delete_id, db_path)
+                    if del_result.get('success'):
+                        logger.info(
+                            f"[symbolic] DELETED {delete_id}: "
+                            f"{dedup_result.get('reason', 'no reason')}"
+                        )
+                    else:
+                        logger.warning(
+                            f"[symbolic] DELETE failed for {delete_id}: "
+                            f"{del_result.get('error', 'unknown')}"
+                        )
                 skipped += 1
-                logger.info(
-                    f"[symbolic] DELETE noted for {dedup_result.get('delete_id', '?')}: "
-                    f"{dedup_result.get('reason', 'no reason')}"
-                )
 
             else:  # NOOP
                 skipped += 1
@@ -665,6 +675,14 @@ def handle_command(command: str, args: List[str]) -> bool:
         extract_file(args[0], source_branch=args[1] if len(args) > 1 else None)
         return True
 
+    if command == 'bootstrap':
+        max_sessions = 8
+        for arg in args:
+            if arg.startswith('--max='):
+                max_sessions = int(arg.split('=')[1])
+        bootstrap_from_jsonl(max_sessions=max_sessions)
+        return True
+
     if command == 'fragments':
         search_fragments_cli(args)
         return True
@@ -688,6 +706,7 @@ def print_help() -> None:
     console.print("  [cyan]demo[/cyan]               Run demonstration analysis (v1 + v2 mock)")
     console.print("  [cyan]analyze <file>[/cyan]     Analyze a conversation JSON file (v1 pipeline)")
     console.print("  [cyan]extract <file>[/cyan]     Extract fragments via LLM and store (v2 pipeline)")
+    console.print("  [cyan]bootstrap[/cyan]           Populate fragments from session JONLs (--max=N)")
     console.print("  [cyan]fragments <query>[/cyan]  Search symbolic fragments (v1 + v2)")
     console.print("  [cyan]hook-test <text>[/cyan]   Test hook with sample conversation text")
     console.print("  [cyan]help[/cyan]               Show this help message")
@@ -1235,6 +1254,276 @@ def extract_file(file_path: str, source_branch: str | None = None) -> None:
 
     console.print()
     logger.info(f"[symbolic] extract_file complete: {result}")
+
+
+# =============================================================================
+# BOOTSTRAP - Populate fragments from session JONLs
+# =============================================================================
+
+
+def _parse_jsonl_to_chat_history(jsonl_path: Path) -> List[Dict[str, Any]]:
+    """
+    Convert a Claude Code JSONL transcript to chat_history format.
+
+    Reads the JSONL file, extracts user and assistant text messages,
+    and returns them in the [{role, content}] format expected by
+    extract_and_store_llm().
+
+    Args:
+        jsonl_path: Path to a .jsonl transcript file
+
+    Returns:
+        List of {role, content} message dicts
+    """
+    messages = []
+    try:
+        with open(jsonl_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                msg_type = entry.get('type', '')
+                msg_data = entry.get('message', {})
+                role = msg_data.get('role', '')
+                content = msg_data.get('content', '')
+
+                if msg_type == 'user' and role == 'user':
+                    if isinstance(content, str) and content.strip():
+                        messages.append({'role': 'user', 'content': content.strip()})
+                    elif isinstance(content, list):
+                        texts = [
+                            item.get('text', '').strip()
+                            for item in content
+                            if isinstance(item, dict)
+                            and item.get('type') == 'text'
+                            and item.get('text', '').strip()
+                        ]
+                        if texts:
+                            messages.append({'role': 'user', 'content': ' '.join(texts)})
+
+                elif msg_type == 'assistant' and role == 'assistant':
+                    if isinstance(content, str) and content.strip():
+                        messages.append({'role': 'assistant', 'content': content.strip()})
+                    elif isinstance(content, list):
+                        texts = [
+                            item.get('text', '').strip()
+                            for item in content
+                            if isinstance(item, dict)
+                            and item.get('type') == 'text'
+                            and item.get('text', '').strip()
+                        ]
+                        if texts:
+                            messages.append({'role': 'assistant', 'content': ' '.join(texts)})
+
+    except OSError as e:
+        logger.error(f"[symbolic] Failed to read JSONL: {e}")
+
+    return messages
+
+
+def _find_bootstrap_sessions(max_sessions: int = 8) -> List[Path]:
+    """
+    Find diverse, medium-sized JSONL session files for bootstrapping.
+
+    Selects sessions from different branches, preferring files between
+    100KB and 3MB (rich enough for fragments, not too large to process).
+
+    Args:
+        max_sessions: Maximum number of sessions to return
+
+    Returns:
+        List of JSONL file paths
+    """
+    projects_dir = Path.home() / ".claude" / "projects"
+    if not projects_dir.exists():
+        return []
+
+    # Priority branch directories (diverse content sources)
+    priority_dirs = [
+        '-home-aipass-MEMORY-BANK',
+        '-home-aipass-aipass-os-dev-central',
+        '-home-aipass-seed',
+        '-home-aipass-aipass-core-drone',
+        '-home-aipass-aipass-core-flow',
+        '-home-aipass-The-Commons',
+        '-home-aipass-aipass-core-prax',
+        '-home-aipass-aipass-core-cortex',
+        '-home-aipass-aipass-core-ai-mail',
+        '-home-aipass-aipass-core-api',
+    ]
+
+    selected = []
+    seen_dirs = set()
+
+    # First pass: one per priority branch (medium-sized files)
+    for dirname in priority_dirs:
+        if len(selected) >= max_sessions:
+            break
+        branch_dir = projects_dir / dirname
+        if not branch_dir.exists():
+            continue
+
+        candidates = []
+        for f in branch_dir.glob("*.jsonl"):
+            if f.name.startswith("agent-"):
+                continue
+            size = f.stat().st_size
+            # 100KB-3MB range: rich enough, not too large
+            if 100_000 <= size <= 3_000_000:
+                candidates.append((f, size))
+
+        if candidates:
+            # Pick the largest in range (most content)
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            selected.append(candidates[0][0])
+            seen_dirs.add(dirname)
+
+    # Second pass: fill remaining slots from any branch
+    if len(selected) < max_sessions:
+        for project_dir in projects_dir.iterdir():
+            if len(selected) >= max_sessions:
+                break
+            if not project_dir.is_dir() or project_dir.name in seen_dirs:
+                continue
+            candidates = []
+            for f in project_dir.glob("*.jsonl"):
+                if f.name.startswith("agent-"):
+                    continue
+                size = f.stat().st_size
+                if 100_000 <= size <= 3_000_000:
+                    candidates.append((f, size))
+            if candidates:
+                candidates.sort(key=lambda x: x[1], reverse=True)
+                selected.append(candidates[0][0])
+
+    return selected
+
+
+def bootstrap_from_jsonl(max_sessions: int = 8) -> None:
+    """
+    Bootstrap the fragment collection from existing session JONLs.
+
+    Finds diverse session transcripts in ~/.claude/projects/, converts
+    them to chat_history format, and runs them through the full v2
+    LLM extraction + AUDN dedup + storage pipeline.
+
+    Args:
+        max_sessions: Maximum number of sessions to process
+    """
+    console.print()
+    header("Fragment Bootstrap from Session JONLs")
+    console.print()
+
+    # Find sessions
+    console.print("[dim]Scanning for session files...[/dim]")
+    sessions = _find_bootstrap_sessions(max_sessions)
+
+    if not sessions:
+        console.print("[red]No suitable session files found in ~/.claude/projects/[/red]")
+        return
+
+    console.print(f"[cyan]Found {len(sessions)} sessions to process[/cyan]")
+    console.print()
+
+    total_added = 0
+    total_updated = 0
+    total_skipped = 0
+    total_errors = 0
+    processed_count = 0
+
+    for i, jsonl_path in enumerate(sessions, 1):
+        # Derive branch name from parent directory
+        branch_dir = jsonl_path.parent.name
+        branch_name = branch_dir.replace('-home-aipass-', '').replace('-', '_').upper()
+        if branch_name.startswith('AIPASS_CORE_'):
+            branch_name = branch_name.replace('AIPASS_CORE_', '')
+        if branch_name.startswith('AIPASS_OS_'):
+            branch_name = branch_name.replace('AIPASS_OS_', '')
+
+        file_size_kb = jsonl_path.stat().st_size / 1024
+        console.print(
+            f"[cyan][{i}/{len(sessions)}][/cyan] "
+            f"{branch_name} ({file_size_kb:.0f}KB) - "
+            f"[dim]{jsonl_path.name[:12]}...[/dim]"
+        )
+
+        # Convert JSONL to chat_history
+        chat_history = _parse_jsonl_to_chat_history(jsonl_path)
+        if len(chat_history) < 4:
+            console.print("  [dim]Too few messages, skipping[/dim]")
+            continue
+
+        console.print(f"  {len(chat_history)} messages, extracting...")
+        logger.info(
+            f"[symbolic] bootstrap [{i}/{len(sessions)}]: "
+            f"{branch_name} ({len(chat_history)} msgs)"
+        )
+
+        # Run the extraction pipeline
+        result = extract_and_store_llm(
+            chat_history,
+            source_branch=branch_name
+        )
+
+        if result.get('success'):
+            a = result.get('added', 0)
+            u = result.get('updated', 0)
+            s = result.get('skipped', 0)
+            e = len(result.get('errors', []))
+            total_added += a
+            total_updated += u
+            total_skipped += s
+            total_errors += e
+            processed_count += 1
+            console.print(
+                f"  [green]+{a} added[/green]"
+                f"{f', {u} updated' if u else ''}"
+                f"{f', {s} skipped' if s else ''}"
+                f"{f', [red]{e} errors[/red]' if e else ''}"
+            )
+        else:
+            total_errors += 1
+            err_msg = result.get('errors', ['Unknown'])
+            console.print(f"  [red]Failed: {err_msg}[/red]")
+
+        # Brief pause between API calls to avoid rate limiting
+        if i < len(sessions):
+            time.sleep(2)
+
+    # Summary
+    console.print()
+    header("Bootstrap Summary")
+    console.print()
+    console.print(f"  [cyan]Sessions processed:[/cyan] {processed_count}/{len(sessions)}")
+    console.print(f"  [green]Fragments added:[/green]   {total_added}")
+    console.print(f"  [yellow]Fragments updated:[/yellow] {total_updated}")
+    console.print(f"  [dim]Skipped (dedup):[/dim]   {total_skipped}")
+    if total_errors:
+        console.print(f"  [red]Errors:[/red]             {total_errors}")
+    console.print()
+
+    # Verify collection count
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(
+            path=str(Path(__file__).resolve().parent.parent.parent / '.chroma')
+        )
+        col = client.get_collection('symbolic_fragments')
+        console.print(f"  [bold green]Collection total: {col.count()} fragments[/bold green]")
+    except Exception:
+        pass
+
+    console.print()
+    logger.info(
+        f"[symbolic] bootstrap complete: {processed_count} sessions, "
+        f"{total_added} added, {total_updated} updated, "
+        f"{total_skipped} skipped, {total_errors} errors"
+    )
 
 
 # =============================================================================

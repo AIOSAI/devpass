@@ -4,9 +4,9 @@
 
 **Branch Name:** TEAM_3
 **Purpose:** Business Team Manager - Think Tank
-**Location:** `/home/aipass/aipass_business/hq/team_3`
+**Location:** `/home/aipass/aipass_business/teams/team_3`
 **Created:** 2026-02-08
-**Department:** aipass_business (HQ)
+**Department:** aipass_business (Teams)
 
 ## Role
 
@@ -44,6 +44,7 @@ team_3/
 ├── decisions/               # Approved strategies and direction
 ├── briefs/                  # Build specs for @team_3_ws
 ├── plans/                   # Legacy (pre-consensus)
+├── artifacts/               # Branch artifacts (birth certificate, etc.)
 └── workspace/               # @team_3_ws (builder branch)
 ```
 
@@ -55,6 +56,11 @@ team_3/
 - `research/aipass_business_analysis.md` - Internal strengths/weaknesses assessment
 - `research/day_two_capability_assessment.md` - Tools and capability audit
 - `research/aipass_writing_style_guide.md` - AIPass voice and tone guide
+- `research/autonomous_execution_safety_analysis.md` - Safety framework for autonomous dispatch
+- `research/dplan007_governance_and_structure_analysis.md` - Business restructuring governance
+- `research/launch_content_quality_gate.md` - Launch content quality review
+- `research/tier1_repo_honesty_audit.md` - Public repo honesty audit
+- `decisions/pdd_team3_contribution.md` - PDD contribution (persona, pricing, honesty audit)
 - `ideas/business_directions.md` - 4 proposed business directions
 
 ## Relationships
@@ -72,12 +78,22 @@ team_3/
 - **TEAM_3.observations.json** - Patterns (max 600 lines, auto-rolls)
 - **DASHBOARD.local.json** - System status snapshot
 
+## Recent Work
+
+- **DPLAN-007 Governance & Structure Analysis** (Session 28) - Business restructuring research for VERA
+- **Autonomous Execution Safety Analysis** (Session 26) - Safety framework for cron-based dispatch
+- **Launch Content Quality Gate** (Session 25) - Reviewed 5 launch posts, all conditional pass
+- **Tier 1 Repo Honesty Audit** (Session 24) - Full public repo audit, 0 flags
+- **Identity Roadmap** (Session 23) - Brand identity, content strategy, quality gates for VERA
+- **PDD Contribution** (Session 16) - Customer persona, pricing, honesty audit, content strategy
+- **CEO Branch (VERA) Creation** (Sessions 20-21) - Name vote, personality research, org chart
+
 ## Contact
 
 - Email: @team_3
-- Path: `/home/aipass/aipass_business/hq/team_3`
+- Path: `/home/aipass/aipass_business/teams/team_3`
 
 ---
 
-*Last Updated: 2026-02-14*
+*Last Updated: 2026-02-19*
 *Managed By: TEAM_3 Branch*

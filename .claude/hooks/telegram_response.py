@@ -4,10 +4,11 @@
 # META DATA HEADER
 # Name: telegram_response.py - Stop Hook for Telegram Response Delivery
 # Date: 2026-02-12
-# Version: 2.0.0
+# Version: 2.1.0
 # Category: hooks
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.1.0 (2026-02-19): DPLAN-021 - Primary source: last_assistant_message from stdin (CC v2.0.12+), JSONL fallback only
 #   - v2.0.0 (2026-02-17): FPLAN-0351 - 3-layer defense: SubagentStop filter, isSidechain filter, transcript position tracking
 #   - v1.0.5 (2026-02-15): Feature - Prepend @branch identifier to every Telegram response
 #   - v1.0.4 (2026-02-15): Fix - Retry extraction with delays (JSONL flush race), retry sends with backoff
@@ -205,7 +206,7 @@ def extract_assistant_response(transcript_path: str, start_line: int = 0) -> str
             continue
 
     if not text_parts:
-        logger.warning("No assistant text found after last user message (start_line=%d)", start_line)
+        logger.debug("No assistant text found after last user message (start_line=%d)", start_line)
         return None
 
     result = "\n\n".join(text_parts).strip()
@@ -357,10 +358,11 @@ def main() -> None:
     """
     Main hook entry point. Reads Stop hook payload from stdin.
 
-    Expected stdin JSON:
+    Expected stdin JSON (Claude Code v2.0.12+):
     {
         "session_id": "...",
         "transcript_path": "...",
+        "last_assistant_message": "...",  // PRIMARY source - no file I/O race
         ...
     }
     """
@@ -411,37 +413,36 @@ def main() -> None:
         pending_file.unlink(missing_ok=True)
         return
 
-    # Extract assistant response from transcript
-    if not transcript_path:
-        # No transcript path - may be a subagent or incomplete payload.
-        # Keep pending file for retry by the parent session's Stop event.
-        logger.warning("No transcript_path in payload - keeping pending file for retry")
-        return
+    # PRIMARY: Read last_assistant_message from Stop hook stdin (Claude Code v2.0.12+)
+    # Eliminates JSONL flush race — response delivered in-process, no file I/O
+    response_text = (payload.get("last_assistant_message") or "").strip()
 
-    # LAYER 3: Get transcript position from pending file (written by bridge)
-    start_line = pending_data.get("transcript_line_after", 0)
+    if response_text:
+        logger.info("Using last_assistant_message from stdin (%d chars)", len(response_text))
+    else:
+        # FALLBACK: Parse JSONL transcript (older Claude Code versions)
+        if not transcript_path:
+            logger.warning("No last_assistant_message and no transcript_path - keeping pending file")
+            return
 
-    # Extract with retry - the JSONL transcript may not be fully flushed to disk
-    # when the Stop event fires. Claude writes entries sequentially (\n\n preamble
-    # first, then thinking, then real text) and the OS write buffer may not have
-    # committed the final text block yet. Retry with increasing delays.
-    response_text = None
-    for attempt in range(4):  # 0, 1, 2, 3
-        response_text = extract_assistant_response(transcript_path, start_line=start_line)
-        if response_text:
-            if attempt > 0:
-                logger.info("Transcript text found on attempt %d", attempt + 1)
-            break
-        if attempt < 3:
-            delay = [0.2, 0.5, 1.0][attempt]  # 200ms, 500ms, 1s
-            logger.info("No text yet, waiting %.1fs before retry (attempt %d/4)", delay, attempt + 1)
-            time.sleep(delay)
+        # LAYER 3: Get transcript position from pending file (written by bridge)
+        start_line = pending_data.get("transcript_line_after", 0)
 
-    if not response_text:
-        # After 4 attempts (~1.7s total wait), still no text. This is likely a
-        # subagent Stop event or context compaction. Keep pending file for retry.
-        logger.warning("No assistant text after 4 attempts - keeping pending file for retry")
-        return
+        # Retry only needed for JSONL path (file may not be flushed yet)
+        for attempt in range(3):  # 0, 1, 2
+            response_text = extract_assistant_response(transcript_path, start_line=start_line)
+            if response_text:
+                if attempt > 0:
+                    logger.info("JSONL fallback: text found on attempt %d", attempt + 1)
+                break
+            if attempt < 2:
+                delay = [0.2, 0.5][attempt]  # 200ms, 500ms
+                logger.info("JSONL fallback: no text, waiting %.1fs (attempt %d/3)", delay, attempt + 1)
+                time.sleep(delay)
+
+        if not response_text:
+            logger.warning("No text from stdin or JSONL fallback - keeping pending file")
+            return
 
     # Prepend @branch identifier so user knows which branch responded
     try:
