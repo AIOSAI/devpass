@@ -248,6 +248,8 @@ Memory Bank owns the canonical templates for `.local.json` and `.observations.js
 
 **Auto-propagation:** `trigger.fire('memory_template_updated')` triggers system-wide push via Trigger event bus.
 
+**Over-limit alert threshold (v2.0.2):** Branches alert @memory_bank only when exceeding `max_lines` by more than 20% — meaning the auto-rollover has definitely failed. Small overages (under 20%) are expected and handled automatically on next startup. The threshold is relative to each branch's own `max_lines`, so branches with custom limits (e.g. DEV_CENTRAL at 800) scale correctly.
+
 ## Technical Details
 - **Embedding**: all-MiniLM-L6-v2 (384 dimensions)
 - **Vector DB**: ChromaDB with persistent storage
@@ -256,6 +258,6 @@ Memory Bank owns the canonical templates for `.local.json` and `.observations.js
 
 ---
 
-**Branch**: MEMORY_BANK | **Created**: 2025-11-08 | **Last Updated**: 2026-02-15
+**Branch**: MEMORY_BANK | **Created**: 2025-11-08 | **Last Updated**: 2026-02-20
 
 *The memory never forgets - it just transforms.*

@@ -64,12 +64,10 @@ try:
     GOOGLE_API_AVAILABLE = True
 except ImportError as e:
     GOOGLE_API_AVAILABLE = False
-    import sys
-    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    python_path = sys.executable
-    error_msg = f"Google API packages not found in Python {python_version} ({python_path})"
-    logger.error(f"{error_msg} - Missing module: {e.name if hasattr(e, 'name') else str(e)}")
-    logger.error(f"Install with: {python_path} -m pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
+    _ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    _exe = sys.executable
+    logger.error(f"Google API packages not found in Python {_ver} ({_exe}) - Missing module: {e.name if hasattr(e, 'name') else str(e)}")
+    logger.error(f"Install with: {_exe} -m pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
 
 # =============================================
 # CONSTANTS & CONFIG
@@ -1137,8 +1135,8 @@ def handle_command(args) -> bool:
         if raw_path:
             backup_path = Path(raw_path)
         else:
-            # Default to versioned backup directory
-            backup_path = BACKUP_SYSTEM_ROOT / "backups" / "versioned_backup"
+            # Default to snapshot backup directory
+            backup_path = BACKUP_SYSTEM_ROOT / "backups" / "system_snapshot"
         if not backup_path.exists():
             print(f"Error: Backup directory not found: {backup_path}")
             return False

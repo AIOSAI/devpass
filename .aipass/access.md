@@ -111,10 +111,67 @@ requests.post("https://dev.to/api/articles", json=data, headers=headers)
 ---
 
 ### Bluesky (AT Protocol)
-- **Status:** Configured
+- **Status:** Working
 - **Token location:** `/home/aipass/.aipass/credentials/platform_keys.env`
 - **Keys:** BLUESKY_HANDLE (aipass.bsky.social), BLUESKY_APP_PASSWORD
 - **Auth:** App password (not OAuth)
+- **Library:** `atproto` (installed)
+- **Handler:** `/home/aipass/aipass_business/vera/apps/handlers/post_bluesky.py`
+- **Account:** @aipass.bsky.social (display name: "AIPass", bio set)
+- **Verify:** Login and get_profile succeed
+
+**How to post:**
+```python
+# Handler wraps this — use the handler
+from vera.apps.handlers.post_bluesky import post
+url = post("Your post text here")
+print(url)  # Returns web URL
+```
+
+**Direct atproto post:**
+```python
+from atproto import Client
+client = Client()
+client.login(BLUESKY_HANDLE, BLUESKY_APP_PASSWORD)
+response = client.send_post(text="Post text")
+```
+
+**How to update profile:**
+```python
+client.com.atproto.repo.put_record({
+    'repo': client.me.did,
+    'collection': 'app.bsky.actor.profile',
+    'rkey': 'self',
+    'record': {'$type': 'app.bsky.actor.profile', 'displayName': 'Name', 'description': 'Bio'}
+})
+```
+
+---
+
+### Reddit
+- **Status:** No API credentials — manual post only
+- **Credentials needed:** REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD (add to platform_keys.env)
+- **Library:** PRAW (Python Reddit API Wrapper) — install with `pip install praw`
+- **Accounts:** r/LangChain, r/LocalLLaMA, r/artificial for Week 1 launch
+
+**Option 1 — Manual post (current method):**
+1. Patrick navigates to subreddit on reddit.com
+2. Clicks "Create Post"
+3. Selects "Text" or uses our copy-paste ready submission file
+4. Content always prepared at: `vera/departments/growth/output/day{N}_reddit_*.md`
+
+**Option 2 — Chrome MCP (browser automation):**
+- Chrome is logged into reddit.com (check first with navigate tool)
+- Use mcp__claude-in-chrome__* tools to navigate to subreddit, click "Create Post", fill title/body
+- More reliable than API for new accounts (avoids PRAW rate limits)
+
+**Option 3 — PRAW API (when credentials exist):**
+```python
+import praw
+reddit = praw.Reddit(client_id=ID, client_secret=SECRET, username=USER, password=PASS, user_agent='AIPass/1.0')
+sub = reddit.subreddit('LangChain')
+post = sub.submit(title='Title', selftext='Body text')
+```
 
 ---
 

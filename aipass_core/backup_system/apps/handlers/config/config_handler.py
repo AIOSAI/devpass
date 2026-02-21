@@ -38,7 +38,7 @@ Pure configuration with helper functions for pattern access and filtering.
 # =============================================
 
 from pathlib import Path
-from typing import Dict, Any, Set, List, Optional
+from typing import Dict, Set, List, Optional
 
 # =============================================
 # CONFIGURATION CONSTANTS
@@ -177,6 +177,12 @@ GLOBAL_IGNORE_PATTERNS = [
     "Pictures",
     "Dropbox",
     "system_logs",
+    "external_repos",       # External git repos - version controlled elsewhere
+    "mcp_servers/context7",      # External MCP server repo
+    "mcp_servers/playwright-mcp", # External MCP server repo
+    "mcp_servers/serena",        # External MCP server repo
+    "mcp_servers/servers",       # External MCP server repo
+    "mcp_servers/dropbox",       # External MCP server repo
 
     # Archive and compressed files
     "*.zip",
@@ -194,6 +200,18 @@ GLOBAL_IGNORE_PATTERNS = [
     "*.vdi",  # VirtualBox disk image
     "*.qcow2",  # QEMU disk image
 
+    # Image/media files (screenshots, icons, etc.)
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.svg",
+    "*.webp",
+    "*.ico",
+    "*.bmp",
+    "*.tiff",
+    "*.tif",
+
     # Log files
     "*.log",
     "logs",
@@ -207,7 +225,6 @@ GLOBAL_IGNORE_PATTERNS = [
 
     # Miscellaneous
     "*.db",
-    "*.bash",
     "*.bashrc",
     "*.bash_history",
     "*.bash_logout",
@@ -288,6 +305,7 @@ IGNORE_EXCEPTIONS = [
     ".mcp.json",  # MCP config
     ".config/nerd-dictation/*",  # Nerd dictation config
     ".commands.json",  # Commands config
+    "BRANCH_REGISTRY.json",  # Core ecosystem registry - vital file
 
     # === TEMPLATES: FULL EXCEPTION - EVERY FILE ===
     "templates/**",  # FULL EXCEPTION: Include EVERY file in templates directory

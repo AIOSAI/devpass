@@ -17,7 +17,7 @@ Run with: `python3 apps/backup_system.py [command] [options]`
 
 ### Google Drive Sync Commands
 - `drive-test` - Test Google Drive connectivity and authentication
-- `drive-sync` - Sync versioned backups to Google Drive (defaults to `backups/versioned_backup/`)
+- `drive-sync` - Sync snapshot backups to Google Drive (defaults to `backups/system_snapshot/`)
 - `drive-stats` - Show Drive file tracker statistics
 - `drive-clear-tracker` - Clear file tracker cache (forces full re-upload)
 
@@ -71,6 +71,19 @@ apps/
     └── utils/system_utils.py     # System utilities (safe_print, temporarily_writable)
 ```
 
+## Ignore Patterns
+
+Configured in `apps/handlers/config/config_handler.py` (`GLOBAL_IGNORE_PATTERNS`). Key exclusions:
+- Python/Node artifacts (`__pycache__`, `.venv`, `node_modules`)
+- External repos (`external_repos`, named MCP server repos)
+- Media files (`*.png`, `*.jpg`, `*.gif`, etc.)
+- OS/IDE junk, archives, disk images, log files
+- Recursive backup prevention (`backups`, `system_snapshot`, `versioned_backup`)
+
+Exceptions (backed up despite pattern matches) in `IGNORE_EXCEPTIONS` — includes `BRANCH_REGISTRY.json`, `*_config.json`, templates, `.local.json` files.
+
+> **Note**: Drive sync (`drive-sync`) reads FROM the backup directory — ignore patterns take effect when the backup runs, not at sync time. Run a fresh snapshot to apply pattern changes.
+
 ## Key Capabilities
 
 - **Two Backup Modes**: Versioned (timestamped, keeps history) or snapshot (full copy)
@@ -99,5 +112,5 @@ apps/
 
 ---
 
-*Last Updated*: 2026-02-14
+*Last Updated*: 2026-02-20
 *Part of*: AIPass Core Infrastructure

@@ -6,7 +6,6 @@ Prints a URL for the user to visit, then accepts the auth code.
 """
 
 import sys
-import json
 from pathlib import Path
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
@@ -31,7 +30,7 @@ def reauth():
             if creds and creds.expired and creds.refresh_token:
                 print("Attempting token refresh...")
                 creds.refresh(Request())
-                with open(CREDS_PATH, 'w') as f:
+                with open(CREDS_PATH, 'w', encoding='utf-8') as f:
                     f.write(creds.to_json())
                 print("Token refreshed successfully!")
                 # Test connection
@@ -67,7 +66,7 @@ def reauth():
 
     # Save new credentials
     CREDS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CREDS_PATH, 'w') as f:
+    with open(CREDS_PATH, 'w', encoding='utf-8') as f:
         f.write(creds.to_json())
     print(f"\nCredentials saved to: {CREDS_PATH}")
 
@@ -86,6 +85,11 @@ def reauth():
     except Exception as e:
         print(f"Connection test failed: {e}")
         return False
+
+def handle_command(command, args):
+    """Standalone utility - not a command module. Returns False for all commands."""
+    return False
+
 
 if __name__ == "__main__":
     success = reauth()

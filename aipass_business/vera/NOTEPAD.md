@@ -27,11 +27,11 @@ When the backlog is date-gated or waiting on Patrick, DO NOT idle. Instead:
 
 ## CURRENT STATUS
 
-### What Just Happened (Session 84)
-- **Anti-idle:** Checked all platform metrics — GitHub (1 star, 0 forks, 1 discussion), dev.to (44+44 views, 2 external commenters on Article #1).
-- **Engagement analysis:** Deep-read Article #1 comments. Provision vs recall is our strongest hook. Two devs mapping AIPass to their own use cases (agent marketplace, financial data).
-- **Created:** decisions/engagement_signal_analysis.md — feeds Week 2-4 @growth dispatch with recommended content angles.
-- **All backlog items date-gated or Patrick-blocked.** Day 2 ready for tomorrow.
+### What Just Happened (Session 89)
+- **GitHub Discussion seeded:** Posted first comment on Discussion #6 (our own answer to "what breaks when agents lose context") — gives it life before Day 2 traffic arrives.
+- **Bluesky profile fixed:** Was blank (no display name, no bio). Set to "AIPass" + description. Now looks real.
+- **access.md updated:** Added working Bluesky procedure + Reddit section (3 options: manual, Chrome MCP, PRAW API). SOP complete for all Week 1 platforms.
+- **Reddit still needs credentials or manual post** for Day 2 tomorrow — flagged to DEV_CENTRAL last session.
 
 ### Current State — WEEK 1 EXECUTING
 - **DAY 1 DONE.** GitHub Discussions LIVE ✅
@@ -50,7 +50,7 @@ When the backlog is date-gated or waiting on Patrick, DO NOT idle. Instead:
 
 | # | Item | Status | Blocked On |
 |---|------|--------|-----------|
-| 1 | Day 2 execution — post to r/LangChain | READY | Tomorrow Feb 21, 9-11am EST |
+| 1 | Day 2 execution — post to r/LangChain | NEEDS REDDIT CREDS or MANUAL POST | Patrick (flagged to DEV_CENTRAL) |
 | 2 | Post Twitter thread | BLOCKED | 402 Payment Required — account needs API credits |
 | 3 | Plan Week 2-4 content calendar | READY | Dispatch @growth ~Feb 26 |
 | 5 | Create Discord server | WAITING | Patrick/DEV_CENTRAL (proposal sent) |
@@ -61,7 +61,7 @@ When the backlog is date-gated or waiting on Patrick, DO NOT idle. Instead:
 
 ## WHO I'M WAITING ON
 
-- **Patrick/DEV_CENTRAL** — Twitter 402 resolution, Discord server, PyPI publish
+- **Patrick/DEV_CENTRAL** — Reddit credentials (or manual Day 2 post tomorrow), Twitter 402 resolution, Discord server, PyPI publish
 
 ---
 
@@ -99,6 +99,9 @@ When the backlog is date-gated or waiting on Patrick, DO NOT idle. Instead:
 - **Access SOP:** /home/aipass/.aipass/access.md (all external service procedures)
 
 ## SESSION HISTORY (reverse chronological)
+- **Session 89** (2026-02-20): Seeded GitHub Discussion #6 (first comment — builder's answer to "what breaks"). Fixed Bluesky profile (blank → "AIPass" + bio). Updated access.md with Bluesky posting procedure + Reddit section (3 options). Productive session.
+- **Session 88** (2026-02-20): Found Reddit credential gap — no PRAW/Reddit API creds in system. Can't auto-post Day 2. Flagged to DEV_CENTRAL with manual vs credentials options. Reviewed Day 2 content (production-ready).
+- **Sessions 85-87** (2026-02-20): Clean heartbeats — inbox empty, backlog unchanged.
 - **Session 84** (2026-02-20): Anti-idle. Checked platform metrics (GitHub 1 star/0 forks/1 discussion, dev.to 44+44 views). Deep-read Article #1 comments — 2 external devs engaged (agent marketplace, SEC pipelines). Created engagement_signal_analysis.md for Week 2-4 planning. Anti-idle #11.
 - **Session 83** (2026-02-20): FULL PUBLISHING AUTHORITY confirmed by DEV_CENTRAL. Twitter 402 confirmed real (attempted post, zero credits). Collected all 3 team tooling research. Synthesized: keep it simple, manual posting, MCP risky. Sent synthesis to DEV_CENTRAL.
 - **Session 82** (2026-02-20): Reviewed Twitter thread (ready to post). Sent timing question to DEV_CENTRAL — 4 options proposed. Teams still processing tooling research.

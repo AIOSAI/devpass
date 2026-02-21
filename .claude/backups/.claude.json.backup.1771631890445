@@ -1,5 +1,5 @@
 {
-  "numStartups": 770,
+  "numStartups": 774,
   "installMethod": "native",
   "autoUpdates": false,
   "theme": "light-ansi",
@@ -13,7 +13,7 @@
   "tipsHistory": {
     "ide-hotkey": 70,
     "new-user-warmup": 9,
-    "plan-mode-for-complex-tasks": 769,
+    "plan-mode-for-complex-tasks": 774,
     "terminal-setup": 1,
     "memory-command": 760,
     "theme-command": 765,
@@ -24,15 +24,15 @@
     "status-line": 268,
     "prompt-queue": 27,
     "install-github-app": 770,
-    "drag-and-drop-images": 763,
+    "drag-and-drop-images": 773,
     "double-esc": 21,
     "continue": 770,
-    "shift-tab": 763,
+    "shift-tab": 773,
     "image-paste": 767,
     "custom-agents": 762,
-    "permissions": 762,
+    "permissions": 773,
     "custom-commands": 761,
-    "double-esc-code-restore": 763,
+    "double-esc-code-restore": 773,
     "ide-upsell-external-terminal": 242,
     "tab-toggle-thinking": 648,
     "ultrathink-keyword": 649,
@@ -43,12 +43,12 @@
     "rename-conversation": 760,
     "web-app": 760,
     "mobile-app": 760,
-    "guest-passes": 770,
+    "guest-passes": 773,
     "agent-flag": 767,
     "overage-promo": 755,
     "colorterm-truecolor": 765
   },
-  "promptQueueUseCount": 8355,
+  "promptQueueUseCount": 8371,
   "autoConnectIde": true,
   "cachedStatsigGates": {
     "tengu_disable_bypass_permissions_mode": false,
@@ -170,7 +170,8 @@
     "tengu_crystal_beam": {
       "budgetTokens": 0
     },
-    "tengu_tool_input_aliasing": false
+    "tengu_tool_input_aliasing": false,
+    "tengu_worktree_mode": true
   },
   "respectGitignore": false,
   "userID": "e4c3037c1b8bfdca96e0e772a22e545e91430bec042b1bb681b74ee4ccb1aaf4",
@@ -201,17 +202,17 @@
         "context7",
         "serena"
       ],
-      "lastCost": 0.99464975,
-      "lastAPIDuration": 103698,
-      "lastToolDuration": 34231,
-      "lastDuration": 135753920,
+      "lastCost": 0,
+      "lastAPIDuration": 0,
+      "lastToolDuration": 0,
+      "lastDuration": 20159,
       "lastLinesAdded": 0,
       "lastLinesRemoved": 0,
-      "lastTotalInputTokens": 12779,
-      "lastTotalOutputTokens": 3108,
-      "lastTotalCacheCreationInputTokens": 64647,
-      "lastTotalCacheReadInputTokens": 1088324,
-      "lastSessionId": "0561d254-725b-4ba5-8ab3-e555680db5bd",
+      "lastTotalInputTokens": 0,
+      "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
+      "lastSessionId": "3c767600-76a1-4370-b1a7-6a587b2da120",
       "reactVulnerabilityCache": {
         "detected": false,
         "package": null,
@@ -219,36 +220,17 @@
         "version": null,
         "packageManager": null
       },
-      "lastAPIDurationWithoutRetries": 103665,
-      "lastModelUsage": {
-        "claude-haiku-4-5-20251001": {
-          "inputTokens": 12744,
-          "outputTokens": 658,
-          "cacheReadInputTokens": 0,
-          "cacheCreationInputTokens": 6203,
-          "webSearchRequests": 0,
-          "costUSD": 0.02378775
-        },
-        "claude-opus-4-6": {
-          "inputTokens": 35,
-          "outputTokens": 2450,
-          "cacheReadInputTokens": 1088324,
-          "cacheCreationInputTokens": 58444,
-          "webSearchRequests": 0,
-          "costUSD": 0.9708619999999999
-        }
-      },
+      "lastAPIDurationWithoutRetries": 0,
+      "lastModelUsage": {},
       "lastSessionMetrics": {
-        "frame_duration_ms_count": 2796,
-        "frame_duration_ms_min": 0.07252800000014759,
-        "frame_duration_ms_max": 35.91610100865364,
-        "frame_duration_ms_avg": 1.7648731341464137,
-        "frame_duration_ms_p50": 1.581043000005593,
-        "frame_duration_ms_p95": 2.7726366538554403,
-        "frame_duration_ms_p99": 8.59348023999846
-      },
-      "lastFpsAverage": 0.02,
-      "lastFpsLow1Pct": 115.64
+        "frame_duration_ms_count": 99,
+        "frame_duration_ms_min": 0.10908299998845905,
+        "frame_duration_ms_max": 16.60770100000002,
+        "frame_duration_ms_avg": 4.440955848483578,
+        "frame_duration_ms_p50": 4.53048200000012,
+        "frame_duration_ms_p95": 6.993893999994906,
+        "frame_duration_ms_p99": 12.168096179996757
+      }
     },
     "/": {
       "allowedTools": [],
@@ -489,7 +471,7 @@
   "hasOpusPlanDefault": false,
   "subscriptionNoticeCount": 1,
   "hasAvailableSubscription": false,
-  "changelogLastFetched": 1771549122340,
+  "changelogLastFetched": 1771629426575,
   "s1mAccessCache": {
     "0ee847c7-8ac8-40b3-bd6f-15b0b8bea664": {
       "hasAccess": false,
@@ -503,7 +485,7 @@
     }
   },
   "isQualifiedForDataSharing": false,
-  "lastReleaseNotesSeen": "2.1.47",
+  "lastReleaseNotesSeen": "2.1.49",
   "feedbackSurveyState": {
     "lastShownTime": 1771554437539
   },
@@ -534,7 +516,7 @@
         "currency": "CAD"
       },
       "remaining_passes": 3,
-      "timestamp": 1771620902665
+      "timestamp": 1771631708656
     }
   },
   "githubRepoPaths": {
@@ -567,6 +549,9 @@
       "/home/aipass/seed"
     ],
     "aiosai/devpass": [
+      "/home/aipass/MEMORY_BANK",
+      "/home/aipass/aipass_core/backup_system",
+      "/home/aipass",
       "/home/aipass/Nexus",
       "/home/aipass/aipass_os/dev_central"
     ]
@@ -592,8 +577,8 @@
   "hasCompletedClaudeInChromeOnboarding": true,
   "skillUsage": {
     "updateall": {
-      "usageCount": 61,
-      "lastUsedAt": 1771476239410
+      "usageCount": 62,
+      "lastUsedAt": 1771631207102
     },
     "insights": {
       "usageCount": 1,
@@ -606,7 +591,7 @@
   },
   "clientDataCache": {
     "data": {},
-    "timestamp": 1771624398825
+    "timestamp": 1771631876200
   },
   "hasVisitedPasses": false,
   "passesLastSeenRemaining": 3,
